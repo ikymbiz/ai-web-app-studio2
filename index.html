@@ -157,19 +157,28 @@
         .install-banner button { background: #fff; color: var(--primary); border: none; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-family: var(--font-body); font-size: 12px; }
         .install-banner .install-close { background: transparent; color: #fff; padding: 4px 8px; font-size: 16px; opacity: 0.8; }
 
-        /* 要件選択モーダル（AI応答から抽出した選択肢用） */
-        #options-modal .modal { max-width: 560px; }
-        .options-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; padding-right: 4px; }
-        .option-btn { padding: 12px 14px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 10px; color: var(--color-text-primary); cursor: pointer; font-size: 13px; font-family: var(--font-body); text-align: left; transition: 0.15s; line-height: 1.5; }
+        /* 要件選択モーダル（AI応答から抽出した質問グループ・選択肢用） */
+        #options-modal .modal { max-width: 560px; width: min(94vw, 560px); max-height: calc(100dvh - 32px); }
+        #options-modal .modal-body { min-height: 0; }
+        .options-step-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .options-step-indicator { flex:0 0 auto; padding:3px 8px; border-radius:999px; background:rgba(59,130,246,0.16); color:#bfdbfe; font-size:11px; border:1px solid rgba(59,130,246,0.35); }
+        .options-list { display: flex; flex-direction: column; gap: 8px; max-height: min(52vh, 420px); overflow-y: auto; padding-right: 4px; -webkit-overflow-scrolling: touch; }
+        .option-btn { min-height:48px; padding: 12px 14px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 10px; color: var(--color-text-primary); cursor: pointer; font-size: 13px; font-family: var(--font-body); text-align: left; transition: 0.15s; line-height: 1.5; }
         .option-btn:hover { background: var(--color-border); border-color: var(--primary); }
+        .option-btn.is-selected { border-color: var(--primary); background: rgba(59,130,246,0.20); box-shadow: 0 0 0 1px rgba(59,130,246,0.35); }
         .option-btn.option-other { border-style: dashed; border-color: var(--accent); color: var(--accent); }
         .options-other-input { margin-top: 8px; display: none; flex-direction: column; gap: 8px; }
         .options-other-input.show { display: flex; }
-        .options-other-input textarea { background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; min-height: 60px; resize: vertical; font-family: var(--font-body); }
+        .options-other-input textarea { background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; min-height: 72px; resize: vertical; font-family: var(--font-body); }
         .options-other-input .submit-row { display: flex; gap: 8px; }
         .options-other-input .submit-row button { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: var(--font-body); font-size: 12px; }
         .options-other-input .submit-row .submit-btn { background: var(--accent); color: #fff; }
         .options-other-input .submit-row .cancel-btn { background: var(--color-bg-elevated); color: var(--color-text-secondary); }
+        .options-modal-actions { display:flex; gap:10px; position:sticky; bottom:-16px; padding-top:10px; padding-bottom:2px; background:linear-gradient(to top, var(--color-bg-surface) 0%, var(--color-bg-surface) 72%, rgba(17,24,39,0) 100%); }
+        .options-modal-actions button { min-height:44px; border:0; border-radius:999px; padding:0 16px; font-family:var(--font-body); font-weight:700; cursor:pointer; }
+        .options-modal-actions .back-btn { flex:0 0 auto; background:var(--color-bg-elevated); color:var(--color-text-secondary); }
+        .options-modal-actions .next-btn { flex:1; background:var(--primary); color:#fff; }
+        .options-modal-actions button:disabled { opacity:0.42; cursor:not-allowed; }
 
         /* 「選択肢として開く」リンク（AIメッセージ下） */
         .options-extract-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 6px 12px; background: rgba(139,92,246,0.15); border: 1px solid var(--accent); border-radius: 14px; color: var(--accent); font-size: 11px; cursor: pointer; font-family: var(--font-body); }
@@ -615,7 +624,7 @@
     </div>
 </div>
 
-<!-- 要件選択モーダル：AI応答から抽出した選択肢を表示。「その他」で自由入力可能 -->
+<!-- 要件選択モーダル：AI応答から抽出した質問グループを1問ずつ表示。「その他」で自由入力可能 -->
 <div id="options-modal" class="modal-overlay" onclick="if(event.target===this)closeOptionsModal()">
     <div class="modal">
         <div class="modal-header">
@@ -623,7 +632,10 @@
             <button class="modal-close" onclick="closeOptionsModal()">✕</button>
         </div>
         <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
-            <p id="options-modal-desc" style="font-size:12px; color:var(--color-text-secondary); margin:0;" data-label="optionsModalHint">AIが提示した選択肢です。タップで返信に使えます。「その他」で自由入力もできます。</p>
+            <div class="options-step-head">
+                <p id="options-modal-desc" style="font-size:12px; color:var(--color-text-secondary); margin:0; line-height:1.6;" data-label="optionsModalHint">AIが提示した質問を1つずつ表示します。選択すると次の質問へ進みます。「その他」で自由入力できます。</p>
+                <span id="options-step-indicator" class="options-step-indicator">1/1</span>
+            </div>
             <div id="options-list" class="options-list"></div>
             <div id="options-other-input" class="options-other-input">
                 <textarea id="options-other-text" placeholder=""></textarea>
@@ -631,6 +643,10 @@
                     <button class="cancel-btn" type="button" onclick="hideOtherInput()" data-label="cancelButton">キャンセル</button>
                     <button class="submit-btn" type="button" onclick="submitOtherOption()" data-label="submitOptionButton">送信</button>
                 </div>
+            </div>
+            <div class="options-modal-actions">
+                <button id="options-back-btn" class="back-btn" type="button" onclick="backOptionsStep()" data-label="optionsStepBack">戻る</button>
+                <button id="options-next-btn" class="next-btn" type="button" onclick="confirmOptionsStep()" data-label="optionsStepNext">次へ</button>
             </div>
         </div>
     </div>
@@ -849,16 +865,16 @@
         // ハードコードされたデフォルトのプロンプトとUIテキスト（prompts.jsonの初期値）
         PROMPTS_DATA = {
             defaults: {
-                'system-prompt': "# Role: Senior Full-Stack & Mobile App Engineer (Android/PWA Expert)\n\n## 🛠 Coding Principles (Mandatory)\n1. **Analyze First:** Deeply understand the current code, data structure, and logic before proposing changes.\n2. **Minimal Intervention:** Do NOT refactor or delete existing code unless explicitly requested. Preserve the user's UI and logic.\n3. **Plan-Act-Verify:** - [Plan] Provide a brief modification plan.\n   - [Act] Execute the code changes accurately.\n   - [Verify] Self-check: \"Is the goal met?\" & \"Are unintended areas unchanged?\"\n\n## 📱 Tech Stack & Mobile Optimization\n- **Core:** HTML5, Tailwind CSS (CDN), Vanilla JavaScript. Single-file (SFC) preferred.\n- **Android/PWA Ready:** - Implementation of manifest.json, Service Worker (offline-ready), and SVG-based Favicon.\n  - Safe-area support (env(safe-area-inset-*)), theme-color meta, and 48x48dp touch targets.\n  - History API for Android back-button handling.\n- **Design:** Modern UI, Dark Mode (auto/toggle), Ripple effects, and full responsiveness.\n\n## 🔋 Advanced Features & UX\n- **Data:** Secure **IndexedDB** for local persistence. JSON **Import/Export** with validation.\n- **AI Integration:** Support Gemini (Default: gemini-2.5-flash), Claude, GPT, xAI.\n- **Settings UI:** Implement screens for API Key management (No hardcoding!) and Dynamic System Prompt editing.\n- **Visibility:** Real-time status indicators (Spinners/\"Thinking...\"). Use **Page Visibility API** to maintain async tasks in background/multitasking.\n\n## ⚖️ Compliance & Security\n- **Google Play Policy:** Ensure \"Minimum Functionality\" (not a web mirror). Include a Privacy Policy UI section.\n- **Security:** Zero hardcoded keys. Sanitize inputs to prevent XSS.\n\n## 📝 Output Rules\n- **Response Language:** Japanese.\n- **Code Comments:** Japanese.\n- **Quality:** High-performance, clean, and ready-to-install code.",
+                'system-prompt': "# Role: Senior Full-Stack & Mobile App Engineer / Strict Change Executor\n\nあなたは AI Web Studio Pro の実装担当です。以下を最優先で守ってください。\n\n## 最重要ルール\n1. **勝手に削除しない**: 既存機能、UI、設定、保存形式、デプロイ処理、言語切替、APIキー管理、GitHub連携、タスク/検証/失敗ログを、明示指示なしに削除・省略・簡略化しない。\n2. **勝手に解釈しない**: ユーザーの指示と既存仕様に書かれていることだけを実装対象にする。曖昧な場合は、既存挙動を保持したまま最小変更で対応する。\n3. **修正したと言う前に検証する**: 変更箇所、未変更箇所、影響範囲、残課題を必ず確認する。確認できていないことを「修正済み」と言わない。\n4. **既存コード優先**: リファクタリング、全面置換、関数名変更、構造変更は、明示指示がある場合だけ行う。既存のID・CSSクラス・localStorage/IndexedDBキー・関数名を維持する。\n5. **差分思考**: 変更は必要最小限にする。追加・修正・削除の理由を明確にできないコードには触らない。\n\n## 作業手順\n- [Analyze] 現在のコード、データ構造、UI、イベント、保存処理を確認する。\n- [Plan] 変更対象と変更しない対象を短く列挙する。\n- [Act] 最小差分で実装する。\n- [Verify] 仕様リストとコードを照合し、漏れ・退行・削除がないか確認する。\n- [Report] 実施内容、検証結果、未確認事項を日本語で報告する。\n\n## 技術前提\n- HTML5 / Tailwind CSS CDN / Vanilla JavaScript を基本とする。\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲット、History API、manifest、Service Workerを維持する。\n- IndexedDB / localStorage の既存データ互換性を壊さない。\n- Gemini / OpenAI / Claude / xAI / Groq / Custom OpenAI互換 / server ルートに対応する。\n- APIキーとGitHub PATはハードコードしない。\n- XSS対策として表示文字列はサニタイズする。\n\n## 出力ルール\n- 返答は日本語。\n- コードコメントは日本語。\n- 生成コードは省略しない。\n- 実装できていない項目は正直に未実装と書く。",
                 'target-persona': "（未設定）開発するアプリのターゲットユーザー像をここに記載してください。例：30代女性、子育て中、スマホでサクッと予約したい。",
-                'code-principles': "日本語で答えること！\n\n1. Analyze First: Deeply understand current code/context before proposing changes.\n2. Minimal Intervention: Do NOT refactor or delete existing code unless requested. Preserve UI/logic.\n3. Plan-Act-Verify: Provide a brief plan -> Execute code -> Verify no unintended changes or omissions."
+                'code-principles': "日本語で答えること！\n\n1. Analyze First: 既存コード・状態・データ構造を確認してから変更する。\n2. Minimal Intervention: 明示指示なしに既存コード、機能、UI、保存形式を削除・省略・置換しない。\n3. No Assumption Rewrite: ユーザー指示を勝手に拡大解釈・縮小解釈しない。曖昧な場合は既存挙動を保持する。\n4. Preserve Feature Set: APIキー管理、GitHub PAT、デプロイ、言語切替、タスク、検証、失敗ログ、プロンプトJSON管理を維持する。\n5. Plan-Act-Verify: 変更計画 → 実装 → 仕様照合 → 退行確認の順に行う。\n6. Evidence Before Claim: 検証できていないことを「修正済み」と言わない。\n7. JSON Prompt Source: システムプロンプトと各プロンプトは prompts.json を正として扱い、fallback も同内容に同期する。\n8. Multi-file First: 複数ファイル構成を保持し、公開・保存・読み込みでファイルを落とさない。"
             },
             prompts: {
-                plan: "あなたはプロのWeb開発ディレクターです。ユーザーのアイディアを具体化し、実装（BUILD）に向けた設計図を作成します。\n{systemPrompt}\nターゲットペルソナ: {targetPersona}\nガイドライン:\n1. アプリ名、ターゲット、機能をヒアリング。\n2. 簡潔に箇条書きで返答。\n3. コードは書かず、仕様合意に徹する。\n4. 仕様が固まったら「素晴らしいプランです。⚡️コードを作成 ボタンから実装を開始しましょう」と促す。\n5. ユーザーの要望がまだ曖昧な場合や、次のステップを提案したい場合は、会話の最後に「次に進むための要件を提案しましょうか？✨ 要件をおまかせ ボタンから次のステップを提案できます。」と応答する。\n\n【現在の仕様リスト】\n{specList}\n\n【直近の会話】\n{recentChat}\n{codeContext}",
-                suggest: "現在の会話履歴とコードを元に、次に開発すべき最適な要件やアイデアを具体的に提案してください。もし要件が不足していれば、自律的に補完して完全なプランを提示してください。",
-                debug: "あなたはプロのWeb開発ディレクターです。次の修整依頼に対して、バグの報告かどうか判断してください。バグの場合は要因を確認してください。要因が判明したら改善策を検討してください。要因が判明しない場合は、要因切分けのためのログや反応を取得するためのコードを検討してください。最後に、前回のコード生成から現在までで修整する要件を整理してください。\n【修正依頼】\n{memoText}",
-                extract: "以下のユーザーとAIの直近のやり取りから、実装すべき要件・修正点・仕様変更を抽出してください。\n\n【ユーザーの発言】\n{userMessage}\n\n【AIの応答】\n{aiResponse}\n\n【既存の仕様リスト】\n{existingSpecs}\n\n【ルール】\n- 既存リストと重複する項目は除外すること\n- 新規の項目のみ出力すること\n- 出力はJSON配列のみ（例: [\"項目1\", \"項目2\"]）\n- 抽出すべき新規項目がなければ空配列 [] を返すこと\n- JSON以外のテキストは一切出力しないこと",
-                verify: "以下の仕様リストと生成されたコードを照合し、取り込まれていない（漏れている）要件を特定してください。\n\n【仕様リスト】\n{specList}\n\n【生成されたコード】\n{generatedCode}\n\n【ルール】\n- 各仕様がコード内に実装されているか1つずつ確認すること\n- 漏れている項目のみJSON配列で返すこと（例: [\"漏れ項目1\", \"漏れ項目2\"]）\n- 全て網羅されている場合は空配列 [] を返すこと\n- JSON以外のテキストは一切出力しないこと"
+                plan: "あなたはプロのWeb開発ディレクターです。ユーザーのアイディアを具体化し、実装（BUILD）に向けた設計図を作成します。\n{systemPrompt}\n\nターゲットペルソナは参考情報です。要件そのものとして固定しないでください: {targetPersona}\n\n## 応答ルール\n1. ユーザーの発言、現在の仕様リスト、直近の会話だけを根拠にする。\n2. 勝手に機能を削除・省略・置換しない。\n3. 不足情報がある場合は、質問を1テーマずつ分ける。複数の質問と選択肢を出す場合は、質問ごとに見出しと選択肢を分ける。\n4. 選択肢を提示する場合は、質問ごとに次の形を守る。\n   1. **質問名：** 質問文\n      * 選択肢A\n      * 選択肢B\n      * その他\n5. コードは書かず、仕様合意に徹する。\n6. 仕様が固まったら「素晴らしいプランです。⚡️コードを作成 ボタンから実装を開始しましょう」と促す。\n7. 次のステップ提案が必要な場合は「次に進むための要件を提案しましょうか？✨ 要件をおまかせ ボタンから次のステップを提案できます。」と応答する。\n\n【現在の仕様リスト】\n{specList}\n\n【直近の会話】\n{recentChat}\n{codeContext}",
+                suggest: "現在の会話履歴、現在の仕様リスト、既存コードを元に、次に開発すべき要件を提案してください。\n\n## 厳守\n- 既存機能を勝手に削除・省略・置換しない。\n- ペルソナはデザイン/UX判断の参考に留め、機能要件として固定しない。\n- 既存の仕様と重複する提案は避ける。\n- 提案は実装可能な粒度に分解する。\n- 複数の質問や選択肢が必要な場合は、質問ごとにグループ化して提示する。\n\n出力は日本語で、短い見出しと箇条書きで整理してください。",
+                debug: "あなたはプロのWeb開発ディレクター兼デバッグ担当です。次の修正依頼を、既存機能を壊さずに解決するための要件に整理してください。\n\n【修正依頼】\n{memoText}\n\n## 厳守\n- ユーザーが削除を明示していない機能を削除・省略しない。\n- 「修正した」と判断するには、原因、変更対象、検証方法が必要。\n- 原因が不明な場合は、切り分けログ・再現手順・確認ポイントを提案する。\n- 修正要件は既存仕様に追加する形で整理する。\n- 既に実装済みの仕様を再実装扱いにしない。\n\n## 出力\n1. バグ/要望の判定\n2. 推定原因\n3. 変更すべき要件\n4. 変更してはいけない既存機能\n5. 検証方法",
+                extract: "以下のユーザーとAIの直近のやり取りから、実装すべき要件・修正点・仕様変更を抽出してください。\n\n【ユーザーの発言】\n{userMessage}\n\n【AIの応答】\n{aiResponse}\n\n【既存の仕様リスト】\n{existingSpecs}\n\n【ルール】\n- ユーザーが明示した項目、またはAIが実装対象として合意した項目だけを抽出すること\n- 既存リストと重複する項目は除外すること\n- 既存機能の削除・省略・置換を示す項目は、ユーザーが明示した場合以外は抽出しないこと\n- 「修正済み」「対応済み」などの主張だけを要件として抽出しないこと\n- 新規の項目のみ出力すること\n- 出力はJSON配列のみ（例: [\"項目1\", \"項目2\"]）\n- 抽出すべき新規項目がなければ空配列 [] を返すこと\n- JSON以外のテキストは一切出力しないこと",
+                verify: "以下の仕様リストと生成されたコードを照合し、取り込まれていない（漏れている）要件、または既存機能から退行している要件を特定してください。\n\n【仕様リスト】\n{specList}\n\n【生成されたコード】\n{generatedCode}\n\n【ルール】\n- 各仕様がコード内に実装されているか1つずつ確認すること\n- 既存機能の削除・省略・ID変更・保存形式変更・UI導線消失も漏れとして扱うこと\n- 「似た機能がある」だけでは実装済みにしないこと。ユーザー指定と一致しているか確認すること\n- 漏れている項目のみJSON配列で返すこと（例: [\"漏れ項目1\", \"漏れ項目2\"]）\n- 全て網羅されている場合は空配列 [] を返すこと\n- JSON以外のテキストは一切出力しないこと"
             },
             ui: { ja: { // UIラベルセクション（日本語）
                 // 言語名
@@ -930,10 +946,11 @@
                 toastInstalled: "アプリとしてインストールしました",
                 // 要件選択モーダル
                 optionsModalTitle: "💡 選択してください",
-                optionsModalHint: "AIが提示した選択肢です。タップで返信に使えます。「その他」で自由入力もできます。",
+                optionsModalHint: "AIが提示した質問を1つずつ表示します。選択すると次の質問へ進みます。「その他」で自由入力できます。",
                 optionsExtractButton: "選択肢を開く",
                 optionOther: "その他（自由入力）",
                 optionOtherPlaceholder: "自由に入力してください...",
+                optionsStepBack: "戻る", optionsStepNext: "次へ", optionsStepApply: "回答を反映", optionsStepQuestionCount: "{current}/{total}",
                 cancelButton: "キャンセル",
                 submitOptionButton: "送信",
                 // 設定: セキュリティ
@@ -1223,10 +1240,14 @@
             "installButton": "Install",
             "toastInstalled": "Installed as an app",
             "optionsModalTitle": "Choose an option",
-            "optionsModalHint": "Options suggested by AI. Tap to send. You can also enter a custom option.",
+            "optionsModalHint": "AI questions are shown one by one. Choose an answer to proceed. You can also enter a custom option.",
             "optionsExtractButton": "Open options",
             "optionOther": "Other (custom)",
             "optionOtherPlaceholder": "Enter freely...",
+            "optionsStepBack": "Back",
+            "optionsStepNext": "Next",
+            "optionsStepApply": "Apply answers",
+            "optionsStepQuestionCount": "{current}/{total}",
             "cancelButton": "Cancel",
             "submitOptionButton": "Send",
             "toastSpecExists": "This spec already exists",
@@ -2168,16 +2189,18 @@
         const c = document.createElement('div'); c.className = 'msg-content'; if (msg.html) c.innerHTML = msg.text; else c.textContent = msg.text; d.appendChild(c);
         if (!msg.role.includes('system-msg') && !msg.html) { const a = document.createElement('div'); a.className = 'msg-actions'; const ed = document.createElement('button'); ed.className = 'msg-action-btn'; ed.innerHTML = getLabel('chatMsgEdit'); ed.onclick = () => { if (c.contentEditable === "true") { c.contentEditable = "false"; c.style.border = "none"; c.style.padding = "0"; ed.innerHTML = getLabel('chatMsgEdit'); const m = chatHistory.find(x => x.id === msg.id); if (m) { m.text = c.textContent; saveToDB('chatHistory', chatHistory); rebuildConversationContext(); showToast(getLabel('toastSettingsSaved')); } } else { c.contentEditable = "true"; c.style.border = "1px solid var(--primary)"; c.style.padding = "4px"; c.focus(); ed.innerHTML = getLabel('chatMsgSave'); } }; const dl = document.createElement('button'); dl.className = 'msg-action-btn'; dl.innerHTML = getLabel('chatMsgDelete'); dl.onclick = () => { chatHistory = chatHistory.filter(x => x.id !== msg.id); d.remove(); saveToDB('chatHistory', chatHistory); rebuildConversationContext(); showToast(getLabel('toastSettingsSaved')); }; a.appendChild(ed); a.appendChild(dl); d.appendChild(a); }
         if (msg.role === 'ai' && !msg.html) { const b = document.createElement('div'); b.className = 'generate-btn-wrapper'; let h = false; if (msg.text.includes(getLabel('generateCodeButton'))) { const gb = document.createElement('button'); gb.className = 'generate-btn'; gb.innerHTML = getLabel('generateCodeButton'); gb.onclick = generateCode; b.appendChild(gb); h = true; } if (msg.text.includes(getLabel('aiQuestionOptionSuggest'))) { const pb = document.createElement('button'); pb.className = 'generate-btn'; pb.style.background = 'var(--accent)'; pb.innerHTML = getLabel('aiQuestionOptionSuggest'); pb.onclick = askForPlan; b.appendChild(pb); h = true; } if (h) d.appendChild(b); }
-        // AI応答から選択肢を抽出して「💡 選択肢として開く」ボタンを表示
+        // AI応答から質問グループ・選択肢を抽出して「💡 選択肢として開く」ボタンを表示
         if (msg.role === 'ai' && !msg.html) {
-            const opts = parseOptionsFromText(msg.text);
-            if (opts.length >= 2) {
+            const groups = parseOptionGroupsFromText(msg.text);
+            const flatCount = groups.reduce((sum, g) => sum + (g.options || []).length, 0);
+            if (flatCount >= 2) {
                 const wrap = document.createElement('div');
                 wrap.style.marginTop = '8px';
                 const ob = document.createElement('button');
                 ob.className = 'options-extract-btn';
-                ob.textContent = `💡 ${getLabel('optionsExtractButton') || '選択肢を開く'} (${opts.length})`;
-                ob.onclick = () => showOptionsModal(opts);
+                const countLabel = groups.length > 1 ? `${groups.length}問` : `${flatCount}`;
+                ob.textContent = `💡 ${getLabel('optionsExtractButton') || '選択肢を開く'} (${countLabel})`;
+                ob.onclick = () => showOptionsModal(groups);
                 wrap.appendChild(ob);
                 d.appendChild(wrap);
             }
@@ -2186,62 +2209,332 @@
     }
     function rebuildConversationContext() { conversationContext = ""; chatHistory.forEach(msg => { if (msg.role === 'user') { conversationContext += `\nユーザー: ${msg.text}`; if(msg.attachment) conversationContext += ` (添付: ${msg.attachment})`; } else if (msg.role === 'ai') { conversationContext += `\nアシスタント: ${msg.text}`; } }); }
 
-    /* === 選択肢モーダル：AI応答から選択肢を抽出してボタン化、「その他」自由入力対応 === */
-    function parseOptionsFromText(text) {
+    /* === 選択肢モーダル：AI応答から質問グループを抽出し、1問ずつ選択させる === */
+    let optionsModalGroups = [];
+    let optionsModalStepIndex = 0;
+    let optionsModalAnswers = {};
+    let optionsModalSelected = [];
+
+    function cleanOptionText(text) {
+        return String(text || '')
+            .replace(/\*\*/g, '')
+            .replace(/`/g, '')
+            .replace(/^[\s:：\-–—]+/, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function normalizeQuestionTitle(text) {
+        let title = cleanOptionText(text)
+            .replace(/[（(]\s*例[:：][\s\S]*?[）)]/g, '')
+            .replace(/\s*など[）)]?\s*$/g, '')
+            .trim();
+        return title || (getLabel('optionsModalTitle') || '選択してください');
+    }
+
+    function isLikelyQuestionHeader(text) {
+        const t = cleanOptionText(text);
+        return /[？?]/.test(t)
+            || /どのような|ですか|ください|想定され|教えて|お聞かせ/.test(t)
+            || /(ターゲット|ユーザー|利用者|主要機能|重視|こだわり|デザイン)\s*[：:]/.test(t);
+    }
+
+    function isMultipleOptionQuestion(text) {
+        const t = cleanOptionText(text);
+        if (/ターゲット|利用者|ユーザー像|主な利用者/.test(t)) return false;
+        return /主要機能|機能|重視|こだわり|必要|選択|複数|どのような/.test(t);
+    }
+
+    function dedupeOptionList(list) {
+        const seen = new Set();
+        return (list || [])
+            .map(cleanOptionText)
+            .filter(x => x && x.length > 1 && x.length < 180)
+            .filter(x => { if (seen.has(x)) return false; seen.add(x); return true; });
+    }
+
+    function splitExampleOptions(text) {
+        const source = String(text || '');
+        const out = [];
+        const re = /[（(]\s*例[:：]\s*([\s\S]*?)[）)]/g;
+        let m;
+        while ((m = re.exec(source))) {
+            let body = m[1].replace(/\s*など\s*$/g, '').trim();
+            body.split(/[、,，／\/]|\s{2,}/).forEach(part => {
+                const item = cleanOptionText(part).replace(/\s*など\s*$/g, '').trim();
+                if (item) out.push(item);
+            });
+        }
+        return dedupeOptionList(out);
+    }
+
+    function addOptionToGroup(group, option) {
+        if (!group) return;
+        const item = cleanOptionText(option);
+        if (!item || isLikelyQuestionHeader(item)) return;
+        if (!group.options.includes(item)) group.options.push(item);
+    }
+
+    function parseOptionGroupsFromText(text) {
         if (!text || typeof text !== 'string') return [];
         const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        const groups = [];
+        let current = null;
+        const flush = () => {
+            if (!current) return;
+            current.options = dedupeOptionList(current.options);
+            if (current.options.length > 0) groups.push(current);
+            current = null;
+        };
+
+        const numberedHeader = /^\d+[\.\)、)]\s*(.+)$/;
+        const boldHeader = /^\*\*([^*]+?)[:：]?\*\*\s*(.*)$/;
+        const bullet = /^[-*・◦◯●•]\s+(.+)$/;
+        const alpha = /^[a-zA-Z][\.)]\s+(.+)$/;
+        const parenNumber = /^[\(（]\d+[\)）]\s*(.+)$/;
+
+        for (const rawLine of lines) {
+            const line = rawLine.replace(/<[^>]+>/g, '').trim();
+            const n = line.match(numberedHeader);
+            if (n && isLikelyQuestionHeader(n[1])) {
+                flush();
+                const body = cleanOptionText(n[1]);
+                current = {
+                    id: 'q' + (groups.length + 1),
+                    question: normalizeQuestionTitle(body),
+                    options: splitExampleOptions(body),
+                    multiple: isMultipleOptionQuestion(body)
+                };
+                continue;
+            }
+
+            const bh = line.match(boldHeader);
+            if (bh && isLikelyQuestionHeader(line) && !bullet.test(line)) {
+                flush();
+                const body = cleanOptionText((bh[1] || '') + (bh[2] ? ' ' + bh[2] : ''));
+                current = {
+                    id: 'q' + (groups.length + 1),
+                    question: normalizeQuestionTitle(body),
+                    options: splitExampleOptions(body),
+                    multiple: isMultipleOptionQuestion(body)
+                };
+                continue;
+            }
+
+            const b = line.match(bullet) || line.match(alpha) || line.match(parenNumber);
+            if (b && b[1]) {
+                const item = cleanOptionText(b[1]);
+                if (!current) {
+                    current = { id: 'q1', question: getLabel('optionsModalTitle') || '選択してください', options: [], multiple: false, flat: true };
+                }
+                addOptionToGroup(current, item);
+                continue;
+            }
+
+            if (current) {
+                splitExampleOptions(line).forEach(opt => addOptionToGroup(current, opt));
+            }
+        }
+        flush();
+
+        if (groups.length === 0) {
+            const flat = parseOptionsFromText(text, true);
+            if (flat.length > 0) {
+                groups.push({ id: 'q1', question: getLabel('optionsModalTitle') || '選択してください', options: flat, multiple: false, flat: true });
+            }
+        }
+
+        groups.forEach(g => {
+            if (!g.options.some(o => o === 'その他' || o.includes('その他'))) g.options.push('その他');
+        });
+        return groups;
+    }
+
+    function parseOptionsFromText(text, flatOnly = false) {
+        if (!text || typeof text !== 'string') return [];
+        if (!flatOnly) {
+            return parseOptionGroupsFromText(text).flatMap(g => g.options || []);
+        }
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
         const patterns = [
-            /^\d+[\.\)、]\s*(.+)/,        // 1. / 1) / 1、
-            /^[a-zA-Z][\.\)]\s*(.+)/,     // a. / A)
-            /^[-*・◦◯●•]\s+(.+)/,         // - * ・ ◦ ◯ ● •
-            /^[\(\（]\d+[\)\）]\s*(.+)/   // (1) （1）
+            /^\d+[\.\)、]\s*(.+)/,
+            /^[a-zA-Z][\.\)]\s*(.+)/,
+            /^[-*・◦◯●•]\s+(.+)/,
+            /^[\(\（]\d+[\)\）]\s*(.+)/
         ];
         const found = [];
         for (const line of lines) {
             for (const p of patterns) {
                 const m = line.match(p);
                 if (m && m[1]) {
-                    const item = m[1].trim().replace(/^[:：\-]\s*/, '').slice(0, 180);
-                    if (item.length > 1 && item.length < 180) found.push(item);
+                    const item = cleanOptionText(m[1]).slice(0, 180);
+                    if (item.length > 1 && item.length < 180 && !isLikelyQuestionHeader(item)) found.push(item);
                     break;
                 }
             }
         }
-        // 重複除去（順序維持）
-        const seen = new Set();
-        return found.filter(x => { if (seen.has(x)) return false; seen.add(x); return true; });
+        return dedupeOptionList(found);
     }
 
-    function showOptionsModal(options) {
+    function normalizeOptionsModalInput(optionsOrGroups) {
+        const arr = Array.isArray(optionsOrGroups) ? optionsOrGroups : [];
+        if (arr.length > 0 && typeof arr[0] === 'object' && Array.isArray(arr[0].options)) {
+            return arr.map((g, i) => ({
+                id: g.id || ('q' + (i + 1)),
+                question: normalizeQuestionTitle(g.question || getLabel('optionsModalTitle') || '選択してください'),
+                options: dedupeOptionList(g.options),
+                multiple: !!g.multiple,
+                flat: !!g.flat
+            })).filter(g => g.options.length > 0);
+        }
+        const opts = dedupeOptionList(arr);
+        return opts.length ? [{ id: 'q1', question: getLabel('optionsModalTitle') || '選択してください', options: opts, multiple: false, flat: true }] : [];
+    }
+
+    function showOptionsModal(optionsOrGroups) {
+        optionsModalGroups = normalizeOptionsModalInput(optionsOrGroups);
+        if (optionsModalGroups.length === 0) return;
+        optionsModalGroups.forEach(g => {
+            if (!g.options.some(o => o === 'その他' || o.includes('その他'))) g.options.push('その他');
+        });
+        optionsModalStepIndex = 0;
+        optionsModalAnswers = {};
+        renderOptionsModalStep();
+        document.getElementById('options-modal').classList.add('show');
+    }
+
+    function renderOptionsModalStep() {
+        const group = optionsModalGroups[optionsModalStepIndex];
         const list = document.getElementById('options-list');
-        if (!list) return;
+        if (!group || !list) return;
+        optionsModalSelected = Array.isArray(optionsModalAnswers[group.id]) ? [...optionsModalAnswers[group.id]] : [];
+        const title = document.getElementById('options-modal-title');
+        const desc = document.getElementById('options-modal-desc');
+        const indicator = document.getElementById('options-step-indicator');
+        const back = document.getElementById('options-back-btn');
+        const next = document.getElementById('options-next-btn');
+        if (title) title.textContent = group.question;
+        if (desc) desc.textContent = group.multiple
+            ? '複数選択できます。選び終わったら次へ進んでください。'
+            : '選択すると次の質問へ進みます。';
+        if (indicator) {
+            const fmt = getLabel('optionsStepQuestionCount') || '{current}/{total}';
+            indicator.textContent = fmt.replace('{current}', optionsModalStepIndex + 1).replace('{total}', optionsModalGroups.length);
+        }
+        if (back) back.disabled = optionsModalStepIndex === 0;
+        if (next) {
+            next.textContent = optionsModalStepIndex === optionsModalGroups.length - 1 ? (getLabel('optionsStepApply') || '回答を反映') : (getLabel('optionsStepNext') || '次へ');
+            next.disabled = optionsModalSelected.length === 0;
+            next.style.display = group.multiple ? '' : 'none';
+        }
         list.innerHTML = '';
-        (options || []).forEach(opt => {
+        group.options.forEach(opt => {
             const btn = document.createElement('button');
-            btn.className = 'option-btn';
+            btn.className = 'option-btn' + (isOtherOption(opt) ? ' option-other' : '');
             btn.type = 'button';
             btn.textContent = opt;
-            btn.onclick = () => selectOption(opt);
+            btn.dataset.option = opt;
+            btn.onclick = () => chooseModalOption(opt);
             list.appendChild(btn);
         });
-        // 「その他」ボタン
-        const other = document.createElement('button');
-        other.className = 'option-btn option-other';
-        other.type = 'button';
-        other.textContent = '✍️ ' + (getLabel('optionOther') || 'その他（自由入力）');
-        other.onclick = showOtherInput;
-        list.appendChild(other);
-        // その他入力欄を初期状態に
         hideOtherInput();
-        document.getElementById('options-other-text').placeholder = getLabel('optionOtherPlaceholder') || '自由に入力してください...';
-        document.getElementById('options-modal').classList.add('show');
+        const ta = document.getElementById('options-other-text');
+        if (ta) ta.placeholder = getLabel('optionOtherPlaceholder') || '自由に入力してください...';
+        refreshOptionButtons();
+    }
+
+    function isOtherOption(opt) {
+        const t = cleanOptionText(opt);
+        return t === 'その他' || t.includes('その他') || /other/i.test(t);
+    }
+
+    function refreshOptionButtons() {
+        document.querySelectorAll('#options-list .option-btn').forEach(btn => {
+            btn.classList.toggle('is-selected', optionsModalSelected.includes(btn.dataset.option));
+        });
+        const next = document.getElementById('options-next-btn');
+        if (next) next.disabled = optionsModalSelected.length === 0;
+    }
+
+    function chooseModalOption(opt) {
+        const group = optionsModalGroups[optionsModalStepIndex];
+        if (!group) return;
+        if (group.multiple) {
+            if (optionsModalSelected.includes(opt)) optionsModalSelected = optionsModalSelected.filter(x => x !== opt);
+            else optionsModalSelected.push(opt);
+            if (isOtherOption(opt) && optionsModalSelected.includes(opt)) showOtherInput();
+            if (isOtherOption(opt) && !optionsModalSelected.some(isOtherOption)) hideOtherInput();
+            refreshOptionButtons();
+            return;
+        }
+        optionsModalSelected = [opt];
+        refreshOptionButtons();
+        if (isOtherOption(opt)) {
+            showOtherInput();
+            const next = document.getElementById('options-next-btn');
+            if (next) next.style.display = '';
+            return;
+        }
+        window.setTimeout(() => confirmOptionsStep(), 120);
+    }
+
+    function confirmOptionsStep() {
+        const group = optionsModalGroups[optionsModalStepIndex];
+        if (!group) return;
+        if (optionsModalSelected.length === 0) { showToast(getLabel('toastInputRequired')); return; }
+        const otherText = (document.getElementById('options-other-text')?.value || '').trim();
+        const answer = optionsModalSelected.map(opt => {
+            if (isOtherOption(opt)) return otherText ? `その他：${otherText}` : cleanOptionText(opt);
+            return cleanOptionText(opt);
+        }).filter(Boolean);
+        optionsModalAnswers[group.id] = answer;
+        if (optionsModalStepIndex < optionsModalGroups.length - 1) {
+            optionsModalStepIndex++;
+            renderOptionsModalStep();
+            return;
+        }
+        applyOptionsModalAnswers();
+    }
+
+    function backOptionsStep() {
+        if (optionsModalStepIndex <= 0) return;
+        const group = optionsModalGroups[optionsModalStepIndex];
+        if (group) optionsModalAnswers[group.id] = [...optionsModalSelected];
+        optionsModalStepIndex--;
+        renderOptionsModalStep();
+    }
+
+    function applyOptionsModalAnswers() {
+        const lines = ['以下の内容で進めてください。', ''];
+        if (optionsModalGroups.length === 1 && optionsModalGroups[0].flat) {
+            const ans = optionsModalAnswers[optionsModalGroups[0].id] || [];
+            lines.splice(0, lines.length, ans.join('、'));
+        } else {
+            optionsModalGroups.forEach((g, i) => {
+                const ans = optionsModalAnswers[g.id] || [];
+                lines.push(`${i + 1}. ${cleanOptionText(g.question)}：${ans.join('、')}`);
+            });
+        }
+        const text = lines.join('\n').trim();
+        closeOptionsModal();
+        const input = document.getElementById('user-prompt');
+        if (input) {
+            input.value = text;
+            autoGrow(input);
+        }
+        try { askAI(); } catch(e) {}
     }
 
     function closeOptionsModal() {
         document.getElementById('options-modal').classList.remove('show');
+        optionsModalGroups = [];
+        optionsModalStepIndex = 0;
+        optionsModalAnswers = {};
+        optionsModalSelected = [];
         hideOtherInput();
     }
 
+    // 旧実装との互換用：外部から直接テキストを選択させる場合は従来どおり即送信する。
     function selectOption(text) {
         const input = document.getElementById('user-prompt');
         if (input) {
@@ -2249,7 +2542,6 @@
             autoGrow(input);
         }
         closeOptionsModal();
-        // すぐ送信する：UX的に「タップ＝即送信」が分かりやすい
         try { askAI(); } catch(e) {}
     }
 
@@ -2264,10 +2556,7 @@
         if (box) box.classList.remove('show');
     }
     function submitOtherOption() {
-        const ta = document.getElementById('options-other-text');
-        const text = (ta?.value || '').trim();
-        if (!text) { showToast(getLabel('toastInputRequired')); return; }
-        selectOption(text);
+        confirmOptionsStep();
     }
     function confirmReset() { if (confirm(getLabel('tabButtonResetConfirm'))) { chatHistory = []; document.getElementById('chat-log').innerHTML = ''; window.setCode(""); updatePreview(); removeAttachment(); const initMsg = { id: Date.now().toString(), role: 'ai system-msg', text: getLabel('aiSystemMsgReset'), html: false }; chatHistory.push(initMsg); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(initMsg); rebuildConversationContext(); clearSpecList(); } }
     function resetChatForNewCode(source) { chatHistory = []; document.getElementById('chat-log').innerHTML = ''; const msg = { id: Date.now().toString(), role: 'ai system-msg', text: getLabel('aiSystemMsgCodeLoaded').replace('{source}', source), html: false }; chatHistory.push(msg); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(msg); rebuildConversationContext(); clearSpecList(); }
