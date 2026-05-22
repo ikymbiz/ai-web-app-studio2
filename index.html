@@ -23,6 +23,8 @@
            AI Web Studio
            ============================================ */
         :root {
+            --app-height: 100dvh;
+            --keyboard-safe-bottom: env(safe-area-inset-bottom, 0px);
             --color-bg-deep:       #0D0F14;
             --color-bg-surface:    #161920;
             --color-bg-elevated:   #1E2433;
@@ -48,14 +50,14 @@
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: var(--font-body); margin: 0; height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--text); overflow: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); min-height: 100vh; }
+        body { font-family: var(--font-body); margin: 0; height: var(--app-height); min-height: var(--app-height); width: 100%; position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--text); overflow: hidden; overscroll-behavior: none; padding-top: env(safe-area-inset-top); padding-bottom: 0; padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 
-        .tabs { display: flex; background: var(--sidebar); border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
-        .tab-btn { flex: 1; padding: 15px 0; border: none; background: none; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); cursor: pointer; transition: 0.2s; font-family: var(--font-body); }
+        .tabs { display: flex; background: var(--sidebar); border-bottom: 1px solid var(--color-border); flex: 0 0 auto; min-height: 52px; position: relative; z-index: 60; }
+        .tab-btn { flex: 1; min-height: 52px; padding: 0 0; border: none; background: none; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); cursor: pointer; transition: 0.2s; font-family: var(--font-body); }
         .tab-btn.active { color: #fff; border-bottom: 2px solid #fff; }
 
-        .content { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
-        .page { display: none; height: 100%; flex-direction: column; overflow: hidden; }
+        .content { flex: 1 1 auto; min-height: 0; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .page { display: none; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; }
         .page.active { display: flex; }
 
         /* チャット */
@@ -66,7 +68,7 @@
         .reset-btn:hover { background: var(--danger); border-color: var(--danger); }
         .spec-btn:hover { background: var(--color-border-focus); }
         
-        #chat-log { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: var(--bg); }
+        #chat-log { flex: 1 1 auto; min-height: 0; padding: 15px; padding-bottom: 12px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 20px; background: var(--bg); }
         .msg { position: relative; max-width: 95%; padding: 12px 16px; border-radius: 18px; font-size: 15px; line-height: 1.6; word-wrap: break-word; white-space: pre-wrap; }
         .user { align-self: flex-end; background: var(--user-msg); color: #fff; }
         .ai { align-self: flex-start; background: var(--ai-msg); border: 1px solid var(--color-border); width: 100%; }
@@ -173,7 +175,7 @@
         .options-extract-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 6px 12px; background: rgba(139,92,246,0.15); border: 1px solid var(--accent); border-radius: 14px; color: var(--accent); font-size: 11px; cursor: pointer; font-family: var(--font-body); }
         .options-extract-btn:hover { background: rgba(139,92,246,0.25); }
 
-        .input-container { padding: 15px; background: var(--bg); border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 10px; position: relative; }
+        .input-container { padding: 12px 15px max(12px, var(--keyboard-safe-bottom)); background: var(--bg); border-top: 1px solid var(--color-border); display: flex; flex: 0 0 auto; flex-direction: column; gap: 10px; position: relative; z-index: 40; }
         .input-row { display: flex; gap: 10px; align-items: flex-end; }
         #user-prompt { flex: 1; min-height: 44px; max-height: 150px; background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 22px; padding: 10px 20px; color: #fff; font-size: 16px; outline: none; resize: none; font-family: var(--font-body); }
         .file-label { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: var(--color-bg-elevated); border-radius: 50%; cursor: pointer; font-size: 20px; flex-shrink: 0; transition: background 0.2s, color 0.2s; border: 1px solid var(--color-border-focus); }
@@ -315,6 +317,25 @@
         @keyframes highlightNew { 0% { box-shadow: 0 0 0 2px var(--primary); background: rgba(59,130,246,0.15); } 100% { box-shadow: 0 0 0 0 transparent; background: var(--color-bg-elevated); } }
         .is-new-card { animation: highlightNew 2.5s ease-out forwards; border-color: var(--primary); }
         .is-new-badge { position: absolute; top: -6px; left: -6px; background: var(--danger); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 8px; font-weight: bold; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); letter-spacing: 0.05em; }
+
+
+        /* Android/Chrome のソフトキーボード対策：入力中も上部タブと入力欄を固定して見切れを防ぐ */
+        body.keyboard-open .tabs { min-height: 50px; z-index: 80; }
+        body.keyboard-open .tab-btn { min-height: 50px; }
+        body.keyboard-open #floating-generate-container { display: none !important; }
+        body.keyboard-open .chat-header { padding-top: 8px; padding-bottom: 8px; }
+        body.keyboard-open #chat-log { gap: 12px; padding-top: 10px; padding-bottom: 10px; }
+        body.keyboard-open .input-container { padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+        body.keyboard-open #user-prompt { max-height: 105px; }
+        @media (max-width: 480px) {
+            .tabs { min-height: 52px; }
+            .tab-btn { min-height: 52px; font-size: 13px; }
+            .chat-header { min-height: 48px; }
+            .input-container { padding-left: 12px; padding-right: 12px; }
+            #user-prompt { max-height: 120px; }
+            .msg { max-width: 100%; }
+        }
+
     </style>
 </head>
 <body>
@@ -396,17 +417,10 @@
         <details class="settings-section" id="section-language" open>
             <summary><span class="settings-section-icon">🌐</span><span data-label="sectionLanguageTitle">言語 / Language</span></summary>
             <div class="settings-section-body">
-                <div class="save-toggle">
-                    <button type="button" class="save-toggle-btn lang-toggle-btn active" data-lang="ja" onclick="setLanguage('ja')" data-label="langJa">日本語</button>
-                    <button type="button" class="save-toggle-btn lang-toggle-btn" data-lang="en" onclick="setLanguage('en')" data-label="langEn">English</button>
-                </div>
-                <div class="field" style="margin-top:12px;margin-bottom:0;">
+                <div class="field" style="margin-bottom:0;">
                     <label data-label="languageSelectLabel">表示言語</label>
-                    <select id="language-select" class="setting-input" onchange="setLanguage(this.value)">
-                        <option value="ja" data-label="langJa">日本語</option>
-                        <option value="en" data-label="langEn">English</option>
-                    </select>
-                    <div class="field-hint" data-label="languageSelectHint">今後の翻訳を追加しやすい多言語セレクタです。</div>
+                    <select id="language-select" class="setting-input" onchange="setLanguage(this.value)"></select>
+                    <div class="field-hint" data-label="languageSelectHint">翻訳辞書または言語パックを追加すると、このプルダウンに自動表示されます。</div>
                 </div>
             </div>
         </details>
@@ -1014,7 +1028,7 @@
                 // 検索
                 searchModalTitle: "🔍 コード内検索", searchInputPlaceholder: "検索ワード...",
                 "languageSelectLabel": "表示言語",
-                "languageSelectHint": "今後の翻訳を追加しやすい多言語セレクタです。",
+                "languageSelectHint": "翻訳辞書または言語パックを追加すると、このプルダウンに自動表示されます。",
                 "apiKeyManageLabel": "APIキー登録",
                 "apiKeyManageButton": "🔑 APIキーを登録 / 管理",
                 "aiKeyManageHint": "プルダウンではなく、各ベンダーのキーとモデルルートを入力します。例: gemini:gemini-2.5-flash / openai:gpt-4o / claude:claude-sonnet-4-20250514 / xai:grok-3 / groq:llama-3.3-70b-versatile / custom:your-model",
@@ -1061,10 +1075,16 @@
                     }
                 }
                 if (loadedPrompts.ui) { // UIセクションをロード
-                    if (loadedPrompts.ui.ja || loadedPrompts.ui.en) {
-                        // 新形式: { ja: {...}, en: {...} }
-                        if (loadedPrompts.ui.ja) Object.assign(PROMPTS_DATA.ui.ja, loadedPrompts.ui.ja);
-                        if (loadedPrompts.ui.en) Object.assign(PROMPTS_DATA.ui.en, loadedPrompts.ui.en);
+                    const uiValues = Object.values(loadedPrompts.ui);
+                    const hasLanguageBuckets = uiValues.some(v => v && typeof v === 'object' && !Array.isArray(v));
+                    if (hasLanguageBuckets) {
+                        // 新形式: { ja: {...}, en: {...}, ko: {...}, ... }
+                        Object.entries(loadedPrompts.ui).forEach(([lang, table]) => {
+                            if (table && typeof table === 'object' && !Array.isArray(table)) {
+                                if (!PROMPTS_DATA.ui[lang]) PROMPTS_DATA.ui[lang] = {};
+                                Object.assign(PROMPTS_DATA.ui[lang], table);
+                            }
+                        });
                     } else {
                         // 旧形式（フラット）への後方互換：jaにマージ
                         Object.assign(PROMPTS_DATA.ui.ja, loadedPrompts.ui);
@@ -1084,7 +1104,7 @@
             "langEn": "English",
             "sectionLanguageTitle": "Language",
             "languageSelectLabel": "Display language",
-            "languageSelectHint": "Choose the UI language. More languages can be added later.",
+            "languageSelectHint": "Choose the UI language. Add translation resources/language packs and they appear here automatically.",
             "tabChat": "Chat",
             "tabCode": "Code",
             "tabPreview": "Preview",
@@ -1328,20 +1348,41 @@
         }
         return PROMPTS_DATA?.ui?.[currentLang]?.[key] || PROMPTS_DATA?.ui?.ja?.[key] || '';
     }
+    function buildI18nResources() {
+        const resources = {};
+        Object.entries(PROMPTS_DATA?.ui || {}).forEach(([lang, table]) => {
+            if (table && typeof table === 'object' && !Array.isArray(table)) {
+                resources[lang] = { translation: table };
+            }
+        });
+        if (!resources.ja) resources.ja = { translation: {} };
+        return resources;
+    }
+    function getLanguageDisplayName(lang) {
+        const builtin = { ja: '日本語', en: 'English', ko: '한국어', zh: '中文', 'zh-CN': '简体中文', 'zh-TW': '繁體中文', es: 'Español', fr: 'Français', de: 'Deutsch', pt: 'Português', id: 'Bahasa Indonesia', th: 'ไทย', vi: 'Tiếng Việt' };
+        if (builtin[lang]) return builtin[lang];
+        try { return new Intl.DisplayNames([currentLang || 'ja'], { type: 'language' }).of(lang) || lang; } catch(e) { return lang; }
+    }
+    function populateLanguageSelect() {
+        const sel = document.getElementById('language-select');
+        if (!sel) return;
+        const langs = Object.keys(PROMPTS_DATA?.ui || {}).filter(lang => PROMPTS_DATA.ui[lang] && typeof PROMPTS_DATA.ui[lang] === 'object');
+        const ordered = ['ja','en', ...langs.filter(l => l !== 'ja' && l !== 'en')];
+        sel.innerHTML = [...new Set(ordered)].map(lang => `<option value="${escapeHtml(lang)}">${escapeHtml(getLanguageDisplayName(lang))}</option>`).join('');
+        sel.value = currentLang;
+    }
     async function initI18n(lng) {
-        if (typeof i18next === 'undefined') return; // CDN読み込み失敗時はスキップ
+        if (typeof i18next === 'undefined') { currentLang = lng || 'ja'; return; } // CDN読み込み失敗時はスキップ
         try {
             await i18next.init({
                 lng: lng || 'ja',
-                fallbackLng: 'ja',
+                fallbackLng: ['en', 'ja'],
                 returnEmptyString: false,
-                resources: {
-                    ja: { translation: PROMPTS_DATA.ui.ja || {} },
-                    en: { translation: PROMPTS_DATA.ui.en || {} }
-                }
+                resources: buildI18nResources()
             });
             currentLang = lng || 'ja';
             document.documentElement.lang = currentLang;
+            populateLanguageSelect();
         } catch(e) { console.warn('i18next init failed:', e); }
     }
     async function setLanguage(lang) {
@@ -1355,9 +1396,7 @@
         updateLangToggleUI();
     }
     function updateLangToggleUI() {
-        document.querySelectorAll('.lang-toggle-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.lang === currentLang);
-        });
+        populateLanguageSelect();
         const sel = document.getElementById('language-select');
         if (sel) sel.value = currentLang;
     }
@@ -2770,8 +2809,44 @@
         hideInstallBanner();
     }
 
+
+    /* === モバイル表示・ソフトキーボード対策 === */
+    function updateAppViewport() {
+        const vv = window.visualViewport;
+        const height = Math.max(320, Math.floor(vv ? vv.height : window.innerHeight));
+        document.documentElement.style.setProperty('--app-height', height + 'px');
+        const keyboardLikelyOpen = !!vv && (window.innerHeight - vv.height > 120 || (window.screen && vv.height < window.screen.height * 0.72));
+        document.body.classList.toggle('keyboard-open', keyboardLikelyOpen || document.activeElement?.id === 'user-prompt');
+        if (window.scrollY !== 0) window.scrollTo(0, 0);
+    }
+    function keepChatInputVisible() {
+        updateAppViewport();
+        const log = document.getElementById('chat-log');
+        if (log) log.scrollTop = log.scrollHeight;
+    }
+    function initMobileViewportFix() {
+        updateAppViewport();
+        window.addEventListener('resize', updateAppViewport, { passive: true });
+        window.addEventListener('orientationchange', () => setTimeout(updateAppViewport, 250), { passive: true });
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateAppViewport, { passive: true });
+            window.visualViewport.addEventListener('scroll', updateAppViewport, { passive: true });
+        }
+        document.addEventListener('focusin', (e) => {
+            if (e.target && (e.target.matches('textarea') || e.target.matches('input'))) {
+                document.body.classList.add('keyboard-open');
+                setTimeout(keepChatInputVisible, 80);
+                setTimeout(keepChatInputVisible, 250);
+            }
+        });
+        document.addEventListener('focusout', () => {
+            setTimeout(updateAppViewport, 120);
+        });
+    }
+
     /* --- Init --- */
     window.onload = async () => {
+        try { initMobileViewportFix(); } catch(e) { console.warn('viewport fix init failed:', e); }
         await loadPrompts(); // プロンプト先読み
         // 保存された言語を取得して i18next を初期化
         let savedLang = 'ja';
@@ -2818,7 +2893,7 @@
     };
 
     function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById('p-' + id).classList.add('active'); if (btn) btn.classList.add('active'); if(id === 'preview') updatePreview(); }
-    function autoGrow(element) { element.style.height = "5px"; element.style.height = (element.scrollHeight) + "px"; }
+    function autoGrow(element) { element.style.height = "5px"; element.style.height = Math.min(element.scrollHeight, 150) + "px"; if (element.id === 'user-prompt') setTimeout(keepChatInputVisible, 0); }
     function toggleAttachmentMenu() { if (currentFileName) { removeAttachment(); return; } document.getElementById('attach-menu').classList.toggle('show'); }
     function triggerFile(type) { document.getElementById('file-' + type).click(); document.getElementById('attach-menu').classList.remove('show'); }
     function handleAttachment(input) { const file = input.files[0]; if (!file) return; currentMimeType = file.type; currentFileName = file.name; const reader = new FileReader(); reader.onloadend = () => { currentImageBase64 = reader.result.split(',')[1]; document.querySelector('.file-label').innerHTML = '✕'; document.querySelector('.file-label').style.background = 'var(--danger)'; if (currentMimeType.startsWith('image/')) { document.getElementById('file-preview').src = reader.result; document.getElementById('file-preview').style.display = 'block'; document.getElementById('file-name-display').style.display = 'none'; } else { document.getElementById('file-preview').style.display = 'none'; document.getElementById('file-name-display').innerText = `${getLabel('ghFilePrefix')} ${currentFileName}`; document.getElementById('file-name-display').style.display = 'inline-block'; } }; reader.readAsDataURL(file); input.value = ''; }
