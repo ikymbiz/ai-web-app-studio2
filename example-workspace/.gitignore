@@ -1,0 +1,6 @@
+.local-secrets/
+.secrets/
+*.pat
+github_pat.txt
+system_prompt_config.local.json
+.DS_Store
