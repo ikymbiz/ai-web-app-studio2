@@ -17,6 +17,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- i18next: 多言語対応ライブラリ -->
     <script src="https://cdn.jsdelivr.net/npm/i18next@23.15.2/dist/umd/i18next.min.js"></script>
+    <!-- JSZip: ZIP添付・ZIPプロジェクト読み込み用 -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <style>
         /* ============================================
            DESIGN SYSTEM - Obsidian Terminal
@@ -196,6 +198,7 @@
         .menu-item:hover { background: var(--color-bg-elevated); }
         #file-preview { display: none; width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 1px solid var(--primary); }
         #file-name-display { display: none; font-size: 12px; color: #ccc; background: var(--color-bg-elevated); padding: 4px 8px; border-radius: 4px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #file-name-display.multi { max-width: min(80vw, 520px); white-space: normal; line-height: 1.45; }
         .send-btn { background: var(--primary); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
         .generate-btn-wrapper { margin-top: 15px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
         .generate-btn { background: var(--success); color: white; border: none; height: 38px; padding: 0 18px; border-radius: 19px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); font-family: var(--font-body); }
@@ -388,8 +391,8 @@
             <div class="input-row">
                 <div class="file-label" onclick="toggleAttachmentMenu()">＋</div>
                 <input type="file" id="file-camera" accept="image/*" capture="environment" style="display:none" onchange="handleAttachment(this)">
-                <input type="file" id="file-gallery" accept="image/*" style="display:none" onchange="handleAttachment(this)">
-                <input type="file" id="file-files" accept="*/*" style="display:none" onchange="handleAttachment(this)">
+                <input type="file" id="file-gallery" accept="image/*" style="display:none" multiple onchange="handleAttachment(this)">
+                <input type="file" id="file-files" accept="*/*,.zip,application/zip" style="display:none" multiple onchange="handleAttachment(this)">
                 <textarea id="user-prompt" rows="1" oninput="autoGrow(this)"></textarea>
                 <button class="send-btn" id="send-btn" onclick="askAI()"></button>
             </div>
@@ -405,7 +408,7 @@
                 <button class="action-btn download-btn" onclick="downloadCode()"></button>
                 <button class="action-btn deploy-btn" onclick="openDeployer()"></button>
             </div>
-            <input type="file" id="code-upload-input" style="display:none" multiple accept=".html,.css,.js,.json,.txt,.md,.svg,.xml,.yml,.yaml" onchange="handleCodeUpload(this)">
+            <input type="file" id="code-upload-input" style="display:none" multiple accept=".html,.css,.js,.json,.txt,.md,.svg,.xml,.yml,.yaml,.zip,application/zip" onchange="handleCodeUpload(this)">
             <div id="project-file-tabs" class="project-file-tabs"></div>
             <div id="code-editor-container"></div>
         </div>
@@ -433,15 +436,30 @@
                 </div>
             </div>
         </details>
-        <!-- 🤖 AI接続セクション -->
-        <details class="settings-section" id="section-ai" open>
-            <summary><span class="settings-section-icon">🤖</span><span data-label="sectionAiTitle">AI接続</span></summary>
+        <!-- 👤 ペルソナ・ユーザー指示・モデル設定画面 -->
+        <details class="settings-section" id="section-persona-model" open>
+            <summary><span class="settings-section-icon">👤</span><span data-label="sectionPersonaModelTitle">ペルソナ・ユーザー指示・モデル設定</span></summary>
             <div class="settings-section-body">
                 <div class="field">
-                    <label data-label="apiKeyManageLabel">APIキー登録</label>
-                    <button type="button" class="modal-btn" style="margin-top:0;" onclick="openApiKeyModal()" data-label="apiKeyManageButton">🔑 APIキーを登録 / 管理</button>
-                    <div class="field-hint" data-label="aiKeyManageHint">プルダウンではなく、各ベンダーのキーとモデルルートを入力します。例: gemini:gemini-2.5-flash / openai:gpt-4o / claude:claude-sonnet-4-20250514 / xai:grok-3 / groq:llama-3.3-70b-versatile / custom:your-model</div>
+                    <label data-label="targetPersonaLabel">ターゲットユーザーペルソナ</label>
+                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('target-persona')">
+                        <span><span class="edit-icon">📝</span> <span data-label="editButton">編集</span></span>
+                        <span class="edit-preview" id="preview-target-persona"></span>
+                    </button>
+                    <textarea id="target-persona" style="display:none;"></textarea>
+                    <div class="field-hint" data-label="targetPersonaHint">アプリの想定ユーザー像。AIへの生成指示に使われます。</div>
                 </div>
+
+                <div class="field">
+                    <label data-label="userSystemPromptLabel">ユーザー用システムプロンプト</label>
+                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('user-system-prompt')">
+                        <span><span class="edit-icon">📝</span> <span data-label="editButton">編集</span></span>
+                        <span class="edit-preview" id="preview-user-system-prompt"></span>
+                    </button>
+                    <textarea id="user-system-prompt" style="display:none;"></textarea>
+                    <div class="field-hint" data-label="userSystemPromptHint">ユーザーが生成結果に反映したい好み・制約・口調・デザイン方針を入力します。管理用プロンプトとは分離して保存します。</div>
+                </div>
+
                 <input type="hidden" id="ai-provider" value="gemini">
                 <div class="field">
                     <label data-label="chatModelLabel">チャットモデル</label>
@@ -461,25 +479,62 @@
             </div>
         </details>
 
-        <!-- 🎨 開発設定セクション -->
-        <details class="settings-section" id="section-dev">
-            <summary><span class="settings-section-icon">🎨</span><span data-label="sectionDevTitle">開発設定</span></summary>
+        <!-- 🔑 APIキー設定画面 -->
+        <details class="settings-section" id="section-api-keys">
+            <summary><span class="settings-section-icon">🔑</span><span data-label="sectionApiKeysTitle">APIキーの設定</span></summary>
             <div class="settings-section-body">
-                <!-- 編集ボタン群（中身はモーダルで編集。値は hidden textarea に保持） -->
                 <div class="field">
-                    <label data-label="targetPersonaLabel">ターゲットペルソナ（このアプリを使う人）</label>
-                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('target-persona')">
-                        <span><span class="edit-icon">📝</span> <span data-label="editButton">編集</span></span>
-                        <span class="edit-preview" id="preview-target-persona"></span>
-                    </button>
-                    <textarea id="target-persona" style="display:none;"></textarea>
-                    <div class="field-hint" data-label="targetPersonaHint">アプリの想定ユーザー像。AIへの生成指示に使われます。</div>
+                    <label data-label="apiKeyManageLabel">APIキー登録</label>
+                    <button type="button" class="modal-btn" style="margin-top:0;" onclick="openApiKeyModal()" data-label="apiKeyManageButton">🔑 APIキーを登録 / 管理</button>
+                    <div class="field-hint" data-label="aiKeyManageHint">プルダウンではなく、各ベンダーのキーとモデルルートを入力します。例: gemini:gemini-2.5-flash / openai:gpt-4o / claude:claude-sonnet-4-20250514 / xai:grok-3 / groq:llama-3.3-70b-versatile / custom:your-model</div>
                 </div>
-                <!-- system-prompt と code-principles はユーザーには秘匿（編集UI非表示、内部値のみ保持） -->
-                <textarea id="system-prompt" style="display:none;"></textarea>
-                <textarea id="code-principles" style="display:none;"></textarea>
+            </div>
+        </details>
 
-                <!-- プロンプトテンプレート（個別編集ボタン群） -->
+        <!-- 🧠 管理用システムプロンプト画面 -->
+        <details class="settings-section" id="section-admin-prompts">
+            <summary><span class="settings-section-icon">🧠</span><span data-label="sectionAdminPromptsTitle">管理用システムプロンプト</span></summary>
+            <div class="settings-section-body">
+                <div class="field">
+                    <label data-label="systemPromptLabel">管理用システムプロンプト</label>
+                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('system-prompt')">
+                        <span><span class="edit-icon">🛡️</span> <span data-label="editButton">編集</span></span>
+                        <span class="edit-preview" id="preview-system-prompt"></span>
+                    </button>
+                    <textarea id="system-prompt" style="display:none;"></textarea>
+                    <div class="field-hint" data-label="adminSystemPromptHint">AIの基本役割・禁止事項・差分実装ルールなど、管理者が固定したい指示を保持します。</div>
+                </div>
+
+                <div class="field">
+                    <label data-label="codePrinciplesLabel">プリンシプル</label>
+                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('code-principles')">
+                        <span><span class="edit-icon">📏</span> <span data-label="editButton">編集</span></span>
+                        <span class="edit-preview" id="preview-code-principles"></span>
+                    </button>
+                    <textarea id="code-principles" style="display:none;"></textarea>
+                    <div class="field-hint" data-label="codePrinciplesHint">削除禁止、最小差分、検証必須などの実装原則を指定します。</div>
+                </div>
+
+                <div class="field">
+                    <label data-label="adminSystemRequirementsLabel">システム要件</label>
+                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-system-requirements')">
+                        <span><span class="edit-icon">⚙️</span> <span data-label="editButton">編集</span></span>
+                        <span class="edit-preview" id="preview-admin-system-requirements"></span>
+                    </button>
+                    <textarea id="admin-system-requirements" style="display:none;"></textarea>
+                    <div class="field-hint" data-label="adminSystemRequirementsHint">PWA、Android、IndexedDB、GitHub連携、ファイル構成など維持すべき非機能要件を指定します。</div>
+                </div>
+
+                <div class="field">
+                    <label data-label="adminImplementationVerifyLabel">実装検証用</label>
+                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-implementation-verification')">
+                        <span><span class="edit-icon">✅</span> <span data-label="editButton">編集</span></span>
+                        <span class="edit-preview" id="preview-admin-implementation-verification"></span>
+                    </button>
+                    <textarea id="admin-implementation-verification" style="display:none;"></textarea>
+                    <div class="field-hint" data-label="adminImplementationVerifyHint">生成前後の確認観点、退行チェック、未検証事項の報告ルールを指定します。</div>
+                </div>
+
                 <details class="field prompt-details">
                     <summary data-label="promptTemplatesSummary">プロンプトテンプレート（詳細設定）</summary>
                     <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
@@ -495,27 +550,28 @@
                     <textarea id="prompt-extract" style="display:none;"></textarea>
                     <textarea id="prompt-verify" style="display:none;"></textarea>
                 </details>
+            </div>
+        </details>
 
-                <div class="theme-section">
-                    <label data-label="codeThemeLabel">コードテーマ（生成コードに反映）</label>
-                    <div id="theme-grid" class="theme-grid"></div>
-                </div>
-
-                <div class="template-section">
-                    <label data-label="templatesLabel">テンプレート</label>
-                    <div class="template-toolbar">
-                        <input id="template-catalog-url" class="setting-input" data-placeholder-label="templateCatalogPlaceholder" placeholder="テンプレート配信URL（JSON）" onchange="autoSaveSettings()">
-                        <button type="button" class="action-btn import-btn" style="height:38px;" onclick="loadRemoteTemplates(true)" data-label="templateFetchButton">配信取得</button>
-                    </div>
-                    <div class="field-hint" data-label="templateCatalogHint">配信JSONから画面テンプレートを後日追加できます。paid:true のテンプレートは課金ロック表示になります。</div>
-                    <div id="template-grid" class="template-grid"></div>
+        <!-- 🧩 管理用Skill設定画面 -->
+        <details class="settings-section" id="section-admin-skills">
+            <summary><span class="settings-section-icon">🧩</span><span data-label="sectionAdminSkillsTitle">管理用Skill設定</span></summary>
+            <div class="settings-section-body">
+                <div class="field">
+                    <label data-label="skillSettingsLabel">Skill設定</label>
+                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('skill-settings')">
+                        <span><span class="edit-icon">🧩</span> <span data-label="editButton">編集</span></span>
+                        <span class="edit-preview" id="preview-skill-settings"></span>
+                    </button>
+                    <textarea id="skill-settings" style="display:none;"></textarea>
+                    <div class="field-hint" data-label="skillSettingsHint">外部Skill、生成時に使うツール方針、ファイル処理方針などを管理者向けに記録します。</div>
                 </div>
             </div>
         </details>
 
-        <!-- 🔐 セキュリティセクション -->
-        <details class="settings-section" id="section-security">
-            <summary><span class="settings-section-icon">🔐</span><span data-label="sectionSecurityTitle">セキュリティ</span></summary>
+        <!-- 🚀 デプロイ用設定画面 -->
+        <details class="settings-section" id="section-deploy-settings">
+            <summary><span class="settings-section-icon">🚀</span><span data-label="sectionDeploySettingsTitle">デプロイ用設定</span></summary>
             <div class="settings-section-body">
                 <div class="field">
                     <label data-label="ghTokenLabel">GitHub Personal Access Token</label>
@@ -524,7 +580,13 @@
                     <button type="button" class="modal-btn" style="margin-top:8px; background:var(--color-bg-elevated);" onclick="validateGitHubPatFromSettings()" data-label="githubPatValidateButton">PATを検証</button>
                     <div id="github-pat-status" class="modal-status"></div>
                 </div>
+            </div>
+        </details>
 
+        <!-- 💾 保存先設定画面 -->
+        <details class="settings-section" id="section-storage-settings">
+            <summary><span class="settings-section-icon">💾</span><span data-label="sectionStorageSettingsTitle">保存先設定</span></summary>
+            <div class="settings-section-body">
                 <div class="field">
                     <label data-label="keyStorageLabel">トークン・APIキーの保存先</label>
                     <div class="save-toggle">
@@ -553,6 +615,27 @@
                     <label data-label="keyExpiryLabel">キー有効期限</label>
                     <div style="font-size:12px; color:var(--color-text-secondary);" data-label="keySecurityDesc">🔒 自動暗号化 + アプリ内保存は2週間で自動消去</div>
                     <div class="key-status" id="key-expiry-status"></div>
+                </div>
+            </div>
+        </details>
+
+        <!-- 🎨 開発補助設定画面：既存のテーマ・テンプレート機能を保持 -->
+        <details class="settings-section" id="section-dev-assets">
+            <summary><span class="settings-section-icon">🎨</span><span data-label="sectionDevAssetsTitle">開発補助設定</span></summary>
+            <div class="settings-section-body">
+                <div class="theme-section">
+                    <label data-label="codeThemeLabel">コードテーマ（生成コードに反映）</label>
+                    <div id="theme-grid" class="theme-grid"></div>
+                </div>
+
+                <div class="template-section">
+                    <label data-label="templatesLabel">テンプレート</label>
+                    <div class="template-toolbar">
+                        <input id="template-catalog-url" class="setting-input" data-placeholder-label="templateCatalogPlaceholder" placeholder="テンプレート配信URL（JSON）" onchange="autoSaveSettings()">
+                        <button type="button" class="action-btn import-btn" style="height:38px;" onclick="loadRemoteTemplates(true)" data-label="templateFetchButton">配信取得</button>
+                    </div>
+                    <div class="field-hint" data-label="templateCatalogHint">配信JSONから画面テンプレートを後日追加できます。paid:true のテンプレートは課金ロック表示になります。</div>
+                    <div id="template-grid" class="template-grid"></div>
                 </div>
             </div>
         </details>
@@ -845,7 +928,7 @@
 
 <script>
     /* --- 状態管理変数 --- */
-    let currentImageBase64 = null; let currentMimeType = null; let currentFileName = null;
+    let currentImageBase64 = null; let currentMimeType = null; let currentFileName = null; let currentAttachments = [];
     let conversationContext = ""; let chatHistory = [];
     let ghImportRepos = []; let swRegistration = null;
     const PROXY_WORKER_URL = 'https://green-credit-a6fb.ikymbiz.workers.dev';
@@ -1389,7 +1472,7 @@
         if (!sel) return;
         const langs = Object.keys(PROMPTS_DATA?.ui || {}).filter(lang => PROMPTS_DATA.ui[lang] && typeof PROMPTS_DATA.ui[lang] === 'object');
         const ordered = ['ja','en', ...langs.filter(l => l !== 'ja' && l !== 'en')];
-        sel.innerHTML = [...new Set(ordered)].map(lang => `<option value="${escapeHtml(lang)}">${escapeHtml(getLanguageDisplayName(lang))}</option>`).join('');
+        sel.innerHTML = [...new Set(ordered)].map(lang => `<option value="${escapeHtml(lang)}">${escapeHtml(getLanguageDisplayName(lang))}</option>`).join('\n\n');
         sel.value = currentLang;
     }
     async function initI18n(lng) {
@@ -1427,8 +1510,12 @@
     // 編集対象のメタ情報：表示名キー / モデル選択を出すか / モデル種別（chat or code）
     const PROMPT_EDITOR_META = {
         'target-persona':  { titleKey: 'targetPersonaLabel',   showModel: false },
+        'user-system-prompt': { titleKey: 'userSystemPromptLabel', showModel: false },
         'system-prompt':   { titleKey: 'systemPromptLabel',    showModel: false },
         'code-principles': { titleKey: 'codePrinciplesLabel',  showModel: false },
+        'admin-system-requirements': { titleKey: 'adminSystemRequirementsLabel', showModel: false },
+        'admin-implementation-verification': { titleKey: 'adminImplementationVerifyLabel', showModel: false },
+        'skill-settings': { titleKey: 'skillSettingsLabel', showModel: false },
         'prompt-plan':     { titleKey: 'planPromptLabel',      showModel: true,  modelKind: 'chat' },
         'prompt-suggest':  { titleKey: 'suggestPromptLabel',   showModel: true,  modelKind: 'chat' },
         'prompt-debug':    { titleKey: 'debugPromptLabel',     showModel: true,  modelKind: 'chat' },
@@ -1490,7 +1577,7 @@
 
     // 設定画面のプロンプト編集ボタンに、現在の値のプレビューを表示
     function updatePromptPreviews() {
-        ['target-persona','system-prompt','code-principles'].forEach(key => {
+        ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings'].forEach(key => {
             const el = document.getElementById('preview-' + key);
             if (el) {
                 const v = document.getElementById(key)?.value || '';
@@ -1544,7 +1631,7 @@
         input.value = modelOverrides[key] || '';
     }
 
-    function getFieldDefaults() { return { 'system-prompt': getDefault('system-prompt'), 'target-persona': getDefault('target-persona'), 'code-principles': getDefault('code-principles'), 'prompt-plan': getPrompt('plan'), 'prompt-suggest': getPrompt('suggest'), 'prompt-debug': getPrompt('debug'), 'prompt-extract': getPrompt('extract'), 'prompt-verify': getPrompt('verify') }; }
+    function getFieldDefaults() { return { 'system-prompt': getDefault('system-prompt'), 'target-persona': getDefault('target-persona'), 'user-system-prompt': getDefault('user-system-prompt'), 'code-principles': getDefault('code-principles'), 'admin-system-requirements': getDefault('admin-system-requirements'), 'admin-implementation-verification': getDefault('admin-implementation-verification'), 'skill-settings': getDefault('skill-settings'), 'prompt-plan': getPrompt('plan'), 'prompt-suggest': getPrompt('suggest'), 'prompt-debug': getPrompt('debug'), 'prompt-extract': getPrompt('extract'), 'prompt-verify': getPrompt('verify') }; }
     function resetFieldDefault(fieldId) { const def = getFieldDefaults()[fieldId]; if (def !== undefined) { document.getElementById(fieldId).value = def; autoSaveSettings(); showToast(getLabel('toastDefaultRestored')); } }
 
     /* === タスク管理（Phase 2: 計画 / 検証 / 失敗ログ の3カテゴリ） === */
@@ -1612,7 +1699,7 @@
                     <div class="spec-card-text" style="flex:1;">${escapeHtml(item.text)}</div>
                 </div>
             </div>
-        `).join('');
+        `).join('\n\n');
     }
     async function promoteVerifyToPlan() {
         const items = await getVerifyMissing();
@@ -1665,7 +1752,7 @@
                     </div>
                 </div>
             `;
-        }).join('');
+        }).join('\n\n');
     }
     async function addFailureLogManual() {
         const inp = document.getElementById('failure-add-input');
@@ -1749,7 +1836,7 @@
                         <div id="spec-text-${item.id}" class="spec-card-text ${item.done ? 'done' : ''}" contenteditable="true" onblur="updateSpecText('${item.id}', this.innerText)">${escapeHtml(item.text)}</div>
                     </div>
                 </div>
-            `).join('');
+            `).join('\n\n');
         }
         updateSpecBadge();
     }
@@ -1916,7 +2003,7 @@
             updateKeyExpiryStatus(hasAnyKey ? apiKeys : null);
             const settings = {
                 aiProvider: document.getElementById('ai-provider')?.value || 'gemini', chatModel: document.getElementById('chat-model').value, codeModel: document.getElementById('code-model').value, serverEndpoint: document.getElementById('server-endpoint')?.value || '', customBaseUrl: document.getElementById('api-base-custom')?.value || '', templateCatalogUrl: document.getElementById('template-catalog-url')?.value || '',
-                targetPersona: document.getElementById('target-persona').value, systemPrompt: document.getElementById('system-prompt').value, codePrinciples: document.getElementById('code-principles').value,
+                targetPersona: document.getElementById('target-persona').value, userSystemPrompt: document.getElementById('user-system-prompt').value, systemPrompt: document.getElementById('system-prompt').value, codePrinciples: document.getElementById('code-principles').value, adminSystemRequirements: document.getElementById('admin-system-requirements').value, adminImplementationVerification: document.getElementById('admin-implementation-verification').value, skillSettings: document.getElementById('skill-settings').value,
                 promptPlan: document.getElementById('prompt-plan').value, promptSuggest: document.getElementById('prompt-suggest').value, promptDebug: document.getElementById('prompt-debug').value,
                 promptExtract: document.getElementById('prompt-extract').value, promptVerify: document.getElementById('prompt-verify').value,
                 modelOverrides: { ...modelOverrides }
@@ -2566,15 +2653,39 @@
     async function askAI() {
         const targetPersona = document.getElementById('target-persona').value; const model = getModelForPrompt('plan');
         const input = document.getElementById('user-prompt'); const promptText = input.value.trim();
-        if(!promptText && !currentFileName) return showToast(getLabel('toastInputRequired'));
-        const userMsgObj = { id: Date.now().toString(), role: 'user', text: promptText, html: false }; if(currentFileName) userMsgObj.attachment = currentFileName;
+        const attachmentBlock = buildAttachmentPromptBlock();
+        const hasAttachments = Array.isArray(currentAttachments) && currentAttachments.length > 0;
+        if(!promptText && !hasAttachments) return showToast(getLabel('toastInputRequired'));
+        const attachmentNames = hasAttachments ? currentAttachments.map(a => a.name).filter(Boolean) : [];
+        const promptForAI = [promptText, attachmentBlock].filter(Boolean).join('\n\n');
+        const userMsgObj = { id: Date.now().toString(), role: 'user', text: promptText || (getLabel('attachmentOnlyMessage') || '（添付のみ）'), html: false };
+        if (attachmentNames.length) { userMsgObj.attachment = attachmentNames.join(', '); userMsgObj.attachments = attachmentNames; }
         chatHistory.push(userMsgObj); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(userMsgObj);
         const aiMsgId = (Date.now() + 1).toString(); const aiMsgObj = { id: aiMsgId, role: 'ai', text: `<div style="display:flex;align-items:center;"><div class="spinner"></div><span>${getLabel('aiSystemMsgThinking')}</span></div>`, html: true };
         chatHistory.push(aiMsgObj); saveToDB('chatHistory', chatHistory); const log = document.getElementById('chat-log'); const aiMsgElement = createMessageElement(aiMsgObj); log.appendChild(aiMsgElement); log.scrollTop = log.scrollHeight; const contentDiv = aiMsgElement.querySelector('.msg-content');
         input.value = ''; input.style.height = "44px";
-        const codeContext = window.getCode() ? `\n\n【現在のコード】\n\`\`\`html\n${window.getCode()}\n\`\`\`\n※上記を踏まえて提案してください。` : "";
-        const system = (document.getElementById('prompt-plan').value.trim() || getPrompt('plan')).replace('{targetPersona}', targetPersona).replace('{prof}', targetPersona).replace('{codeContext}', codeContext).replace('{systemPrompt}', document.getElementById('system-prompt').value.trim()).replace('{specList}', specListToString()).replace('{recentChat}', getRecentChat(3));
-        const images = []; if (currentImageBase64 && currentMimeType) { images.push({ mime: currentMimeType, base64: currentImageBase64 }); removeAttachment(); }
+        const codeContext = window.getCode() ? `
+
+【現在のコード】
+\`\`\`html
+${window.getCode()}
+\`\`\`
+※上記を踏まえて提案してください。` : "";
+        const recentChatForAI = getRecentChat(3) + (attachmentBlock ? `
+
+${attachmentBlock}` : '');
+        const adminSystem = [
+            document.getElementById('system-prompt').value.trim(),
+            document.getElementById('admin-system-requirements')?.value.trim(),
+            document.getElementById('admin-implementation-verification')?.value.trim(),
+            document.getElementById('skill-settings')?.value.trim(),
+            document.getElementById('user-system-prompt')?.value.trim() ? `【ユーザー用システムプロンプト】
+${document.getElementById('user-system-prompt').value.trim()}` : ''
+        ].filter(Boolean).join('\n\n');
+        const system = (document.getElementById('prompt-plan').value.trim() || getPrompt('plan')).replace('{targetPersona}', targetPersona).replace('{prof}', targetPersona).replace('{codeContext}', codeContext).replace('{systemPrompt}', adminSystem).replace('{specList}', specListToString()).replace('{recentChat}', recentChatForAI);
+        const images = hasAttachments ? currentAttachments.filter(a => (a.mime || '').startsWith('image/') && a.base64).map(a => ({ mime: a.mime, base64: a.base64 })) : [];
+        if (!images.length && currentImageBase64 && currentMimeType) images.push({ mime: currentMimeType, base64: currentImageBase64 });
+        if (hasAttachments || currentImageBase64) removeAttachment();
         let aiText = "";
         try {
             const routeForStream = parseModelRoute(model); const key = getCurrentApiKey(model);
@@ -2595,7 +2706,7 @@
             }
 
             const aiMsgToUpdate = chatHistory.find(m => m.id === aiMsgId); if(aiMsgToUpdate) { aiMsgToUpdate.text = aiText; aiMsgToUpdate.html = false; saveToDB('chatHistory', chatHistory); aiMsgElement.replaceWith(createMessageElement(aiMsgToUpdate)); log.scrollTop = log.scrollHeight; }
-            if (aiText) { await extractSpecsFromChat(promptText, aiText); }
+            if (aiText) { await extractSpecsFromChat(promptForAI || promptText, aiText); }
         } catch (e) { contentDiv.textContent = `${getLabel('aiSystemMsgBuildError')} ${e.message}`; try { addFailureLog('ai-error', `チャット応答失敗: ${e.message || e}`, '直近の入力: ' + (promptText || '').slice(0, 200)); } catch(_) {} } finally { clearNewSpecFlags(); }
     }
 
@@ -2629,7 +2740,25 @@
         const sysMsgObj = { id: Date.now().toString(), role: 'ai system-msg', text: `<div style="display:flex;align-items:center;"><div class="spinner"></div><span>${getLabel('aiSystemMsgBuildingCode')}</span></div>`, html: true };
         chatHistory.push(sysMsgObj); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsgObj);
         const themeCSS = await getSelectedThemeCSS();
-        const system = `Expert Full-stack Web Developerとして完全なHTMLファイルを出力してください。\n${document.getElementById('system-prompt').value.trim()}\nターゲットペルソナ: ${targetPersona}\nルール: Markdownのコードブロック不要。\n${document.getElementById('code-principles').value.trim()}\n${themeCSS ? `【デザイン】以下のCSS変数を使用\n${themeCSS}` : ''}\n${currentCode ? `既存コード:\n${currentCode}` : '新規作成'}\n【実装要件】\n${specListToString()}`;
+        const adminBuildSystem = [
+            document.getElementById('system-prompt').value.trim(),
+            document.getElementById('code-principles').value.trim(),
+            document.getElementById('admin-system-requirements')?.value.trim(),
+            document.getElementById('admin-implementation-verification')?.value.trim(),
+            document.getElementById('skill-settings')?.value.trim(),
+            document.getElementById('user-system-prompt')?.value.trim() ? `【ユーザー用システムプロンプト】
+${document.getElementById('user-system-prompt').value.trim()}` : ''
+        ].filter(Boolean).join('\n\n');
+        const system = `Expert Full-stack Web Developerとして完全なHTMLファイルを出力してください。
+${adminBuildSystem}
+ターゲットペルソナ: ${targetPersona}
+ルール: Markdownのコードブロック不要。
+${themeCSS ? `【デザイン】以下のCSS変数を使用
+${themeCSS}` : ''}
+${currentCode ? `既存コード:
+${currentCode}` : '新規作成'}
+【実装要件】
+${specListToString()}`;
         try {
             let code = await runAgenticCodeBuild(system, model);
             window.setCode(code, 'index.html'); updatePreview(); showPage('preview', document.getElementById('tab-preview'));
@@ -3152,7 +3281,7 @@
                 if (decryptedKeys) { ['gemini','openai','claude','xai','groq','custom'].forEach(k => { const el = document.getElementById('api-key-'+k); if (el) el.value = decryptedKeys[k] || ''; }); updateKeyExpiryStatus(decryptedKeys); }
                 else if (settings.apiKeys) { ['gemini','openai','claude','xai','groq','custom'].forEach(k => { const el = document.getElementById('api-key-'+k); if (el) el.value = settings.apiKeys[k] || ''; }); await saveEncryptedKeys(settings.apiKeys); updateKeyExpiryStatus(settings.apiKeys); }
                 else updateKeyExpiryStatus(null);
-                ['target-persona','system-prompt','code-principles','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => {
+                ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => {
                     const camel = k.replace(/-([a-z])/g, g => g[1].toUpperCase());
                     const savedValue = settings[camel];
                     document.getElementById(k).value = (savedValue !== undefined && savedValue !== "") ? savedValue : getFieldDefaults()[k];
@@ -3167,7 +3296,7 @@
                     modelOverrides = { ...settings.modelOverrides };
                 }
             } else {
-                onProviderChange(); ['target-persona','system-prompt','code-principles','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => document.getElementById(k).value = getFieldDefaults()[k]); updateKeyExpiryStatus(null);
+                onProviderChange(); ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => document.getElementById(k).value = getFieldDefaults()[k]); updateKeyExpiryStatus(null);
             }
             toggleModelSelects(); const ghToken = await getFromDB('gh_token'); if (ghToken) { const sgt = document.getElementById('setting-gh-token'); const dti = document.getElementById('deploy-token-input'); const gpm = document.getElementById('github-pat-modal-input'); if (sgt) sgt.value = ghToken; if (dti) dti.value = ghToken; if (gpm) gpm.value = ghToken; }
             try { updatePromptPreviews(); } catch(e) {}
@@ -3183,24 +3312,175 @@
 
     function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById('p-' + id).classList.add('active'); if (btn) btn.classList.add('active'); if(id === 'preview') updatePreview(); }
     function autoGrow(element) { element.style.height = "5px"; element.style.height = Math.min(element.scrollHeight, 150) + "px"; if (element.id === 'user-prompt') setTimeout(keepChatInputVisible, 0); }
-    function toggleAttachmentMenu() { if (currentFileName) { removeAttachment(); return; } document.getElementById('attach-menu').classList.toggle('show'); }
+    function toggleAttachmentMenu() { if (currentAttachments && currentAttachments.length) { removeAttachment(); return; } document.getElementById('attach-menu').classList.toggle('show'); }
     function triggerFile(type) { document.getElementById('file-' + type).click(); document.getElementById('attach-menu').classList.remove('show'); }
-    function handleAttachment(input) { const file = input.files[0]; if (!file) return; currentMimeType = file.type; currentFileName = file.name; const reader = new FileReader(); reader.onloadend = () => { currentImageBase64 = reader.result.split(',')[1]; document.querySelector('.file-label').innerHTML = '✕'; document.querySelector('.file-label').style.background = 'var(--danger)'; if (currentMimeType.startsWith('image/')) { document.getElementById('file-preview').src = reader.result; document.getElementById('file-preview').style.display = 'block'; document.getElementById('file-name-display').style.display = 'none'; } else { document.getElementById('file-preview').style.display = 'none'; document.getElementById('file-name-display').innerText = `${getLabel('ghFilePrefix')} ${currentFileName}`; document.getElementById('file-name-display').style.display = 'inline-block'; } }; reader.readAsDataURL(file); input.value = ''; }
-    function removeAttachment() { currentImageBase64 = null; currentMimeType = null; currentFileName = null; document.getElementById('file-preview').style.display = 'none'; document.getElementById('file-name-display').style.display = 'none'; document.querySelector('.file-label').innerHTML = '＋'; document.querySelector('.file-label').style.background = 'var(--color-bg-elevated)'; document.getElementById('attach-menu').classList.remove('show'); }
+
+    function isZipFile(file) {
+        const name = (file?.name || '').toLowerCase();
+        return name.endsWith('.zip') || file?.type === 'application/zip' || file?.type === 'application/x-zip-compressed';
+    }
+    function isTextLikePath(path, mime) {
+        const p = (path || '').toLowerCase();
+        if ((mime || '').startsWith('text/')) return true;
+        return /\.(html?|css|js|mjs|cjs|json|txt|md|svg|xml|ya?ml|csv|ts|tsx|jsx|vue|svelte|py|rb|php|java|kt|swift|go|rs|c|cpp|h|hpp|cs|sql|env|toml|ini)$/i.test(p);
+    }
+    function readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result || '');
+            reader.onerror = () => reject(reader.error || new Error('File read failed'));
+            reader.readAsDataURL(file);
+        });
+    }
+    function readFileAsText(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result || '');
+            reader.onerror = () => resolve('');
+            reader.readAsText(file);
+        });
+    }
+    async function extractTextFromZipFile(file, maxChars = 20000) {
+        if (typeof JSZip === 'undefined') return { text: '', fileCount: 0, skipped: ['JSZip未読込'] };
+        const zip = await JSZip.loadAsync(file);
+        const parts = [];
+        const skipped = [];
+        let used = 0;
+        let fileCount = 0;
+        const entries = Object.values(zip.files).filter(entry => !entry.dir).sort((a, b) => a.name.localeCompare(b.name));
+        for (const entry of entries) {
+            const name = normalizeFilePath(entry.name);
+            if (!isTextLikePath(name, '')) { skipped.push(name); continue; }
+            if (used >= maxChars) { skipped.push(name + '（上限超過）'); continue; }
+            try {
+                const text = await entry.async('text');
+                const slice = text.slice(0, Math.max(0, maxChars - used));
+                used += slice.length;
+                fileCount++;
+                parts.push(`--- ${name} ---
+${slice}`);
+            } catch(e) {
+                skipped.push(name + '（読込失敗）');
+            }
+        }
+        return { text: parts.join('\n\n'), fileCount, skipped };
+    }
+    async function buildAttachmentObject(file) {
+        const obj = { name: file.name, mime: file.type || 'application/octet-stream', size: file.size || 0, base64: '', textContent: '', zipFileCount: 0 };
+        if (isZipFile(file)) {
+            const zipText = await extractTextFromZipFile(file);
+            obj.mime = 'application/zip';
+            obj.textContent = zipText.text ? `ZIP内テキストファイル ${zipText.fileCount}件
+${zipText.text}` : 'ZIP内に読み取れるテキストファイルがありません。';
+            obj.zipFileCount = zipText.fileCount;
+            obj.zipSkipped = zipText.skipped || [];
+            return obj;
+        }
+        if ((obj.mime || '').startsWith('image/')) {
+            const dataUrl = await readFileAsDataURL(file);
+            obj.base64 = String(dataUrl).split(',')[1] || '';
+            return obj;
+        }
+        if (isTextLikePath(file.name, obj.mime)) {
+            obj.textContent = await readFileAsText(file);
+        }
+        return obj;
+    }
+    function renderAttachmentPreview() {
+        const preview = document.getElementById('file-preview');
+        const nameDisplay = document.getElementById('file-name-display');
+        const label = document.querySelector('.file-label');
+        const list = currentAttachments || [];
+        if (!list.length) {
+            if (preview) preview.style.display = 'none';
+            if (nameDisplay) { nameDisplay.style.display = 'none'; nameDisplay.classList.remove('multi'); nameDisplay.textContent = ''; }
+            if (label) { label.innerHTML = '＋'; label.style.background = 'var(--color-bg-elevated)'; }
+            return;
+        }
+        if (label) { label.innerHTML = '✕'; label.style.background = 'var(--danger)'; }
+        const firstImage = list.find(a => (a.mime || '').startsWith('image/') && a.base64);
+        if (firstImage && preview) {
+            preview.src = `data:${firstImage.mime};base64,${firstImage.base64}`;
+            preview.style.display = 'block';
+        } else if (preview) preview.style.display = 'none';
+        if (nameDisplay) {
+            const names = list.map(a => a.name).join('、');
+            nameDisplay.textContent = `📎 ${list.length}件: ${names}`;
+            nameDisplay.style.display = 'inline-block';
+            nameDisplay.classList.toggle('multi', list.length > 1 || names.length > 24);
+        }
+    }
+    async function handleAttachment(input) {
+        const files = Array.from(input.files || []);
+        if (!files.length) return;
+        try {
+            const next = await Promise.all(files.map(buildAttachmentObject));
+            currentAttachments = [...(currentAttachments || []), ...next];
+            const first = currentAttachments[0];
+            currentMimeType = first?.mime || null;
+            currentFileName = currentAttachments.map(a => a.name).join(', ');
+            const firstImage = currentAttachments.find(a => (a.mime || '').startsWith('image/') && a.base64);
+            currentImageBase64 = firstImage?.base64 || null;
+            renderAttachmentPreview();
+            showToast((getLabel('toastAttachmentsAdded') || '添付しました').replace('{count}', String(next.length)));
+        } catch(e) {
+            showToast((getLabel('toastAttachmentReadError') || '添付ファイルの読み込みに失敗しました') + ': ' + (e.message || e));
+        } finally {
+            input.value = '';
+        }
+    }
+    function buildAttachmentPromptBlock() {
+        const list = currentAttachments || [];
+        if (!list.length) return '';
+        const lines = ['【添付ファイル】'];
+        list.forEach((a, i) => {
+            lines.push(`${i + 1}. ${a.name} (${a.mime || 'unknown'}, ${a.size || 0} bytes)`);
+            if (a.textContent) lines.push(`内容:
+${String(a.textContent).slice(0, 24000)}`);
+            if ((a.mime || '').startsWith('image/')) lines.push('画像ファイルです。画像内容はマルチモーダル入力として送信します。');
+        });
+        return lines.join('\n\n');
+    }
+    function removeAttachment() { currentAttachments = []; currentImageBase64 = null; currentMimeType = null; currentFileName = null; renderAttachmentPreview(); document.getElementById('attach-menu').classList.remove('show'); }
     function triggerCodeUpload() { document.getElementById('code-upload-input').click(); }
+    async function extractProjectFilesFromZip(file) {
+        if (typeof JSZip === 'undefined') throw new Error('JSZipが読み込まれていません');
+        const zip = await JSZip.loadAsync(file);
+        const loaded = {};
+        const skipped = [];
+        const entries = Object.values(zip.files).filter(entry => !entry.dir).sort((a, b) => a.name.localeCompare(b.name));
+        for (const entry of entries) {
+            const path = normalizeFilePath(entry.name);
+            if (!isTextLikePath(path, '')) { skipped.push(path); continue; }
+            try { loaded[path] = await entry.async('text'); }
+            catch(e) { skipped.push(path + '（読込失敗）'); }
+        }
+        return { files: loaded, skipped };
+    }
     async function handleCodeUpload(input) {
         const files = Array.from(input.files || []);
         if (!files.length) return;
         const loaded = {};
-        await Promise.all(files.map(file => new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => { loaded[normalizeFilePath(file.webkitRelativePath || file.name)] = e.target.result; resolve(); };
-            reader.onerror = () => resolve();
-            reader.readAsText(file);
-        })));
+        const skipped = [];
+        for (const file of files) {
+            if (isZipFile(file)) {
+                try {
+                    const extracted = await extractProjectFilesFromZip(file);
+                    Object.assign(loaded, extracted.files);
+                    skipped.push(...(extracted.skipped || []));
+                } catch(e) {
+                    skipped.push(file.name + '（ZIP読込失敗: ' + (e.message || e) + '）');
+                }
+                continue;
+            }
+            if (!isTextLikePath(file.webkitRelativePath || file.name, file.type)) { skipped.push(file.name); continue; }
+            loaded[normalizeFilePath(file.webkitRelativePath || file.name)] = await readFileAsText(file);
+        }
+        if (!Object.keys(loaded).length) { input.value = ''; return showToast(getLabel('toastNoReadableProjectFiles') || '読み込めるテキスト系ファイルがありません'); }
         const active = loaded['index.html'] !== undefined ? 'index.html' : Object.keys(loaded)[0];
         setProjectFiles(loaded, active);
-        resetChatForNewCode(getLabel('uploadButton') + '「' + files.length + ' files」');
+        resetChatForNewCode(getLabel('uploadButton') + '「' + Object.keys(loaded).length + ' files」');
+        if (skipped.length) showToast((getLabel('toastSomeFilesSkipped') || '一部の非テキストファイルをスキップしました') + ': ' + skipped.slice(0, 3).join('、'));
         input.value = '';
     }
     function updatePreview() { syncCurrentEditorFile(); document.getElementById('preview-frame').srcdoc = projectFiles['index.html'] || window.getCode(); }
@@ -3338,12 +3618,12 @@
     async function loadThemeManager() { try { customThemes = (await getFromDB('customThemes')) || []; const saved = await getFromDB('codeTheme'); if (saved) currentThemeId = saved; } catch(e){} renderThemeGrid(); }
     function renderThemeGrid() {
         let h = `<div class="theme-card ${currentThemeId==='none'?'active':''}" onclick="selectTheme('none')"><div class="theme-preview-dots"><div class="theme-preview-dot" style="background:#888"></div></div><div class="theme-card-name">🚫 ${getLabel('noSpecsMessage')}</div></div>`;
-        h += customThemes.map(t => `<div class="theme-card ${t.id===currentThemeId?'active':''}" onclick="selectTheme('${t.id}')"><div class="theme-preview-dots"><div class="theme-preview-dot" style="background:${t.colors['color-bg-deep']}"></div><div class="theme-preview-dot" style="background:${t.colors['primary']}"></div></div><div class="theme-card-name">${t.name}</div><div class="theme-card-actions"><button class="theme-action-btn" onclick="event.stopPropagation();deleteTheme('${t.id}')">${getLabel('chatMsgDelete')}</button></div></div>`).join('');
+        h += customThemes.map(t => `<div class="theme-card ${t.id===currentThemeId?'active':''}" onclick="selectTheme('${t.id}')"><div class="theme-preview-dots"><div class="theme-preview-dot" style="background:${t.colors['color-bg-deep']}"></div><div class="theme-preview-dot" style="background:${t.colors['primary']}"></div></div><div class="theme-card-name">${t.name}</div><div class="theme-card-actions"><button class="theme-action-btn" onclick="event.stopPropagation();deleteTheme('${t.id}')">${getLabel('chatMsgDelete')}</button></div></div>`).join('\n\n');
         h += `<div class="theme-new-card" onclick="openThemeEditor()">＋<span>${getLabel('newRepoCreateButton')}</span></div>`; document.getElementById('theme-grid').innerHTML = h;
     }
     async function selectTheme(id) { currentThemeId = id; await saveToDB('codeTheme', id); renderThemeGrid(); if (window.getCode() && id !== 'none') injectThemeToCode(true); }
     async function getSelectedThemeCSS() { if (currentThemeId === 'none') return null; const t = customThemes.find(x => x.id === currentThemeId); return t ? t.css : null; }
-    function openThemeEditor() { editingThemeId = null; document.getElementById('theme-editor-title').textContent = getLabel('themeEditorModalTitleCreate'); document.getElementById('te-name').placeholder = getLabel('themeEditorNamePlaceholder'); document.getElementById('te-icon').placeholder = getLabel('themeEditorIconPlaceholder'); document.getElementById('te-desc').placeholder = getLabel('themeEditorDescPlaceholder'); document.getElementById('te-colors').innerHTML = THEME_VARS.map(v => `<div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:10px">${v.label}</label><div style="display:flex;gap:4px;"><input type="color" value="${v.default}" oninput="this.nextElementSibling.value=this.value" style="width:30px;height:24px;border:none"><input type="text" class="theme-color-hex" data-key="${v.key}" value="${v.default}" style="flex:1;font-size:11px" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))this.previousElementSibling.value=this.value"></div></div>`).join(''); document.getElementById('theme-editor-modal').classList.add('show'); }
+    function openThemeEditor() { editingThemeId = null; document.getElementById('theme-editor-title').textContent = getLabel('themeEditorModalTitleCreate'); document.getElementById('te-name').placeholder = getLabel('themeEditorNamePlaceholder'); document.getElementById('te-icon').placeholder = getLabel('themeEditorIconPlaceholder'); document.getElementById('te-desc').placeholder = getLabel('themeEditorDescPlaceholder'); document.getElementById('te-colors').innerHTML = THEME_VARS.map(v => `<div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:10px">${v.label}</label><div style="display:flex;gap:4px;"><input type="color" value="${v.default}" oninput="this.nextElementSibling.value=this.value" style="width:30px;height:24px;border:none"><input type="text" class="theme-color-hex" data-key="${v.key}" value="${v.default}" style="flex:1;font-size:11px" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))this.previousElementSibling.value=this.value"></div></div>`).join('\n\n'); document.getElementById('theme-editor-modal').classList.add('show'); }
     function closeThemeEditor() { document.getElementById('theme-editor-modal').classList.remove('show'); }
     async function saveThemeFromEditor() { const name = document.getElementById('te-name').value.trim(); if (!name) return; const colors = {}; document.querySelectorAll('.theme-color-hex').forEach(el => colors[el.dataset.key] = el.value); let css = ':root{\n'; THEME_VARS.forEach(v => css += `  --${v.key}: ${colors[v.key]};\n`); css += `  --bg: ${colors['color-bg-deep']}; --sidebar: ${colors['color-bg-surface']}; --user-msg: ${colors['color-bg-elevated']}; --ai-msg: ${colors['color-bg-deep']};\n}\nbody { color: ${colors['color-text-primary']}; background: ${colors['color-bg-deep']}; }`; const t = { id: 'custom-' + Date.now(), name, colors, css }; customThemes.push(t); await saveToDB('customThemes', customThemes); currentThemeId = t.id; await saveToDB('codeTheme', t.id); renderThemeGrid(); closeThemeEditor(); showToast(getLabel('toastThemeSaved')); }
     async function deleteTheme(id) { if (!confirm(getLabel('themeDeleteConfirm'))) return; customThemes = customThemes.filter(t => t.id !== id); await saveToDB('customThemes', customThemes); if (currentThemeId === id) { currentThemeId = 'none'; await saveToDB('codeTheme', 'none'); } renderThemeGrid(); }
@@ -3378,8 +3658,8 @@
             const locked = !isTemplateUnlocked(t);
             const source = 'remote';
             return `<div class="template-card ${locked ? 'locked' : ''}" onclick="applyTemplate('${t.id}', '${source}')">${locked ? '<span class="template-paid-badge">PAID</span>' : ''}<span class="template-icon">${escapeHtml(t.icon || '📄')}</span><div class="template-name">${escapeHtml(t.name || t.id)}</div><div class="template-desc">${escapeHtml(t.description || '')}</div></div>`;
-        }).join('');
-        const customHtml = customTemplates.map(t => `<div class="template-card" onclick="applyTemplate('${t.id}', 'custom')"><div class="template-card-actions"><button class="theme-action-btn" onclick="event.stopPropagation();deleteCustomTemplate('${t.id}')">${getLabel('chatMsgDelete')}</button></div><span class="template-icon">${escapeHtml(t.icon || '📄')}</span><div class="template-name">${escapeHtml(t.name)}</div></div>`).join('');
+        }).join('\n\n');
+        const customHtml = customTemplates.map(t => `<div class="template-card" onclick="applyTemplate('${t.id}', 'custom')"><div class="template-card-actions"><button class="theme-action-btn" onclick="event.stopPropagation();deleteCustomTemplate('${t.id}')">${getLabel('chatMsgDelete')}</button></div><span class="template-icon">${escapeHtml(t.icon || '📄')}</span><div class="template-name">${escapeHtml(t.name)}</div></div>`).join('\n\n');
         const addHtml = `<div class="template-new-card" onclick="openTemplateEditor()">＋<span>${getLabel('templateAddButton')}</span></div>`;
         document.getElementById('template-grid').innerHTML = remoteHtml + customHtml + addHtml;
     }
