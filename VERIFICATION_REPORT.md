@@ -45,3 +45,11 @@
 - ブラウザから各ベンダーAPIを直接呼ぶ場合、ベンダー側CORS制約を受ける可能性がある。本番はCloudflare Worker経由を推奨。
 - 複数ファイルのブラウザ内ZIPダウンロードは未実装。現状の保存ボタンは現在開いているファイルを保存する。
 - GitHub Pagesの作成・更新はPAT権限や組織ポリシーに依存するため、UIでエラーを返す設計としている。
+
+
+## v3 追加検証
+
+- Android Chrome のソフトキーボード表示を想定し、`visualViewport` 連動の高さ制御、入力欄フォーカス時の `keyboard-open` クラス付与、チャットログ末尾スクロールを追加。
+- 言語切り替えUIからボタン式トグルを削除し、`language-select` プルダウンのみで切り替える構造に変更。
+- i18next のリソース初期化を `ja/en` 固定から、`PROMPTS_DATA.ui` 内の任意言語を列挙する方式へ変更。
+- Service Worker のキャッシュ名を `ai-web-studio-v3-mobile-i18n` に更新し、古いUIキャッシュが残りにくいようにした。
