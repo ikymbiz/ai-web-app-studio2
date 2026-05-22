@@ -53,3 +53,30 @@
 - 言語切り替えUIからボタン式トグルを削除し、`language-select` プルダウンのみで切り替える構造に変更。
 - i18next のリソース初期化を `ja/en` 固定から、`PROMPTS_DATA.ui` 内の任意言語を列挙する方式へ変更。
 - Service Worker のキャッシュ名を `ai-web-studio-v3-mobile-i18n` に更新し、古いUIキャッシュが残りにくいようにした。
+
+
+## v3.2 追加検証（質問グループ選択 / プロンプト厳格化）
+
+| No | 要件 | 検証結果 |
+|---:|---|---|
+| 17 | 複数の問いを1つのモーダルにまとめない | `parseOptionGroupsFromText()` を追加し、質問見出しごとにグループ化。`showOptionsModal()` はグループを1問ずつ表示。 |
+| 18 | 各問いの選択肢を表示して選択させる | `optionsModalStepIndex` / `optionsModalAnswers` / `optionsModalSelected` により、質問ごとに選択状態を保持。 |
+| 19 | 主要機能などは複数選択できる | `isMultipleOptionQuestion()` により、主要機能・重視点などを複数選択として扱う。 |
+| 20 | 「その他」で自由入力できる | 各ステップで `options-other-input` を利用し、`その他：入力内容` として回答へ反映。 |
+| 21 | システムプロンプトの品質を強化 | `prompts.json` と `index.html` fallback の両方に、削除禁止・省略禁止・検証必須・勝手な解釈禁止を明記。 |
+| 22 | このチャットの失敗ログを作成 | `CHAT_FAILURE_LOG.md` を追加し、失敗内容・原因・対応・再発防止策を記録。 |
+
+## v3.2 実行した静的検証
+
+- `index.html` 内の `<script>` を抽出し、`new Function()` によるJavaScript構文検証を実行。
+- `prompts.json` を `python3 -m json.tool` で検証。
+- 実例テキストで `parseOptionGroupsFromText()` を検証し、以下の3グループに分かれることを確認。
+  1. ターゲットユーザー
+  2. 主要機能
+  3. 特に重視したい点
+- `履歴機能` と `メモ機能` が質問見出し扱いで除外されず、主要機能の選択肢として残ることを確認。
+
+## v3.2 未確認事項
+
+- Android実機でのタップ、キーボード表示、Service Worker更新挙動は未確認。
+- GitHub Pagesの実デプロイはPAT権限・リポジトリ設定に依存するため未実行。
