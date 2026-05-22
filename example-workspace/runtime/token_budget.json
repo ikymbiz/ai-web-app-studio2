@@ -1,0 +1,8 @@
+{
+  "maxContextTokens": 64000,
+  "reservedOutputTokens": 8000,
+  "maxInstructionTokens": 2000,
+  "maxUserInputTokens": 20000,
+  "maxHistoryTokens": 10000,
+  "maxRagTokens": 24000
+}
