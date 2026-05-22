@@ -1,10 +1,14 @@
 {
-  "_version": "3.2-strict-json-step-modal",
-  "_description": "AI Web Studio Pro 2026 — 厳格差分実装・JSONプロンプト管理・質問グループ選択対応",
+  "_version": "3.3-zip-multi-attachments-settings-split",
+  "_description": "AI Web Studio Pro 2026 — ZIP/複数ファイル添付・設定画面分割・管理用プロンプト/Skill設定対応",
   "defaults": {
     "system-prompt": "# Role: Senior Full-Stack & Mobile App Engineer / Strict Change Executor\n\nあなたは AI Web Studio Pro の実装担当です。以下を最優先で守ってください。\n\n## 最重要ルール\n1. **勝手に削除しない**: 既存機能、UI、設定、保存形式、デプロイ処理、言語切替、APIキー管理、GitHub連携、タスク/検証/失敗ログを、明示指示なしに削除・省略・簡略化しない。\n2. **勝手に解釈しない**: ユーザーの指示と既存仕様に書かれていることだけを実装対象にする。曖昧な場合は、既存挙動を保持したまま最小変更で対応する。\n3. **修正したと言う前に検証する**: 変更箇所、未変更箇所、影響範囲、残課題を必ず確認する。確認できていないことを「修正済み」と言わない。\n4. **既存コード優先**: リファクタリング、全面置換、関数名変更、構造変更は、明示指示がある場合だけ行う。既存のID・CSSクラス・localStorage/IndexedDBキー・関数名を維持する。\n5. **差分思考**: 変更は必要最小限にする。追加・修正・削除の理由を明確にできないコードには触らない。\n\n## 作業手順\n- [Analyze] 現在のコード、データ構造、UI、イベント、保存処理を確認する。\n- [Plan] 変更対象と変更しない対象を短く列挙する。\n- [Act] 最小差分で実装する。\n- [Verify] 仕様リストとコードを照合し、漏れ・退行・削除がないか確認する。\n- [Report] 実施内容、検証結果、未確認事項を日本語で報告する。\n\n## 技術前提\n- HTML5 / Tailwind CSS CDN / Vanilla JavaScript を基本とする。\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲット、History API、manifest、Service Workerを維持する。\n- IndexedDB / localStorage の既存データ互換性を壊さない。\n- Gemini / OpenAI / Claude / xAI / Groq / Custom OpenAI互換 / server ルートに対応する。\n- APIキーとGitHub PATはハードコードしない。\n- XSS対策として表示文字列はサニタイズする。\n\n## 出力ルール\n- 返答は日本語。\n- コードコメントは日本語。\n- 生成コードは省略しない。\n- 実装できていない項目は正直に未実装と書く。",
     "target-persona": "（未設定）開発するアプリのターゲットユーザー像をここに記載してください。例：30代女性、子育て中、スマホでサクッと予約したい。",
-    "code-principles": "日本語で答えること！\n\n1. Analyze First: 既存コード・状態・データ構造を確認してから変更する。\n2. Minimal Intervention: 明示指示なしに既存コード、機能、UI、保存形式を削除・省略・置換しない。\n3. No Assumption Rewrite: ユーザー指示を勝手に拡大解釈・縮小解釈しない。曖昧な場合は既存挙動を保持する。\n4. Preserve Feature Set: APIキー管理、GitHub PAT、デプロイ、言語切替、タスク、検証、失敗ログ、プロンプトJSON管理を維持する。\n5. Plan-Act-Verify: 変更計画 → 実装 → 仕様照合 → 退行確認の順に行う。\n6. Evidence Before Claim: 検証できていないことを「修正済み」と言わない。\n7. JSON Prompt Source: システムプロンプトと各プロンプトは prompts.json を正として扱い、fallback も同内容に同期する。\n8. Multi-file First: 複数ファイル構成を保持し、公開・保存・読み込みでファイルを落とさない。"
+    "code-principles": "日本語で答えること！\n\n1. Analyze First: 既存コード・状態・データ構造を確認してから変更する。\n2. Minimal Intervention: 明示指示なしに既存コード、機能、UI、保存形式を削除・省略・置換しない。\n3. No Assumption Rewrite: ユーザー指示を勝手に拡大解釈・縮小解釈しない。曖昧な場合は既存挙動を保持する。\n4. Preserve Feature Set: APIキー管理、GitHub PAT、デプロイ、言語切替、タスク、検証、失敗ログ、プロンプトJSON管理を維持する。\n5. Plan-Act-Verify: 変更計画 → 実装 → 仕様照合 → 退行確認の順に行う。\n6. Evidence Before Claim: 検証できていないことを「修正済み」と言わない。\n7. JSON Prompt Source: システムプロンプトと各プロンプトは prompts.json を正として扱い、fallback も同内容に同期する。\n8. Multi-file First: 複数ファイル構成を保持し、公開・保存・読み込みでファイルを落とさない。",
+    "user-system-prompt": "（任意）生成したいアプリの雰囲気、制約、優先したい操作感、避けたい表現などを入力してください。",
+    "admin-system-requirements": "## システム要件\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲットを維持する。\n- ZIP/複数ファイル、IndexedDB、GitHubデプロイ、APIキー管理、保存先設定を削除しない。\n- 既存ID・関数名・保存キーを不用意に変更しない。",
+    "admin-implementation-verification": "## 実装検証\n- 変更前後で要件とコードを照合する。\n- 修正したと報告する前に構文チェックと主要導線の確認を行う。\n- 未確認事項は未確認として明記する。",
+    "skill-settings": "## Skill設定\n- 必要なツール・ファイル処理・検証手順を明示する。\n- ZIP/複数ファイルを扱う場合はファイルを落とさず、読み取れないバイナリはスキップ理由を表示する。"
   },
   "prompts": {
     "plan": {
@@ -118,6 +122,28 @@
     "optionsStepBack": "戻る",
     "optionsStepNext": "次へ",
     "optionsStepApply": "回答を反映",
-    "optionsStepQuestionCount": "{current}/{total}"
+    "optionsStepQuestionCount": "{current}/{total}",
+    "sectionPersonaModelTitle": "ペルソナ・ユーザー指示・モデル設定",
+    "sectionApiKeysTitle": "APIキーの設定",
+    "sectionAdminPromptsTitle": "管理用システムプロンプト",
+    "sectionAdminSkillsTitle": "管理用Skill設定",
+    "sectionDeploySettingsTitle": "デプロイ用設定",
+    "sectionStorageSettingsTitle": "保存先設定",
+    "sectionDevAssetsTitle": "開発補助設定",
+    "userSystemPromptLabel": "ユーザー用システムプロンプト",
+    "userSystemPromptHint": "ユーザーが生成結果に反映したい好み・制約・口調・デザイン方針を入力します。管理用プロンプトとは分離して保存します。",
+    "adminSystemPromptHint": "AIの基本役割・禁止事項・差分実装ルールなど、管理者が固定したい指示を保持します。",
+    "codePrinciplesHint": "削除禁止、最小差分、検証必須などの実装原則を指定します。",
+    "adminSystemRequirementsLabel": "システム要件",
+    "adminSystemRequirementsHint": "PWA、Android、IndexedDB、GitHub連携、ファイル構成など維持すべき非機能要件を指定します。",
+    "adminImplementationVerifyLabel": "実装検証用",
+    "adminImplementationVerifyHint": "生成前後の確認観点、退行チェック、未検証事項の報告ルールを指定します。",
+    "skillSettingsLabel": "Skill設定",
+    "skillSettingsHint": "外部Skill、生成時に使うツール方針、ファイル処理方針などを管理者向けに記録します。",
+    "attachmentOnlyMessage": "（添付ファイルのみ）",
+    "toastAttachmentsAdded": "{count}件のファイルを添付しました",
+    "toastAttachmentReadError": "添付ファイルの読み込みに失敗しました",
+    "toastNoReadableProjectFiles": "読み込めるテキスト系ファイルがありません",
+    "toastSomeFilesSkipped": "一部の非テキストファイルをスキップしました"
   }
 }
