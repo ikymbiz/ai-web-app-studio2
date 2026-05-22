@@ -1,0 +1,24 @@
+{
+  "templates": [
+    {
+      "id": "landing-basic-free",
+      "name": "Landing Basic",
+      "icon": "🚀",
+      "description": "無料のリモート配信テンプレート例",
+      "paid": false,
+      "files": {
+        "index.html": "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Landing</title></head><body><main><h1>Hello</h1></main></body></html>"
+      }
+    },
+    {
+      "id": "dashboard-pro-paid",
+      "name": "Dashboard Pro",
+      "icon": "📊",
+      "description": "課金テンプレートのロック表示例",
+      "paid": true,
+      "files": {
+        "index.html": "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Dashboard Pro</title></head><body><h1>Paid Dashboard</h1></body></html>"
+      }
+    }
+  ]
+}
