@@ -80,3 +80,28 @@
 
 - Android実機でのタップ、キーボード表示、Service Worker更新挙動は未確認。
 - GitHub Pagesの実デプロイはPAT権限・リポジトリ設定に依存するため未実行。
+
+## v3.3 追加検証（ZIP/複数添付・設定画面分割）
+
+| No | 要件 | 検証結果 |
+|---:|---|---|
+| 23 | ZIPファイルを添付できる | チャット添付の `file-files` に `.zip` / `application/zip` を追加し、`JSZip` でZIP内テキストを読み取る処理を追加。 |
+| 24 | 複数ファイルを添付できる | `file-gallery` / `file-files` に `multiple` を追加し、`currentAttachments[]` で複数保持するよう変更。 |
+| 25 | ZIPプロジェクトを読み込める | コード読込のacceptに `.zip` を追加し、ZIP内のテキスト系ファイルを `projectFiles` に展開。 |
+| 26 | 設定画面を指定された単位に分割 | ペルソナ・ユーザー指示・モデル、APIキー、管理用プロンプト、Skill、デプロイ、保存先、開発補助に分割。 |
+| 27 | 管理用システムプロンプト画面に追加欄 | プリンシプル、システム要件、実装検証用の編集欄を追加。 |
+| 28 | 管理用Skill設定画面 | `skill-settings` を追加し、保存・復元・PLAN/BUILD反映対象に追加。 |
+| 29 | 既存機能を省略しない | 既存のAPIキー管理モーダル、GitHub PAT、デプロイ、保存先、テーマ、テンプレート、プロンプトテンプレートを残したまま画面分割。 |
+
+## v3.3 実行した静的検証
+
+- `index.html` 内の `<script>` を抽出し、`node --check` でJavaScript構文を検証。
+- `sw.js` を `node --check` で検証。
+- `cloudflare-worker.js` を `node --check` で検証。
+- `prompts.json` を `python3 -m json.tool` で検証。
+- 実DOM用IDの重複がないことを確認。
+
+## v3.3 未確認事項
+
+- Android実機でのZIP選択・複数添付の操作感は未確認。
+- ZIP内の画像やバイナリアセットをプロジェクトに復元する処理は未実装。現状はHTML/CSS/JS/JSON/Markdown等のテキスト系ファイルを対象にしています。
