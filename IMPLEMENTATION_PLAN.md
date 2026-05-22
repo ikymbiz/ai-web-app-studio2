@@ -82,3 +82,21 @@ AI Web Studioを、特定ベンダー固定ではなく、複数モデルベン�
 - JSON構文検証
 - 実例テキストで質問グループ抽出を確認
 - README / VERIFICATION_REPORT に変更内容を記録
+
+## v3.3 実装計画と実施結果
+
+### 計画
+
+1. 既存の単一添付処理を削除せず、複数添付配列 `currentAttachments` を追加する。
+2. ZIPは `JSZip` で読み取り、テキスト系ファイルだけを安全にAI文脈またはプロジェクトファイルへ追加する。
+3. 設定画面は既存IDを維持したまま、指定された用途別セクションへ再配置する。
+4. 管理用プロンプト項目を追加し、保存・復元・PLAN/BUILD反映対象に含める。
+5. 静的検証を実施し、検証できない実機操作は未確認として記録する。
+
+### 実施結果
+
+- `currentAttachments[]`、ZIP読込、複数添付プレビュー、添付テキストのAI文脈追加を実装。
+- コード読込でZIPを展開し、テキスト系ファイルを `projectFiles` として読み込む処理を実装。
+- 設定画面をペルソナ/モデル、APIキー、管理用プロンプト、Skill、デプロイ、保存先、開発補助に分割。
+- `user-system-prompt`、`admin-system-requirements`、`admin-implementation-verification`、`skill-settings` を追加。
+- `prompts.json` と `index.html` fallback の両方を更新。
