@@ -5,7 +5,7 @@
  *   - その他: cache-first
  * 注意: 単一ファイル運用なので、ハッシュ付きURLは持たない。バージョンアップ時はCACHE_NAMEを上げる。
  */
-const CACHE_NAME = 'ai-web-studio-v2-agentic';
+const CACHE_NAME = 'ai-web-studio-v3-mobile-i18n';
 const APP_SHELL = [
     './',
     './index.html',
