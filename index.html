@@ -59,8 +59,10 @@
         .tab-btn.active { color: #fff; border-bottom: 2px solid #fff; }
 
         .content { flex: 1 1 auto; min-height: 0; position: relative; overflow: hidden; display: flex; flex-direction: column; }
-        .page { display: none; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; }
-        .page.active { display: flex; }
+        .content > .page { display: none !important; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; }
+        .content > .page.active { display: flex !important; }
+        .content > #p-settings:not(.active) { display: none !important; visibility: hidden !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
+        .content > #p-settings.active { display: flex !important; visibility: visible !important; height: 100% !important; }
 
         /* チャット */
         .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--sidebar); border-bottom: 1px solid var(--color-border); }
@@ -262,14 +264,16 @@
         .debug-btn { background: #eab308; color: #000; border: none; height: 40px; padding: 0 16px; border-radius: 20px; font-weight: bold; cursor: pointer; flex-shrink: 0; font-size: 13px; font-family: var(--font-body); }
 
         /* 設定 */
-        .settings { padding: 0; overflow: hidden; min-height: 0; display: flex; flex-direction: column; }
+        .settings { padding: 0; overflow: hidden; min-height: 0; flex-direction: column; }
+        .content > .page.settings.active { display: flex !important; }
+        .content > .page.settings:not(.active) { display: none !important; }
         .settings-tabbar { display: flex; gap: 8px; padding: 16px 18px 0; border-bottom: 1px solid var(--color-border); background: var(--bg); overflow-x: auto; flex-shrink: 0; -webkit-overflow-scrolling: touch; }
         .settings-tab { min-height: 44px; padding: 10px 14px; border: 1px solid var(--color-border); border-bottom: none; border-radius: 10px 10px 0 0; background: var(--color-bg-surface); color: var(--color-text-secondary); font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: var(--font-body); transition: 0.2s; }
         .settings-tab:hover { color: var(--color-text-primary); background: var(--color-bg-elevated); }
         .settings-tab.active { color: #fff; background: var(--primary); border-color: var(--primary); }
         .settings-panels { flex: 1 1 auto; min-height: 0; overflow: hidden; }
-        .settings-panel { display: none; height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 20px 25px 25px; }
-        .settings-panel.active { display: block; }
+        .settings-panel { display: none !important; height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 20px 25px 25px; }
+        .settings-panel.active { display: block !important; }
         @media (max-width: 640px) { .settings-tabbar { padding: 12px 12px 0; gap: 6px; } .settings-tab { min-height: 42px; padding: 9px 11px; font-size: 11px; } .settings-panel { padding: 14px 12px 18px; } }
         .field { margin-bottom: 20px; }
         label { display: block; font-size: 11px; color: var(--color-text-secondary); margin-bottom: 8px; font-weight: bold; letter-spacing: 0.05em; font-family: var(--font-display); }
@@ -3227,8 +3231,8 @@ ${specListToString()}`;
 
             // Service Worker 登録（同一オリジン要件のため、別ファイル sw.js を使う）
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js', { scope: './' })
-                    .then(reg => { /* console.log('SW registered:', reg.scope); */ })
+                navigator.serviceWorker.register('./sw.js?v=settings-tabs-fixed-v3', { scope: './' })
+                    .then(reg => { try { reg.update(); } catch(e) {} })
                     .catch(err => console.warn('SW registration failed:', err));
             }
 
@@ -3347,7 +3351,22 @@ ${specListToString()}`;
         try { await initPWA(); } catch(e) { /* silent */ }
     };
 
-    function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById('p-' + id).classList.add('active'); if (btn) btn.classList.add('active'); if(id === 'preview') updatePreview(); }
+    function applyPageVisibility(id) {
+        const targetId = 'p-' + id;
+        document.querySelectorAll('.content > .page').forEach(page => {
+            const isActive = page.id === targetId;
+            page.classList.toggle('active', isActive);
+            page.style.display = isActive ? 'flex' : 'none';
+            page.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+        });
+    }
+    function showPage(id, btn) {
+        applyPageVisibility(id);
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        if (id === 'preview') updatePreview();
+    }
+    try { applyPageVisibility('chat'); } catch(e) { /* initial visibility guard */ }
     function switchSettingsTab(tabId) {
         document.querySelectorAll('.settings-tab').forEach(tab => {
             const active = tab.id === 'settings-tab-' + tabId;
