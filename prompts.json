@@ -144,6 +144,10 @@
     "toastAttachmentsAdded": "{count}件のファイルを添付しました",
     "toastAttachmentReadError": "添付ファイルの読み込みに失敗しました",
     "toastNoReadableProjectFiles": "読み込めるテキスト系ファイルがありません",
-    "toastSomeFilesSkipped": "一部の非テキストファイルをスキップしました"
+    "toastSomeFilesSkipped": "一部の非テキストファイルをスキップしました",
+    "settingsTabBasic": "基本設定",
+    "settingsTabConnection": "API・保存設定",
+    "settingsTabAdmin": "管理設定",
+    "sectionServerEndpointTitle": "API接続エンドポイント"
   }
 }
