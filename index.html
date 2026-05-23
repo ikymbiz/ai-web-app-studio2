@@ -262,7 +262,15 @@
         .debug-btn { background: #eab308; color: #000; border: none; height: 40px; padding: 0 16px; border-radius: 20px; font-weight: bold; cursor: pointer; flex-shrink: 0; font-size: 13px; font-family: var(--font-body); }
 
         /* 設定 */
-        .settings { padding: 25px; overflow-y: auto; }
+        .settings { padding: 0; overflow: hidden; min-height: 0; display: flex; flex-direction: column; }
+        .settings-tabbar { display: flex; gap: 8px; padding: 16px 18px 0; border-bottom: 1px solid var(--color-border); background: var(--bg); overflow-x: auto; flex-shrink: 0; -webkit-overflow-scrolling: touch; }
+        .settings-tab { min-height: 44px; padding: 10px 14px; border: 1px solid var(--color-border); border-bottom: none; border-radius: 10px 10px 0 0; background: var(--color-bg-surface); color: var(--color-text-secondary); font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: var(--font-body); transition: 0.2s; }
+        .settings-tab:hover { color: var(--color-text-primary); background: var(--color-bg-elevated); }
+        .settings-tab.active { color: #fff; background: var(--primary); border-color: var(--primary); }
+        .settings-panels { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+        .settings-panel { display: none; height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 20px 25px 25px; }
+        .settings-panel.active { display: block; }
+        @media (max-width: 640px) { .settings-tabbar { padding: 12px 12px 0; gap: 6px; } .settings-tab { min-height: 42px; padding: 9px 11px; font-size: 11px; } .settings-panel { padding: 14px 12px 18px; } }
         .field { margin-bottom: 20px; }
         label { display: block; font-size: 11px; color: var(--color-text-secondary); margin-bottom: 8px; font-weight: bold; letter-spacing: 0.05em; font-family: var(--font-display); }
         input[type="password"], .api-key-input, textarea.setting-input, select.setting-input { width: 100%; background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 8px; padding: 12px; color: #fff; font-size: 14px; outline: none; transition: border 0.2s; font-family: var(--font-body); }
@@ -424,222 +432,242 @@
     </div>
 
     <div id="p-settings" class="page settings">
+        <div class="settings-tabbar" role="tablist" aria-label="Settings tabs">
+            <button type="button" class="settings-tab active" id="settings-tab-basic" role="tab" aria-selected="true" aria-controls="settings-panel-basic" onclick="switchSettingsTab('basic')" data-label="settingsTabBasic">基本設定</button>
+            <button type="button" class="settings-tab" id="settings-tab-connection" role="tab" aria-selected="false" aria-controls="settings-panel-connection" onclick="switchSettingsTab('connection')" data-label="settingsTabConnection">API・保存設定</button>
+            <button type="button" class="settings-tab" id="settings-tab-admin" role="tab" aria-selected="false" aria-controls="settings-panel-admin" onclick="switchSettingsTab('admin')" data-label="settingsTabAdmin">管理設定</button>
+        </div>
 
-        <!-- 🌐 言語切替 -->
-        <details class="settings-section" id="section-language" open>
-            <summary><span class="settings-section-icon">🌐</span><span data-label="sectionLanguageTitle">言語 / Language</span></summary>
-            <div class="settings-section-body">
-                <div class="field" style="margin-bottom:0;">
-                    <label data-label="languageSelectLabel">表示言語</label>
-                    <select id="language-select" class="setting-input" onchange="setLanguage(this.value)"></select>
-                    <div class="field-hint" data-label="languageSelectHint">翻訳辞書または言語パックを追加すると、このプルダウンに自動表示されます。</div>
-                </div>
-            </div>
-        </details>
-        <!-- 👤 ペルソナ・ユーザー指示・モデル設定画面 -->
-        <details class="settings-section" id="section-persona-model" open>
-            <summary><span class="settings-section-icon">👤</span><span data-label="sectionPersonaModelTitle">ペルソナ・ユーザー指示・モデル設定</span></summary>
-            <div class="settings-section-body">
-                <div class="field">
-                    <label data-label="targetPersonaLabel">ターゲットユーザーペルソナ</label>
-                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('target-persona')">
-                        <span><span class="edit-icon">📝</span> <span data-label="editButton">編集</span></span>
-                        <span class="edit-preview" id="preview-target-persona"></span>
-                    </button>
-                    <textarea id="target-persona" style="display:none;"></textarea>
-                    <div class="field-hint" data-label="targetPersonaHint">アプリの想定ユーザー像。AIへの生成指示に使われます。</div>
-                </div>
-
-                <div class="field">
-                    <label data-label="userSystemPromptLabel">ユーザー用システムプロンプト</label>
-                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('user-system-prompt')">
-                        <span><span class="edit-icon">📝</span> <span data-label="editButton">編集</span></span>
-                        <span class="edit-preview" id="preview-user-system-prompt"></span>
-                    </button>
-                    <textarea id="user-system-prompt" style="display:none;"></textarea>
-                    <div class="field-hint" data-label="userSystemPromptHint">ユーザーが生成結果に反映したい好み・制約・口調・デザイン方針を入力します。管理用プロンプトとは分離して保存します。</div>
-                </div>
-
-                <input type="hidden" id="ai-provider" value="gemini">
-                <div class="field">
-                    <label data-label="chatModelLabel">チャットモデル</label>
-                    <input id="chat-model" class="setting-input" value="gemini:gemini-2.5-flash" placeholder="provider:model-id" onchange="autoSaveSettings()">
-                    <div class="field-hint" data-label="modelRouteHintChat">PLAN / 要件整理の既定モデルルート。システムプロンプト単位の上書きも可能です。</div>
-                </div>
-                <div class="field">
-                    <label data-label="codeModelLabel">コード生成モデル</label>
-                    <input id="code-model" class="setting-input" value="gemini:gemini-2.5-flash" placeholder="provider:model-id" onchange="autoSaveSettings()">
-                    <div class="field-hint" data-label="modelRouteHintCode">BUILD / VERIFY の既定モデルルート。ベンダーをまたいで指定できます。</div>
-                </div>
-                <div class="field">
-                    <label data-label="serverEndpointLabel">Cloudflare Worker API Endpoint（任意）</label>
-                    <input id="server-endpoint" class="setting-input" data-placeholder-label="serverEndpointPlaceholder" placeholder="https://your-worker.example.workers.dev/api/ai" onchange="autoSaveSettings()">
-                    <div class="field-hint" data-label="serverEndpointHint">本番ではシステムプロンプトとAPIキーをWorker側に移し、このエンドポイント経由で実行できます。</div>
-                </div>
-            </div>
-        </details>
-
-        <!-- 🔑 APIキー設定画面 -->
-        <details class="settings-section" id="section-api-keys">
-            <summary><span class="settings-section-icon">🔑</span><span data-label="sectionApiKeysTitle">APIキーの設定</span></summary>
-            <div class="settings-section-body">
-                <div class="field">
-                    <label data-label="apiKeyManageLabel">APIキー登録</label>
-                    <button type="button" class="modal-btn" style="margin-top:0;" onclick="openApiKeyModal()" data-label="apiKeyManageButton">🔑 APIキーを登録 / 管理</button>
-                    <div class="field-hint" data-label="aiKeyManageHint">プルダウンではなく、各ベンダーのキーとモデルルートを入力します。例: gemini:gemini-2.5-flash / openai:gpt-4o / claude:claude-sonnet-4-20250514 / xai:grok-3 / groq:llama-3.3-70b-versatile / custom:your-model</div>
-                </div>
-            </div>
-        </details>
-
-        <!-- 🧠 管理用システムプロンプト画面 -->
-        <details class="settings-section" id="section-admin-prompts">
-            <summary><span class="settings-section-icon">🧠</span><span data-label="sectionAdminPromptsTitle">管理用システムプロンプト</span></summary>
-            <div class="settings-section-body">
-                <div class="field">
-                    <label data-label="systemPromptLabel">管理用システムプロンプト</label>
-                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('system-prompt')">
-                        <span><span class="edit-icon">🛡️</span> <span data-label="editButton">編集</span></span>
-                        <span class="edit-preview" id="preview-system-prompt"></span>
-                    </button>
-                    <textarea id="system-prompt" style="display:none;"></textarea>
-                    <div class="field-hint" data-label="adminSystemPromptHint">AIの基本役割・禁止事項・差分実装ルールなど、管理者が固定したい指示を保持します。</div>
-                </div>
-
-                <div class="field">
-                    <label data-label="codePrinciplesLabel">プリンシプル</label>
-                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('code-principles')">
-                        <span><span class="edit-icon">📏</span> <span data-label="editButton">編集</span></span>
-                        <span class="edit-preview" id="preview-code-principles"></span>
-                    </button>
-                    <textarea id="code-principles" style="display:none;"></textarea>
-                    <div class="field-hint" data-label="codePrinciplesHint">削除禁止、最小差分、検証必須などの実装原則を指定します。</div>
-                </div>
-
-                <div class="field">
-                    <label data-label="adminSystemRequirementsLabel">システム要件</label>
-                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-system-requirements')">
-                        <span><span class="edit-icon">⚙️</span> <span data-label="editButton">編集</span></span>
-                        <span class="edit-preview" id="preview-admin-system-requirements"></span>
-                    </button>
-                    <textarea id="admin-system-requirements" style="display:none;"></textarea>
-                    <div class="field-hint" data-label="adminSystemRequirementsHint">PWA、Android、IndexedDB、GitHub連携、ファイル構成など維持すべき非機能要件を指定します。</div>
-                </div>
-
-                <div class="field">
-                    <label data-label="adminImplementationVerifyLabel">実装検証用</label>
-                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-implementation-verification')">
-                        <span><span class="edit-icon">✅</span> <span data-label="editButton">編集</span></span>
-                        <span class="edit-preview" id="preview-admin-implementation-verification"></span>
-                    </button>
-                    <textarea id="admin-implementation-verification" style="display:none;"></textarea>
-                    <div class="field-hint" data-label="adminImplementationVerifyHint">生成前後の確認観点、退行チェック、未検証事項の報告ルールを指定します。</div>
-                </div>
-
-                <details class="field prompt-details">
-                    <summary data-label="promptTemplatesSummary">プロンプトテンプレート（詳細設定）</summary>
-                    <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-                        <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-plan')"><span><span class="edit-icon">📝</span> <span data-label="planPromptLabel">PLAN（計画）</span></span></button>
-                        <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-suggest')"><span><span class="edit-icon">📝</span> <span data-label="suggestPromptLabel">要件おまかせ</span></span></button>
-                        <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-debug')"><span><span class="edit-icon">📝</span> <span data-label="debugPromptLabel">修正依頼</span></span></button>
-                        <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-extract')"><span><span class="edit-icon">📝</span> <span data-label="extractPromptLabel">仕様抽出</span></span></button>
-                        <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-verify')"><span><span class="edit-icon">📝</span> <span data-label="verifyPromptLabel">漏れ検証</span></span></button>
+        <div class="settings-panels">
+            <section class="settings-panel active" id="settings-panel-basic" role="tabpanel" aria-labelledby="settings-tab-basic">
+                <!-- 🌐 言語切替 -->
+                <details class="settings-section" id="section-language" open>
+                    <summary><span class="settings-section-icon">🌐</span><span data-label="sectionLanguageTitle">言語 / Language</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field" style="margin-bottom:0;">
+                            <label data-label="languageSelectLabel">表示言語</label>
+                            <select id="language-select" class="setting-input" onchange="setLanguage(this.value)"></select>
+                            <div class="field-hint" data-label="languageSelectHint">翻訳辞書または言語パックを追加すると、このプルダウンに自動表示されます。</div>
+                        </div>
                     </div>
-                    <textarea id="prompt-plan" style="display:none;"></textarea>
-                    <textarea id="prompt-suggest" style="display:none;"></textarea>
-                    <textarea id="prompt-debug" style="display:none;"></textarea>
-                    <textarea id="prompt-extract" style="display:none;"></textarea>
-                    <textarea id="prompt-verify" style="display:none;"></textarea>
                 </details>
-            </div>
-        </details>
 
-        <!-- 🧩 管理用Skill設定画面 -->
-        <details class="settings-section" id="section-admin-skills">
-            <summary><span class="settings-section-icon">🧩</span><span data-label="sectionAdminSkillsTitle">管理用Skill設定</span></summary>
-            <div class="settings-section-body">
-                <div class="field">
-                    <label data-label="skillSettingsLabel">Skill設定</label>
-                    <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('skill-settings')">
-                        <span><span class="edit-icon">🧩</span> <span data-label="editButton">編集</span></span>
-                        <span class="edit-preview" id="preview-skill-settings"></span>
-                    </button>
-                    <textarea id="skill-settings" style="display:none;"></textarea>
-                    <div class="field-hint" data-label="skillSettingsHint">外部Skill、生成時に使うツール方針、ファイル処理方針などを管理者向けに記録します。</div>
-                </div>
-            </div>
-        </details>
+                <!-- 👤 ペルソナ・ユーザー指示・モデル設定画面 -->
+                <details class="settings-section" id="section-persona-model" open>
+                    <summary><span class="settings-section-icon">👤</span><span data-label="sectionPersonaModelTitle">ペルソナ・ユーザー指示・モデル設定</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="targetPersonaLabel">ターゲットユーザーペルソナ</label>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('target-persona')">
+                                <span><span class="edit-icon">📝</span> <span data-label="editButton">編集</span></span>
+                                <span class="edit-preview" id="preview-target-persona"></span>
+                            </button>
+                            <textarea id="target-persona" style="display:none;"></textarea>
+                            <div class="field-hint" data-label="targetPersonaHint">アプリの想定ユーザー像。AIへの生成指示に使われます。</div>
+                        </div>
 
-        <!-- 🚀 デプロイ用設定画面 -->
-        <details class="settings-section" id="section-deploy-settings">
-            <summary><span class="settings-section-icon">🚀</span><span data-label="sectionDeploySettingsTitle">デプロイ用設定</span></summary>
-            <div class="settings-section-body">
-                <div class="field">
-                    <label data-label="ghTokenLabel">GitHub Personal Access Token</label>
-                    <input type="password" id="setting-gh-token" class="setting-input" data-placeholder-label="githubPatPlaceholder" placeholder="github_pat_... / ghp_..." autocomplete="off" onchange="syncDeployTokenFromSettings(); autoSaveSettings();">
-                    <div class="field-hint" data-label="githubPatHint">GitHubへ複数ファイルを公開するためのPATを登録します。Fine-grained PATの場合は Contents: Read and write、Pages: Read and write、Administration: Read and write、Metadata: Read が必要です。</div>
-                    <button type="button" class="modal-btn" style="margin-top:8px; background:var(--color-bg-elevated);" onclick="validateGitHubPatFromSettings()" data-label="githubPatValidateButton">PATを検証</button>
-                    <div id="github-pat-status" class="modal-status"></div>
-                </div>
-            </div>
-        </details>
+                        <div class="field">
+                            <label data-label="userSystemPromptLabel">ユーザー用システムプロンプト</label>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('user-system-prompt')">
+                                <span><span class="edit-icon">📝</span> <span data-label="editButton">編集</span></span>
+                                <span class="edit-preview" id="preview-user-system-prompt"></span>
+                            </button>
+                            <textarea id="user-system-prompt" style="display:none;"></textarea>
+                            <div class="field-hint" data-label="userSystemPromptHint">ユーザーが生成結果に反映したい好み・制約・口調・デザイン方針を入力します。管理用プロンプトとは分離して保存します。</div>
+                        </div>
 
-        <!-- 💾 保存先設定画面 -->
-        <details class="settings-section" id="section-storage-settings">
-            <summary><span class="settings-section-icon">💾</span><span data-label="sectionStorageSettingsTitle">保存先設定</span></summary>
-            <div class="settings-section-body">
-                <div class="field">
-                    <label data-label="keyStorageLabel">トークン・APIキーの保存先</label>
-                    <div class="save-toggle">
-                        <button type="button" class="save-toggle-btn active" id="storage-mode-indexeddb" onclick="setStorageMode('indexeddb')" data-label="storageModeIndexedDB">💾 アプリ内（既定）</button>
-                        <button type="button" class="save-toggle-btn" id="storage-mode-folder" onclick="setStorageMode('folder')" data-label="storageModeFolder">📁 端末フォルダ</button>
+                        <input type="hidden" id="ai-provider" value="gemini">
+                        <div class="field">
+                            <label data-label="chatModelLabel">チャットモデル</label>
+                            <input id="chat-model" class="setting-input" value="gemini:gemini-2.5-flash" placeholder="provider:model-id" onchange="autoSaveSettings()">
+                            <div class="field-hint" data-label="modelRouteHintChat">PLAN / 要件整理の既定モデルルート。システムプロンプト単位の上書きも可能です。</div>
+                        </div>
+                        <div class="field">
+                            <label data-label="codeModelLabel">コード生成モデル</label>
+                            <input id="code-model" class="setting-input" value="gemini:gemini-2.5-flash" placeholder="provider:model-id" onchange="autoSaveSettings()">
+                            <div class="field-hint" data-label="modelRouteHintCode">BUILD / VERIFY の既定モデルルート。ベンダーをまたいで指定できます。</div>
+                        </div>
                     </div>
-                    <div class="field-hint" id="storage-mode-hint" data-label="storageModeHint">アプリ内：暗号化してIndexedDBに保存（既定・全ブラウザ対応）。</div>
-                </div>
+                </details>
 
-                <div class="field" id="folder-storage-controls" style="display:none;">
-                    <label data-label="folderStorageLabel">📁 端末フォルダの設定</label>
-                    <div id="folder-status" class="field-hint" data-label="folderStatusNotSet">未選択。下のボタンからフォルダを選んでください。</div>
-                    <div id="folder-lock-hint" class="field-hint" style="display:none; color:var(--accent); margin-top:6px;" data-label="folderLockHint">🔒 ロックされています。パスフレーズを入力して「ロック解除」を押してください。</div>
+                <!-- 🎨 開発補助設定画面：既存のテーマ・テンプレート機能を保持 -->
+                <details class="settings-section" id="section-dev-assets">
+                    <summary><span class="settings-section-icon">🎨</span><span data-label="sectionDevAssetsTitle">開発補助設定</span></summary>
+                    <div class="settings-section-body">
+                        <div class="theme-section">
+                            <label data-label="codeThemeLabel">コードテーマ（生成コードに反映）</label>
+                            <div id="theme-grid" class="theme-grid"></div>
+                        </div>
 
-                    <input type="password" id="passphrase-input" class="setting-input" style="margin-top:10px;" placeholder="パスフレーズ（最低8文字）" autocomplete="new-password">
-                    <div class="field-hint" data-label="passphraseHint">⚠️ パスフレーズを忘れた場合は復元できません。各サービスでトークンを再発行してください。</div>
-
-                    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-                        <button type="button" class="modal-btn" style="flex:1 1 140px; margin-top:0;" id="folder-unlock-btn" onclick="unlockStorageFolder()" data-label="folderUnlockButton">🔓 ロック解除</button>
-                        <button type="button" class="modal-btn" style="flex:1 1 140px; margin-top:0; background:var(--success);" onclick="pickStorageFolder()" data-label="folderPickButton">📂 フォルダを選択</button>
-                        <button type="button" class="modal-btn" style="flex:1 1 100px; margin-top:0; background:var(--danger);" onclick="clearStorageFolder()" data-label="folderClearButton">解除</button>
+                        <div class="template-section">
+                            <label data-label="templatesLabel">テンプレート</label>
+                            <div class="template-toolbar">
+                                <input id="template-catalog-url" class="setting-input" data-placeholder-label="templateCatalogPlaceholder" placeholder="テンプレート配信URL（JSON）" onchange="autoSaveSettings()">
+                                <button type="button" class="action-btn import-btn" style="height:38px;" onclick="loadRemoteTemplates(true)" data-label="templateFetchButton">配信取得</button>
+                            </div>
+                            <div class="field-hint" data-label="templateCatalogHint">配信JSONから画面テンプレートを後日追加できます。paid:true のテンプレートは課金ロック表示になります。</div>
+                            <div id="template-grid" class="template-grid"></div>
+                        </div>
                     </div>
-                </div>
+                </details>
+            </section>
 
-                <div class="field">
-                    <label data-label="keyExpiryLabel">キー有効期限</label>
-                    <div style="font-size:12px; color:var(--color-text-secondary);" data-label="keySecurityDesc">🔒 自動暗号化 + アプリ内保存は2週間で自動消去</div>
-                    <div class="key-status" id="key-expiry-status"></div>
-                </div>
-            </div>
-        </details>
-
-        <!-- 🎨 開発補助設定画面：既存のテーマ・テンプレート機能を保持 -->
-        <details class="settings-section" id="section-dev-assets">
-            <summary><span class="settings-section-icon">🎨</span><span data-label="sectionDevAssetsTitle">開発補助設定</span></summary>
-            <div class="settings-section-body">
-                <div class="theme-section">
-                    <label data-label="codeThemeLabel">コードテーマ（生成コードに反映）</label>
-                    <div id="theme-grid" class="theme-grid"></div>
-                </div>
-
-                <div class="template-section">
-                    <label data-label="templatesLabel">テンプレート</label>
-                    <div class="template-toolbar">
-                        <input id="template-catalog-url" class="setting-input" data-placeholder-label="templateCatalogPlaceholder" placeholder="テンプレート配信URL（JSON）" onchange="autoSaveSettings()">
-                        <button type="button" class="action-btn import-btn" style="height:38px;" onclick="loadRemoteTemplates(true)" data-label="templateFetchButton">配信取得</button>
+            <section class="settings-panel" id="settings-panel-connection" role="tabpanel" aria-labelledby="settings-tab-connection">
+                <!-- 🔑 APIキー設定画面 -->
+                <details class="settings-section" id="section-api-keys">
+                    <summary><span class="settings-section-icon">🔑</span><span data-label="sectionApiKeysTitle">APIキーの設定</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="apiKeyManageLabel">APIキー登録</label>
+                            <button type="button" class="modal-btn" style="margin-top:0;" onclick="openApiKeyModal()" data-label="apiKeyManageButton">🔑 APIキーを登録 / 管理</button>
+                            <div class="field-hint" data-label="aiKeyManageHint">プルダウンではなく、各ベンダーのキーとモデルルートを入力します。例: gemini:gemini-2.5-flash / openai:gpt-4o / claude:claude-sonnet-4-20250514 / xai:grok-3 / groq:llama-3.3-70b-versatile / custom:your-model</div>
+                        </div>
                     </div>
-                    <div class="field-hint" data-label="templateCatalogHint">配信JSONから画面テンプレートを後日追加できます。paid:true のテンプレートは課金ロック表示になります。</div>
-                    <div id="template-grid" class="template-grid"></div>
-                </div>
-            </div>
-        </details>
+                </details>
 
+                <!-- 🌐 API接続エンドポイント設定画面：既存のCloudflare Worker設定を保持 -->
+                <details class="settings-section" id="section-server-endpoint">
+                    <summary><span class="settings-section-icon">🌐</span><span data-label="sectionServerEndpointTitle">API接続エンドポイント</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="serverEndpointLabel">Cloudflare Worker API Endpoint（任意）</label>
+                            <input id="server-endpoint" class="setting-input" data-placeholder-label="serverEndpointPlaceholder" placeholder="https://your-worker.example.workers.dev/api/ai" onchange="autoSaveSettings()">
+                            <div class="field-hint" data-label="serverEndpointHint">本番ではシステムプロンプトとAPIキーをWorker側に移し、このエンドポイント経由で実行できます。</div>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- 🚀 デプロイ用設定画面 -->
+                <details class="settings-section" id="section-deploy-settings">
+                    <summary><span class="settings-section-icon">🚀</span><span data-label="sectionDeploySettingsTitle">デプロイ用設定</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="ghTokenLabel">GitHub Personal Access Token</label>
+                            <input type="password" id="setting-gh-token" class="setting-input" data-placeholder-label="githubPatPlaceholder" placeholder="github_pat_... / ghp_..." autocomplete="off" onchange="syncDeployTokenFromSettings(); autoSaveSettings();">
+                            <div class="field-hint" data-label="githubPatHint">GitHubへ複数ファイルを公開するためのPATを登録します。Fine-grained PATの場合は Contents: Read and write、Pages: Read and write、Administration: Read and write、Metadata: Read が必要です。</div>
+                            <button type="button" class="modal-btn" style="margin-top:8px; background:var(--color-bg-elevated);" onclick="validateGitHubPatFromSettings()" data-label="githubPatValidateButton">PATを検証</button>
+                            <div id="github-pat-status" class="modal-status"></div>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- 💾 保存先設定画面 -->
+                <details class="settings-section" id="section-storage-settings">
+                    <summary><span class="settings-section-icon">💾</span><span data-label="sectionStorageSettingsTitle">保存先設定</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="keyStorageLabel">トークン・APIキーの保存先</label>
+                            <div class="save-toggle">
+                                <button type="button" class="save-toggle-btn active" id="storage-mode-indexeddb" onclick="setStorageMode('indexeddb')" data-label="storageModeIndexedDB">💾 アプリ内（既定）</button>
+                                <button type="button" class="save-toggle-btn" id="storage-mode-folder" onclick="setStorageMode('folder')" data-label="storageModeFolder">📁 端末フォルダ</button>
+                            </div>
+                            <div class="field-hint" id="storage-mode-hint" data-label="storageModeHint">アプリ内：暗号化してIndexedDBに保存（既定・全ブラウザ対応）。</div>
+                        </div>
+
+                        <div class="field" id="folder-storage-controls" style="display:none;">
+                            <label data-label="folderStorageLabel">📁 端末フォルダの設定</label>
+                            <div id="folder-status" class="field-hint" data-label="folderStatusNotSet">未選択。下のボタンからフォルダを選んでください。</div>
+                            <div id="folder-lock-hint" class="field-hint" style="display:none; color:var(--accent); margin-top:6px;" data-label="folderLockHint">🔒 ロックされています。パスフレーズを入力して「ロック解除」を押してください。</div>
+
+                            <input type="password" id="passphrase-input" class="setting-input" style="margin-top:10px;" placeholder="パスフレーズ（最低8文字）" autocomplete="new-password">
+                            <div class="field-hint" data-label="passphraseHint">⚠️ パスフレーズを忘れた場合は復元できません。各サービスでトークンを再発行してください。</div>
+
+                            <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+                                <button type="button" class="modal-btn" style="flex:1 1 140px; margin-top:0;" id="folder-unlock-btn" onclick="unlockStorageFolder()" data-label="folderUnlockButton">🔓 ロック解除</button>
+                                <button type="button" class="modal-btn" style="flex:1 1 140px; margin-top:0; background:var(--success);" onclick="pickStorageFolder()" data-label="folderPickButton">📂 フォルダを選択</button>
+                                <button type="button" class="modal-btn" style="flex:1 1 100px; margin-top:0; background:var(--danger);" onclick="clearStorageFolder()" data-label="folderClearButton">解除</button>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label data-label="keyExpiryLabel">キー有効期限</label>
+                            <div style="font-size:12px; color:var(--color-text-secondary);" data-label="keySecurityDesc">🔒 自動暗号化 + アプリ内保存は2週間で自動消去</div>
+                            <div class="key-status" id="key-expiry-status"></div>
+                        </div>
+                    </div>
+                </details>
+            </section>
+
+            <section class="settings-panel" id="settings-panel-admin" role="tabpanel" aria-labelledby="settings-tab-admin">
+                <!-- 🧠 管理用システムプロンプト画面 -->
+                <details class="settings-section" id="section-admin-prompts">
+                    <summary><span class="settings-section-icon">🧠</span><span data-label="sectionAdminPromptsTitle">管理用システムプロンプト</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="systemPromptLabel">管理用システムプロンプト</label>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('system-prompt')">
+                                <span><span class="edit-icon">🛡️</span> <span data-label="editButton">編集</span></span>
+                                <span class="edit-preview" id="preview-system-prompt"></span>
+                            </button>
+                            <textarea id="system-prompt" style="display:none;"></textarea>
+                            <div class="field-hint" data-label="adminSystemPromptHint">AIの基本役割・禁止事項・差分実装ルールなど、管理者が固定したい指示を保持します。</div>
+                        </div>
+
+                        <div class="field">
+                            <label data-label="codePrinciplesLabel">プリンシプル</label>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('code-principles')">
+                                <span><span class="edit-icon">📏</span> <span data-label="editButton">編集</span></span>
+                                <span class="edit-preview" id="preview-code-principles"></span>
+                            </button>
+                            <textarea id="code-principles" style="display:none;"></textarea>
+                            <div class="field-hint" data-label="codePrinciplesHint">削除禁止、最小差分、検証必須などの実装原則を指定します。</div>
+                        </div>
+
+                        <div class="field">
+                            <label data-label="adminSystemRequirementsLabel">システム要件</label>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-system-requirements')">
+                                <span><span class="edit-icon">⚙️</span> <span data-label="editButton">編集</span></span>
+                                <span class="edit-preview" id="preview-admin-system-requirements"></span>
+                            </button>
+                            <textarea id="admin-system-requirements" style="display:none;"></textarea>
+                            <div class="field-hint" data-label="adminSystemRequirementsHint">PWA、Android、IndexedDB、GitHub連携、ファイル構成など維持すべき非機能要件を指定します。</div>
+                        </div>
+
+                        <div class="field">
+                            <label data-label="adminImplementationVerifyLabel">実装検証用</label>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-implementation-verification')">
+                                <span><span class="edit-icon">✅</span> <span data-label="editButton">編集</span></span>
+                                <span class="edit-preview" id="preview-admin-implementation-verification"></span>
+                            </button>
+                            <textarea id="admin-implementation-verification" style="display:none;"></textarea>
+                            <div class="field-hint" data-label="adminImplementationVerifyHint">生成前後の確認観点、退行チェック、未検証事項の報告ルールを指定します。</div>
+                        </div>
+
+                        <details class="field prompt-details">
+                            <summary data-label="promptTemplatesSummary">プロンプトテンプレート（詳細設定）</summary>
+                            <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-plan')"><span><span class="edit-icon">📝</span> <span data-label="planPromptLabel">PLAN（計画）</span></span></button>
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-suggest')"><span><span class="edit-icon">📝</span> <span data-label="suggestPromptLabel">要件おまかせ</span></span></button>
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-debug')"><span><span class="edit-icon">📝</span> <span data-label="debugPromptLabel">修正依頼</span></span></button>
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-extract')"><span><span class="edit-icon">📝</span> <span data-label="extractPromptLabel">仕様抽出</span></span></button>
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-verify')"><span><span class="edit-icon">📝</span> <span data-label="verifyPromptLabel">漏れ検証</span></span></button>
+                            </div>
+                            <textarea id="prompt-plan" style="display:none;"></textarea>
+                            <textarea id="prompt-suggest" style="display:none;"></textarea>
+                            <textarea id="prompt-debug" style="display:none;"></textarea>
+                            <textarea id="prompt-extract" style="display:none;"></textarea>
+                            <textarea id="prompt-verify" style="display:none;"></textarea>
+                        </details>
+                    </div>
+                </details>
+
+                <!-- 🧩 管理用Skill設定画面 -->
+                <details class="settings-section" id="section-admin-skills">
+                    <summary><span class="settings-section-icon">🧩</span><span data-label="sectionAdminSkillsTitle">管理用Skill設定</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="skillSettingsLabel">Skill設定</label>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('skill-settings')">
+                                <span><span class="edit-icon">🧩</span> <span data-label="editButton">編集</span></span>
+                                <span class="edit-preview" id="preview-skill-settings"></span>
+                            </button>
+                            <textarea id="skill-settings" style="display:none;"></textarea>
+                            <div class="field-hint" data-label="skillSettingsHint">外部Skill、生成時に使うツール方針、ファイル処理方針などを管理者向けに記録します。</div>
+                        </div>
+                    </div>
+                </details>
+            </section>
+        </div>
     </div>
 </div>
 
@@ -976,6 +1004,7 @@
                 debugMemoPlaceholder: "修正したい点を入力...", debugRequestButton: "修正を依頼",
                 // 設定セクション見出し
                 sectionAiTitle: "AI接続", sectionDevTitle: "開発設定", sectionSecurityTitle: "セキュリティ",
+                settingsTabBasic: "基本設定", settingsTabConnection: "API・保存設定", settingsTabAdmin: "管理設定", sectionServerEndpointTitle: "API接続エンドポイント",
                 // 設定: AI接続
                 aiProviderLabel: "AIプロバイダー", chatModelLabel: "チャットモデル", codeModelLabel: "コード生成モデル",
                 apiKeyGeminiLabel: "APIキー — Gemini", apiKeyOpenAILabel: "APIキー — OpenAI",
@@ -1129,6 +1158,10 @@
                 searchModalTitle: "🔍 コード内検索", searchInputPlaceholder: "検索ワード...",
                 "languageSelectLabel": "表示言語",
                 "languageSelectHint": "翻訳辞書または言語パックを追加すると、このプルダウンに自動表示されます。",
+                "settingsTabBasic": "基本設定",
+                "settingsTabConnection": "API・保存設定",
+                "settingsTabAdmin": "管理設定",
+                "sectionServerEndpointTitle": "API接続エンドポイント",
                 "apiKeyManageLabel": "APIキー登録",
                 "apiKeyManageButton": "🔑 APIキーを登録 / 管理",
                 "aiKeyManageHint": "プルダウンではなく、各ベンダーのキーとモデルルートを入力します。例: gemini:gemini-2.5-flash / openai:gpt-4o / claude:claude-sonnet-4-20250514 / xai:grok-3 / groq:llama-3.3-70b-versatile / custom:your-model",
@@ -1203,6 +1236,10 @@
             "langJa": "Japanese",
             "langEn": "English",
             "sectionLanguageTitle": "Language",
+            "settingsTabBasic": "Basic settings",
+            "settingsTabConnection": "API / storage",
+            "settingsTabAdmin": "Admin settings",
+            "sectionServerEndpointTitle": "API endpoint",
             "languageSelectLabel": "Display language",
             "languageSelectHint": "Choose the UI language. Add translation resources/language packs and they appear here automatically.",
             "tabChat": "Chat",
@@ -3311,6 +3348,16 @@ ${specListToString()}`;
     };
 
     function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById('p-' + id).classList.add('active'); if (btn) btn.classList.add('active'); if(id === 'preview') updatePreview(); }
+    function switchSettingsTab(tabId) {
+        document.querySelectorAll('.settings-tab').forEach(tab => {
+            const active = tab.id === 'settings-tab-' + tabId;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        document.querySelectorAll('.settings-panel').forEach(panel => {
+            panel.classList.toggle('active', panel.id === 'settings-panel-' + tabId);
+        });
+    }
     function autoGrow(element) { element.style.height = "5px"; element.style.height = Math.min(element.scrollHeight, 150) + "px"; if (element.id === 'user-prompt') setTimeout(keepChatInputVisible, 0); }
     function toggleAttachmentMenu() { if (currentAttachments && currentAttachments.length) { removeAttachment(); return; } document.getElementById('attach-menu').classList.toggle('show'); }
     function triggerFile(type) { document.getElementById('file-' + type).click(); document.getElementById('attach-menu').classList.remove('show'); }
