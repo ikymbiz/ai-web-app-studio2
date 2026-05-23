@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "mode": "pattern-b-on-demand",
+  "toolName": "load_skill_profile",
+  "storage": "github-json",
+  "github": {
+    "repo": "",
+    "branch": "main",
+    "path": "skills/skills.json"
+  },
+  "instructions": "AIには最初にSkillのインデックスだけを渡す。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけを追加で渡す。不要なSkill本文は送らない。",
+  "skills": [
+    {
+      "id": "frontend",
+      "file": "skills/frontend.md",
+      "title": "Frontend Skill Profile",
+      "description": "UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。",
+      "triggers": [
+        "UI",
+        "React",
+        "Next.js",
+        "TypeScript",
+        "Tailwind",
+        "CSS",
+        "state management"
+      ],
+      "enabled": true,
+      "content": "---\nprofile: frontend\ntarget: UI, React, Next.js, CSS, State Management\n---\n\n# Frontend Skill Profile\n\n## Skill Level\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\n- State Management: Prefer React Context or Zustand over Redux.\n- Async Pattern: Use async/await. No `.then()` chains."
+    },
+    {
+      "id": "backend",
+      "file": "skills/backend.md",
+      "title": "Backend Skill Profile",
+      "description": "Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。",
+      "triggers": [
+        "Node.js",
+        "database",
+        "API",
+        "Prisma",
+        "server",
+        "backend",
+        "PostgreSQL"
+      ],
+      "enabled": true,
+      "content": "---\nprofile: backend\ntarget: Node.js, Database, API, Prisma\n---\n\n# Backend Skill Profile\n\n## Skill Level\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Provide standard best practices with brief meaningful explanations.\n- Architecture: Enforce Controllers, Services, Repositories.\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage."
+    },
+    {
+      "id": "devops",
+      "file": "skills/devops.md",
+      "title": "DevOps & Infra Skill Profile",
+      "description": "Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。",
+      "triggers": [
+        "Docker",
+        "Compose",
+        "CI/CD",
+        "GitHub Actions",
+        "AWS",
+        "infra",
+        "deployment"
+      ],
+      "enabled": true,
+      "content": "---\nprofile: devops\ntarget: Docker, CI/CD, AWS, Infrastructure\n---\n\n# DevOps & Infra Skill Profile\n\n## Skill Level\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\n\n## Rules & Conventions\n- Language: English for code, Japanese for chat explanations.\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\n- Best Practices: Ensure production containers run as non-root users."
+    }
+  ]
+}
