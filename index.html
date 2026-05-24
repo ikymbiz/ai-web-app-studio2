@@ -1182,7 +1182,7 @@ profile: frontend
                 suggest: "現在の会話履歴、現在の仕様リスト、既存コードを元に、次に開発すべき要件を提案してください。\n\n## 厳守\n- 既存機能を勝手に削除・省略・置換しない。\n- ペルソナはデザイン/UX判断の参考に留め、機能要件として固定しない。\n- 既存の仕様と重複する提案は避ける。\n- 提案は実装可能な粒度に分解する。\n- 複数の質問や選択肢が必要な場合は、質問ごとにグループ化して提示する。\n\n出力は日本語で、短い見出しと箇条書きで整理してください。",
                 debug: "あなたはプロのWeb開発ディレクター兼デバッグ担当です。次の修正依頼を、既存機能を壊さずに解決するための要件に整理してください。\n\n【修正依頼】\n{memoText}\n\n## 厳守\n- ユーザーが削除を明示していない機能を削除・省略しない。\n- 「修正した」と判断するには、原因、変更対象、検証方法が必要。\n- 原因が不明な場合は、切り分けログ・再現手順・確認ポイントを提案する。\n- 修正要件は既存仕様に追加する形で整理する。\n- 既に実装済みの仕様を再実装扱いにしない。\n\n## 出力\n1. バグ/要望の判定\n2. 推定原因\n3. 変更すべき要件\n4. 変更してはいけない既存機能\n5. 検証方法",
                 extract: "以下のユーザーとAIの直近のやり取りから、実装すべき要件・修正点・仕様変更を抽出してください。\n\n【ユーザーの発言】\n{userMessage}\n\n【AIの応答】\n{aiResponse}\n\n【既存の仕様リスト】\n{existingSpecs}\n\n【ルール】\n- ユーザーが明示した項目、またはAIが実装対象として合意した項目だけを抽出すること\n- 既存リストと重複する項目は除外すること\n- 既存機能の削除・省略・置換を示す項目は、ユーザーが明示した場合以外は抽出しないこと\n- 「修正済み」「対応済み」などの主張だけを要件として抽出しないこと\n- 新規の項目のみ出力すること\n- 出力はJSON配列のみ（例: [\"項目1\", \"項目2\"]）\n- 抽出すべき新規項目がなければ空配列 [] を返すこと\n- JSON以外のテキストは一切出力しないこと",
-                verify: "以下の仕様リストと生成されたコードを照合し、取り込まれていない（漏れている）要件、または既存機能から退行している要件を特定してください。\n\n【仕様リスト】\n{specList}\n\n【生成されたコード】\n{generatedCode}\n\n【ルール】\n- 各仕様がコード内に実装されているか1つずつ確認すること\n- 既存機能の削除・省略・ID変更・保存形式変更・UI導線消失も漏れとして扱うこと\n- 「似た機能がある」だけでは実装済みにしないこと。ユーザー指定と一致しているか確認すること\n- 漏れている項目のみJSON配列で返すこと（例: [\"漏れ項目1\", \"漏れ項目2\"]）\n- 全て網羅されている場合は空配列 [] を返すこと\n- JSON以外のテキストは一切出力しないこと"
+                verify: "以下の仕様リストと生成されたコードを照合し、各仕様が実装済みか、未実装または退行しているかを判定してください。\n\n【仕様リスト】\n{specList}\n\n【生成されたコード】\n{generatedCode}\n\n【ルール】\n- 各仕様がコード内に実装されているか1つずつ確認すること\n- 既存機能の削除・省略・ID変更・保存形式変更・UI導線消失も漏れとして扱うこと\n- 「似た機能がある」だけでは実装済みにしないこと。ユーザー指定と一致しているか確認すること\n- 仕様リストの各項目を covered または missing のどちらかに必ず振り分けること\n- covered / missing には、できる限り仕様リストの原文をそのまま入れること\n- JSON以外のテキストは一切出力しないこと\n\n【出力形式】\n{\n  \"covered\": [\"実装済みの仕様リスト項目\"],\n  \"missing\": [\"未実装または退行している仕様リスト項目\"]\n}\n\n【例】\n{\n  \"covered\": [\"送信ボタンをクリック・タップで実行できる\"],\n  \"missing\": [\"Ctrl+Enterで送信できる\"]\n}"
             },
             ui: { ja: { // UIラベルセクション（日本語）
                 // 言語名
@@ -3109,27 +3109,124 @@ ${skill.content || ''}`).join('\n\n');
     }
     function closeAIQuestionModal() { document.getElementById('ai-question-modal').classList.remove('show'); }
 
-    async function verifySpecCoverage(code) {
-        const list = getSpecList(); if (list.length === 0) return;
+    function extractJsonFromLLMText(text) {
+        const raw = String(text || '').trim();
+        if (!raw) throw new Error('検証AIの応答が空です');
+        const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        const body = (fenced ? fenced[1] : raw).trim();
+        try { return JSON.parse(body); } catch (_) {}
+        const objStart = body.indexOf('{');
+        const objEnd = body.lastIndexOf('}');
+        if (objStart >= 0 && objEnd > objStart) {
+            try { return JSON.parse(body.slice(objStart, objEnd + 1)); } catch (_) {}
+        }
+        const arrStart = body.indexOf('[');
+        const arrEnd = body.lastIndexOf(']');
+        if (arrStart >= 0 && arrEnd > arrStart) {
+            try { return JSON.parse(body.slice(arrStart, arrEnd + 1)); } catch (_) {}
+        }
+        throw new Error('検証AIのJSONを解析できません');
+    }
+
+    function normalizeRequirementForCompare(text) {
+        return String(text || '')
+            .replace(/^\s*[-*・]\s*/, '')
+            .replace(/^\s*\d+[.)．、:]\s*/, '')
+            .replace(/[\s　`*_#>\-・:：。、「」『』（）()［］\[\]]+/g, '')
+            .toLowerCase();
+    }
+
+    function requirementMatches(candidate, target) {
+        const a = normalizeRequirementForCompare(candidate);
+        const b = normalizeRequirementForCompare(target);
+        if (!a || !b) return false;
+        return a === b || a.includes(b) || b.includes(a);
+    }
+
+    function parseVerificationPayload(text) {
+        const parsed = extractJsonFromLLMText(text);
+        if (Array.isArray(parsed)) {
+            return { covered: null, missing: parsed.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()), raw: parsed };
+        }
+        if (parsed && typeof parsed === 'object') {
+            const covered = Array.isArray(parsed.covered) ? parsed.covered.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()) : null;
+            const missing = Array.isArray(parsed.missing) ? parsed.missing.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()) : [];
+            return { covered, missing, raw: parsed };
+        }
+        throw new Error('検証AIの結果形式が不正です');
+    }
+
+    function buildStructuredVerificationPrompt(code) {
+        const base = (document.getElementById('prompt-verify').value.trim() || getPrompt('verify'))
+            .replace('{specList}', specListToString())
+            .replace('{generatedCode}', String(code || '').slice(0, 30000));
+        return `${base}
+
+【このアプリ側での必須出力形式】
+次のJSONオブジェクトだけを返してください。Markdown、説明文、コードブロックは禁止です。
+{
+  "covered": ["実装済みと確認できた仕様リストの原文"],
+  "missing": ["未実装または退行している仕様リストの原文"]
+}
+- covered と missing は、仕様リストの各項目を重複なく振り分けること。
+- 全て実装済みなら {"covered":[...全項目...],"missing":[]} を返すこと。
+- どうしても従来形式しか返せない場合だけ、未実装項目のJSON配列を返すこと。`;
+    }
+
+    function applyVerificationResultToSpecList(coverage) {
+        const list = getSpecList();
+        if (list.length === 0) return { doneCount: 0, total: 0 };
+        const missingTexts = coverage.missing || [];
+        const coveredTexts = Array.isArray(coverage.covered) ? coverage.covered : null;
+        const allCovered = missingTexts.length === 0;
+        let doneCount = 0;
+        list.forEach(item => {
+            const isMissing = missingTexts.some(m => requirementMatches(m, item.text));
+            const isCovered = allCovered || (coveredTexts ? coveredTexts.some(c => requirementMatches(c, item.text)) : !isMissing);
+            if (isCovered && !isMissing) item.done = true;
+            if (isMissing) item.done = false;
+            if (item.done) doneCount++;
+        });
+        saveSpecList(list);
+        renderSpecCards();
+        return { doneCount, total: list.length };
+    }
+
+    async function verifySpecCoverage(code, options = {}) {
+        const list = getSpecList();
+        if (list.length === 0) return { ok: true, summary: '検証対象のタスクはありません。' };
+        const announce = !options.silent;
+        let runningMsg = null;
         try {
-            const prompt = (document.getElementById('prompt-verify').value.trim() || getPrompt('verify')).replace('{specList}', specListToString()).replace('{generatedCode}', code.slice(0, 30000));
-            const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('verify') });
-            const missing = JSON.parse(result.text.replace(/```json|```/g, '').trim());
+            if (announce) {
+                runningMsg = { id: Date.now().toString() + '-verify-running', role: 'ai system-msg', text: '✅ 検証AIを実行しています。仕様リストと生成コードを照合します。', html: false };
+                chatHistory.push(runningMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(runningMsg);
+            }
+            const prompt = buildStructuredVerificationPrompt(code);
+            const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('verify'), taskType: 'verify' });
+            const coverage = parseVerificationPayload(result.text);
+            const applied = applyVerificationResultToSpecList(coverage);
             let sysMsg;
-            if (Array.isArray(missing) && missing.length > 0) {
-                sysMsg = { id: Date.now().toString(), role: 'ai system-msg', text: `${getLabel('aiSystemMsgMissingReqs')}${missing.map((m,i) => `  ${i+1}. ${m}`).join('\n')}`, html: false };
-                // 検証ストアに保存（計画リストには触らない）
-                const verifyItems = missing.map(m => ({ id: Date.now().toString() + Math.random().toString(36).slice(2, 6), text: m, source: 'verify', timestamp: Date.now() }));
+            if (coverage.missing.length > 0) {
+                const verifyItems = coverage.missing.map(m => ({ id: Date.now().toString() + Math.random().toString(36).slice(2, 6), text: m, source: 'verify', timestamp: Date.now() }));
                 await setVerifyMissing(verifyItems);
                 await refreshAllTaskCounts();
+                const header = getLabel('aiSystemMsgMissingReqs') || '未実装の要件があります。';
+                sysMsg = { id: Date.now().toString(), role: 'ai system-msg', text: `${header}${coverage.missing.map((m,i) => `  ${i+1}. ${m}`).join('\n')}\n\nタスクリスト消込: ${applied.doneCount}/${applied.total}`, html: false };
                 setTimeout(() => showAIQuestionModal(getLabel('aiQuestionPromptMissingReqs'), [getLabel('aiQuestionOptionFix'), getLabel('aiQuestionOptionSuggest')]), 1000);
             } else {
-                sysMsg = { id: Date.now().toString(), role: 'ai system-msg', text: getLabel('aiSystemMsgAllSpecsCovered'), html: false };
                 await clearVerifyMissing();
                 await refreshAllTaskCounts();
+                sysMsg = { id: Date.now().toString(), role: 'ai system-msg', text: `${getLabel('aiSystemMsgAllSpecsCovered')}\nタスクリスト消込: ${applied.doneCount}/${applied.total}`, html: false };
             }
-            chatHistory.push(sysMsg); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsg);
-        } catch(e) { /* silent error */ }
+            chatHistory.push(sysMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsg);
+            return { ok: coverage.missing.length === 0, coverage, summary: sysMsg.text };
+        } catch(e) {
+            const msg = { id: Date.now().toString(), role: 'ai system-msg', text: `⚠️ 検証AIを実行できませんでした: ${e.message || e}`, html: false };
+            chatHistory.push(msg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(msg);
+            try { await addFailureLog('ai-error', `検証AI失敗: ${e.message || e}`, '検証対象タスク:\n' + specListToString()); } catch(_) {}
+            return { ok: false, error: e, summary: msg.text };
+        }
     }
 
     /* === APIキー暗号化 === */
@@ -4117,11 +4214,20 @@ ${specListToString()}`,
         const specs = specListToString();
         if (specs !== '（なし）') {
             try {
-                const verifyPrompt = (document.getElementById('prompt-verify').value.trim() || getPrompt('verify')).replace('{specList}', specs).replace('{generatedCode}', verificationText.slice(0, 30000));
+                const verifyPrompt = buildStructuredVerificationPrompt(verificationText);
                 const verify = await callLLM({ prompt: verifyPrompt, stream: false, model: getModelForPrompt('verify'), taskType: 'verify' });
-                const missing = JSON.parse((verify.text || '').replace(/```json|```/g, '').trim());
-                if (Array.isArray(missing) && missing.length > 0) {
-                    const repairPrompt = `${buildPrompt}\n\n【自己検証で見つかった未実装要件】\n${missing.map((m,i)=>`${i+1}. ${m}`).join('\n')}\n\n【現在の生成ファイル】\n${verificationText}\n\n未実装要件を必ず反映し、説明・計画・Markdownを含めず、単一HTMLの場合は完全なHTMLだけを、複数ファイルの場合は entryFile と files を含むJSONだけを再出力してください。`;
+                const coverage = parseVerificationPayload(verify.text || '[]');
+                const missing = coverage.missing || [];
+                if (missing.length > 0) {
+                    const repairPrompt = `${buildPrompt}
+
+【自己検証で見つかった未実装要件】
+${missing.map((m,i)=>`${i+1}. ${m}`).join('\n')}
+
+【現在の生成ファイル】
+${verificationText}
+
+未実装要件を必ず反映し、説明・計画・Markdownを含めず、単一HTMLの場合は完全なHTMLだけを、複数ファイルの場合は entryFile と files を含むJSONだけを再出力してください。`;
                     const repaired = await callLLM({ prompt: repairPrompt, stream: false, model, taskType: 'code-repair' });
                     project = parseGeneratedProject(repaired.text);
                     verificationText = projectToVerificationText(project);
@@ -4174,8 +4280,9 @@ ${codeOnlyInstruction}`;
             const entryFile = project?.entryFile || (files['index.html'] !== undefined ? 'index.html' : Object.keys(files)[0]);
             setProjectFiles(files, entryFile);
             updatePreview(); showPage('preview', document.getElementById('tab-preview'));
-            sysMsgObj.text = getLabel('aiSystemMsgBuildComplete'); sysMsgObj.html = false; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).textContent = sysMsgObj.text; saveToDB('chatHistory', chatHistory);
-            verifySpecCoverage(projectToVerificationText(project));
+            sysMsgObj.text = 'コード構築完了。検証AIを実行しています...'; sysMsgObj.html = false; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).textContent = sysMsgObj.text; await saveToDB('chatHistory', chatHistory);
+            await verifySpecCoverage(projectToVerificationText(project));
+            sysMsgObj.text = getLabel('aiSystemMsgBuildComplete'); sysMsgObj.html = false; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).textContent = sysMsgObj.text; await saveToDB('chatHistory', chatHistory);
         } catch (e) { sysMsgObj.text = `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${e.message}</span>`; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).innerHTML = sysMsgObj.text; saveToDB('chatHistory', chatHistory); try { addFailureLog('build-error', `コード生成失敗: ${e.message || e}`, '実装要件:\n' + specListToString()); } catch(_) {} }
     }
 
