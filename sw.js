@@ -5,11 +5,16 @@
  *   - その他: cache-first
  * 注意: 単一ファイル運用なので、ハッシュ付きURLは持たない。バージョンアップ時はCACHE_NAMEを上げる。
  */
-const CACHE_NAME = 'ai-web-studio-v3-3-tabs-skills-models-v16';
+const CACHE_NAME = 'ai-web-studio-v3-3-tabs-skills-models-v19';
 const APP_SHELL = [
     './',
     './index.html',
     './prompts.json',
+    './docs/PRINCIPLE.md',
+    './docs/DEVELOPMENT_RULES.md',
+    './docs/SYSTEM_DESIGN.md',
+    './docs/FAILURE_LOG.md',
+    './docs/HANDOVER.md',
     './models/models.json',
     './js/ai-feedback-view-logic.js',
     './js/ai-task-priority-logic.js',
