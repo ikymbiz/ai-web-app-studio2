@@ -135,3 +135,10 @@
 - 管理用Skillsは `skills/admin-skills.json` と `skills/admin-skills.index.json` に一本化。
 - 旧 `skills/*.md` と旧 example JSON は削除。
 - Service Worker のキャッシュ対象から旧Skillファイルを削除。
+
+## v13 verification notes
+- 管理用Skillsは JSON のみで管理され、skills 配下に md ファイルが残っていないことを確認。
+- タスクリストはコード生成直後に `implemented`、検証AI実行中に `verifying`、検証AIが `implemented=true` / `behaviorChecked=true` / `canComplete=true` / `status=verified` と判定したものだけ `verified` として消し込む仕様に更新。
+- 検証AIが失敗した場合は全未検証タスクを `blocked` とし、消し込まない仕様に更新。
+- プレビュー画面の修正依頼入力は `Ctrl+Enter` / `Cmd+Enter` で `sendDebugRequest()` を実行するように更新。
+- 旧「動かない」文言が残っていないことを確認。
