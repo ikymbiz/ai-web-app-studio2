@@ -194,6 +194,27 @@
     "stageChatLabel": "チャット",
     "stageCodingLabel": "コーディング",
     "stageDebuggingLabel": "デバッグ",
-    "skillStageRequired": "利用段階を1つ以上選択してください"
+    "skillStageRequired": "利用段階を1つ以上選択してください",
+    "debugModelLabel": "デバッグモデル",
+    "modelRouteHintChat": "管理設定のモデルリストから、PLAN / 要件整理で使う既定モデルを選びます。",
+    "modelRouteHintCode": "管理設定のモデルリストから、BUILD / VERIFY で使う既定モデルを選びます。",
+    "modelRouteHintDebug": "管理設定のモデルリストから、デバッグ依頼で使う既定モデルを選びます。",
+    "sectionAdminModelsTitle": "モデル名管理",
+    "modelRegistryLabel": "モデルリスト",
+    "modelRoutePlaceholder": "provider:model-id",
+    "modelLabelPlaceholder": "表示名（例: Gemini 2.5 Flash）",
+    "modelAddButton": "＋ モデル追加 / 更新",
+    "modelReloadButton": "models.jsonを再読込",
+    "modelRegistryHint": "モデル名は models/models.json で管理します。利用者はこのリストからチャット・コード生成・デバッグ用モデルをプルダウン選択します。",
+    "modelGithubSaveLabel": "モデルリストをGitHubへ保存",
+    "modelGithubPathPlaceholder": "models/models.json",
+    "modelGithubSaveButton": "GitHubに保存",
+    "modelGithubSaveHint": "保存には「API・保存設定」のGitHub PATを使用します。デプロイ後はこのJSONファイルを更新すれば、利用者のプルダウンに反映できます。",
+    "modelRouteRequired": "モデルルートを入力してください",
+    "modelGithubSaving": "モデルリストをGitHubへ保存中...",
+    "modelGithubSaved": "モデルリストをGitHubへ保存しました",
+    "modelReloaded": "モデルリストを再読込しました",
+    "modelSavedValueLabel": "保存済み",
+    "modelEmpty": "モデルがありません。"
   }
 }
