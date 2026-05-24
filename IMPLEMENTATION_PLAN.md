@@ -100,3 +100,9 @@ AI Web Studioを、特定ベンダー固定ではなく、複数モデルベン�
 - 設定画面をペルソナ/モデル、APIキー、管理用プロンプト、Skill、デプロイ、保存先、開発補助に分割。
 - `user-system-prompt`、`admin-system-requirements`、`admin-implementation-verification`、`skill-settings` を追加。
 - `prompts.json` と `index.html` fallback の両方を更新。
+
+## v13 changes
+- タスク消込条件を `verified` のみに固定し、検証AIによる動作経路確認前の消込を禁止。
+- 検証AIのJSON形式を `tasks[]` 中心に変更し、旧形式は安全側に倒して未確認タスクを残す。
+- 修正依頼ボタンの導線に `Ctrl+Enter` / `Cmd+Enter` を追加。
+- 不要な「動かない」文言を除去。
