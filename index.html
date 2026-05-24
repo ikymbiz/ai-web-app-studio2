@@ -153,7 +153,7 @@
         .failure-card-actions button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
         .failure-card-actions button.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 
-        /* プレビュー画面の「動かない」ボタン */
+        /* プレビュー画面の「」ボタン */
         #p-preview { position: relative; }
         .preview-feedback-btn { position: absolute; right: 16px; bottom: calc(82px + env(safe-area-inset-bottom, 0px)); background: var(--danger); color: #fff; border: none; border-radius: 999px; padding: 10px 18px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239,68,68,0.4); display: flex; align-items: center; gap: 6px; font-family: var(--font-body); z-index: 95; max-width: calc(100vw - 32px); white-space: nowrap; }
         .preview-feedback-btn:active { transform: scale(0.97); }
@@ -469,9 +469,9 @@
 
     <div id="p-preview" class="page" style="position:relative;">
         <iframe id="preview-frame" sandbox="allow-scripts"></iframe>
-        <button class="preview-feedback-btn" type="button" onclick="reportPreviewIssue()" data-label="previewIssueButton">⚠️ 動かない</button>
+        <button class="preview-feedback-btn" type="button" onclick="reportPreviewIssue()" data-label="previewIssueButton">⚠️ </button>
         <div class="debug-panel">
-            <textarea id="debug-memo" rows="1" oninput="autoGrow(this)"></textarea>
+            <textarea id="debug-memo" rows="1" oninput="autoGrow(this)" onkeydown="return handleDebugMemoKeydown(event)"></textarea>
             <button class="debug-btn" onclick="sendDebugRequest()"></button>
         </div>
     </div>
@@ -859,7 +859,7 @@
 
             <!-- 失敗ログタブ -->
             <div id="task-failure" class="task-pane" style="flex:1; display:none; flex-direction:column; overflow:hidden;">
-                <p style="font-size:11px; color:var(--color-text-secondary); margin:0 0 8px 0;" data-label="failureDescription">🐛 AIエラー・ビルド失敗・「動かない」の記録。「修正依頼」で計画に取り込めます。</p>
+                <p style="font-size:11px; color:var(--color-text-secondary); margin:0 0 8px 0;" data-label="failureDescription">🐛 AIエラー・ビルド失敗・「」の記録。「修正依頼」で計画に取り込めます。</p>
                 <div id="failure-card-view" class="spec-card-list" style="flex:1; overflow-y:auto; overflow-x:hidden; padding-right:4px;"></div>
                 <div class="spec-add-row" style="margin-top:10px;">
                     <input type="text" id="failure-add-input" class="spec-add-input" placeholder="" onkeydown="if(event.key==='Enter')addFailureLogManual()">
@@ -1198,7 +1198,7 @@ profile: frontend
                 // エディタ
                 importButton: "📥 取込", uploadButton: "📤 読込", searchButton: "🔍 検索",
                 downloadButton: "💾 保存", deployButton: "🚀 公開",
-                debugMemoPlaceholder: "修正したい点を入力...", debugRequestButton: "修正を依頼",
+                debugMemoPlaceholder: "修正したい点を入力...", debugRequestButton: "修正を依頼", debugCtrlEnterHint: "Ctrl+Enterで修正依頼",
                 // 設定セクション見出し
                 sectionAiTitle: "AI接続", sectionDevTitle: "開発設定", sectionSecurityTitle: "セキュリティ",
                 settingsTabBasic: "基本設定", settingsTabConnection: "API・保存設定", settingsTabAdmin: "管理設定", sectionServerEndpointTitle: "API接続エンドポイント",
@@ -1229,15 +1229,15 @@ profile: frontend
                 tabVerify: "✅ 検証",
                 tabFailure: "🐛 失敗ログ",
                 verifyDescription: "⚠️ 生成されたコードで漏れていた要件です。「計画に取り込む」で再生成できます。",
-                failureDescription: "🐛 AIエラー・ビルド失敗・「動かない」の記録。「修正依頼」で計画に取り込めます。",
+                failureDescription: "🐛 AIエラー・ビルド失敗・「」の記録。「修正依頼」で計画に取り込めます。",
                 promoteToPlanButton: "→ 計画に取り込む",
                 clearButton: "🗑 クリア",
                 verifyEmpty: "検証で見つかった漏れ項目はありません",
                 failureEmpty: "失敗ログはありません",
                 verifyClearConfirm: "検証結果をクリアしますか？",
                 failureDeleteConfirm: "この失敗ログを削除しますか？",
-                previewIssueButton: "⚠️ 動かない",
-                previewIssuePrompt: "どう動かない？簡潔に教えてください（例：ボタンが反応しない）",
+                previewIssueButton: "⚠️ ",
+                previewIssuePrompt: "どう？簡潔に教えてください（例：ボタンが反応しない）",
                 toastFailureLogged: "失敗ログに記録しました",
                 toastPromotedToPlan: "計画に取り込みました（+{count}件）",
                 // Phase 3: 端末フォルダ暗号化
@@ -1591,6 +1591,7 @@ profile: frontend
             "deployButton": "Deploy",
             "debugMemoPlaceholder": "Describe what you want fixed...",
             "debugRequestButton": "Request fix",
+            "debugCtrlEnterHint": "Ctrl+Enter to request fix",
             "sectionAiTitle": "AI connection",
             "apiKeyManageLabel": "API keys",
             "apiKeyManageButton": "Register / manage API keys",
@@ -2873,7 +2874,7 @@ ${skill.content || ''}`).join('\n\n');
 
     async function refreshAllTaskCounts() {
         const planList = getSpecList();
-        const planDone = planList.filter(i => i.done).length;
+        const planDone = planList.filter(i => i.status === 'verified' && i.done === true).length;
         setTabBadge('badge-plan', planList.length > 0 ? `${planDone}/${planList.length}` : '0', planList.length === 0);
         try {
             const v = await getVerifyMissing();
@@ -2992,9 +2993,9 @@ ${skill.content || ''}`).join('\n\n');
         await resolveFailureLog(id);
     }
 
-    // プレビュー画面：「動かない」ボタンが呼ぶ
+    // プレビュー画面：「」ボタンが呼ぶ
     async function reportPreviewIssue() {
-        const text = prompt(getLabel('previewIssuePrompt') || 'どう動かない？簡潔に教えてください（例：ボタンが反応しない）');
+        const text = prompt(getLabel('previewIssuePrompt') || 'どう？簡潔に教えてください（例：ボタンが反応しない）');
         if (!text || !text.trim()) return;
         const code = (window.getCode && window.getCode()) || '';
         const codeSnippet = code ? code.slice(0, 800) : '';
@@ -3006,7 +3007,7 @@ ${skill.content || ''}`).join('\n\n');
     function updateSpecBadge() {
         const list = getSpecList();
         const total = list.length;
-        const done = list.filter(i => i.done).length;
+        const done = list.filter(i => i.status === 'verified' && i.done === true).length;
         const b = document.getElementById('spec-badge');
         if (b) {
             b.textContent = total > 0 ? `${done}/${total}` : '0';
@@ -3017,7 +3018,7 @@ ${skill.content || ''}`).join('\n\n');
         try { refreshAllTaskCounts(); } catch(e) {}
     }
     function updateFloatingGenerateBtn() { /* 常時表示のため何もしない（互換のため残置） */ }
-    function updateSpecProgress() { const list = getSpecList(); const pg = document.getElementById('spec-progress'); if (!pg) return; if (list.length === 0) { pg.style.display = 'none'; return; } pg.style.display = 'flex'; const done = list.filter(i => i.done).length; const pct = Math.round(done / list.length * 100); document.getElementById('spec-progress-text').textContent = `${done}/${list.length} (${pct}%)`; document.getElementById('spec-progress-fill').style.width = pct + '%'; }
+    function updateSpecProgress() { const list = getSpecList(); const pg = document.getElementById('spec-progress'); if (!pg) return; if (list.length === 0) { pg.style.display = 'none'; return; } pg.style.display = 'flex'; const done = list.filter(i => i.status === 'verified' && i.done === true).length; const pct = Math.round(done / list.length * 100); document.getElementById('spec-progress-text').textContent = `${done}/${list.length} (${pct}%)`; document.getElementById('spec-progress-fill').style.width = pct + '%'; }
     function clearNewSpecFlags() { const list = getSpecList(); let changed = false; list.forEach(i => { if(i.isNew) { i.isNew = false; changed = true; } }); if(changed) { saveSpecList(list); renderSpecCards(); } }
 
     // スワイプ操作変数
@@ -3143,53 +3144,175 @@ ${skill.content || ''}`).join('\n\n');
         return a === b || a.includes(b) || b.includes(a);
     }
 
+    function getVerificationTaskSnapshot() {
+        return getSpecList().map((item, index) => ({
+            id: item.id,
+            index: index + 1,
+            text: item.text,
+            status: item.status || (item.done ? 'verified' : 'pending')
+        }));
+    }
+
+    function specListToVerificationJson() {
+        return JSON.stringify(getVerificationTaskSnapshot(), null, 2);
+    }
+
+    function normalizeVerificationTaskResult(item) {
+        if (!item || typeof item !== 'object') return null;
+        const status = String(item.status || '').toLowerCase();
+        const implemented = item.implemented === true;
+        const behaviorChecked = item.behaviorChecked === true;
+        const canComplete = item.canComplete === true && status === 'verified' && implemented && behaviorChecked;
+        const taskId = String(item.taskId || item.id || '').trim();
+        const text = String(item.taskText || item.text || item.requirement || '').trim();
+        return {
+            taskId,
+            text,
+            status: canComplete ? 'verified' : (['failed','blocked','implemented','verifying','pending'].includes(status) ? status : 'failed'),
+            implemented,
+            behaviorChecked,
+            canComplete,
+            reason: String(item.reason || '').trim(),
+            issues: Array.isArray(item.issues) ? item.issues.map(v => String(v).trim()).filter(Boolean) : [],
+            requiredFixes: Array.isArray(item.requiredFixes) ? item.requiredFixes.map(v => String(v).trim()).filter(Boolean) : []
+        };
+    }
+
     function parseVerificationPayload(text) {
         const parsed = extractJsonFromLLMText(text);
         if (Array.isArray(parsed)) {
-            return { covered: null, missing: parsed.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()), raw: parsed };
+            // 旧形式: 未実装項目だけの配列。安全側に倒し、配列にない項目を勝手に verified にしない。
+            return { tasks: [], covered: [], missing: parsed.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()), raw: parsed, legacy: true };
         }
         if (parsed && typeof parsed === 'object') {
-            const covered = Array.isArray(parsed.covered) ? parsed.covered.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()) : null;
-            const missing = Array.isArray(parsed.missing) ? parsed.missing.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()) : [];
-            return { covered, missing, raw: parsed };
+            const rawTasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
+            const tasks = rawTasks.map(normalizeVerificationTaskResult).filter(Boolean);
+            const explicitCovered = Array.isArray(parsed.covered) ? parsed.covered.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()) : [];
+            const explicitMissing = Array.isArray(parsed.missing) ? parsed.missing.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()) : [];
+            const coveredFromTasks = tasks.filter(t => t.canComplete).map(t => t.taskId || t.text).filter(Boolean);
+            const missingFromTasks = tasks.filter(t => !t.canComplete).map(t => t.text || t.taskId || t.reason).filter(Boolean);
+            return {
+                tasks,
+                covered: coveredFromTasks.length ? coveredFromTasks : explicitCovered,
+                missing: missingFromTasks.length ? missingFromTasks : explicitMissing,
+                raw: parsed,
+                legacy: false
+            };
         }
         throw new Error('検証AIの結果形式が不正です');
     }
 
     function buildStructuredVerificationPrompt(code) {
+        const taskJson = specListToVerificationJson();
         const base = (document.getElementById('prompt-verify').value.trim() || getPrompt('verify'))
             .replace('{specList}', specListToString())
             .replace('{generatedCode}', String(code || '').slice(0, 30000));
         return `${base}
 
+【検証対象タスクJSON】
+${taskJson}
+
+【このアプリ側での必須検証ルール】
+- コードを生成しただけではタスクを完了扱いにしない。
+- 対象タスクに対応する実装があり、要件と一致し、イベント接続・画面遷移・保存・状態更新などの動作経路をコード上で確認できた場合だけ verified にする。
+- UIが存在しても処理が接続されていない場合、動作確認不能な場合、要件と違う場合、既存機能を壊す可能性がある場合は failed または blocked にする。
+- behaviorChecked は、クリック/タップ/キーボード操作/保存/プレビュー/検証など、そのタスクで必要な動作経路をコード上で追跡できた場合だけ true にする。
+- canComplete は status が verified、implemented が true、behaviorChecked が true の場合だけ true にする。
+- 判断できない項目を勝手に verified にしない。
+
 【このアプリ側での必須出力形式】
 次のJSONオブジェクトだけを返してください。Markdown、説明文、コードブロックは禁止です。
 {
-  "covered": ["実装済みと確認できた仕様リストの原文"],
-  "missing": ["未実装または退行している仕様リストの原文"]
-}
-- covered と missing は、仕様リストの各項目を重複なく振り分けること。
-- 全て実装済みなら {"covered":[...全項目...],"missing":[]} を返すこと。
-- どうしても従来形式しか返せない場合だけ、未実装項目のJSON配列を返すこと。`;
+  "tasks": [
+    {
+      "taskId": "検証対象タスクJSONのid",
+      "taskText": "検証対象タスクJSONのtext",
+      "status": "verified | failed | blocked",
+      "implemented": true,
+      "behaviorChecked": true,
+      "canComplete": true,
+      "reason": "判定理由",
+      "issues": [],
+      "requiredFixes": []
+    }
+  ],
+  "covered": ["消し込んでよいタスクIDまたは原文"],
+  "missing": ["未実装・不十分・動作未確認のタスク原文"]
+}`;
+    }
+
+    function markSpecListStatus(status, reason = '') {
+        const list = getSpecList();
+        list.forEach(item => {
+            if (item.status !== 'verified') {
+                item.status = status;
+                item.done = false;
+                if (reason) item.verifyReason = reason;
+            }
+        });
+        saveSpecList(list);
+        renderSpecCards();
+        return list;
     }
 
     function applyVerificationResultToSpecList(coverage) {
         const list = getSpecList();
-        if (list.length === 0) return { doneCount: 0, total: 0 };
-        const missingTexts = coverage.missing || [];
-        const coveredTexts = Array.isArray(coverage.covered) ? coverage.covered : null;
-        const allCovered = missingTexts.length === 0;
-        let doneCount = 0;
+        if (list.length === 0) return { doneCount: 0, total: 0, verifiedCount: 0, failedCount: 0, blockedCount: 0 };
+        const taskResults = Array.isArray(coverage.tasks) ? coverage.tasks : [];
+        const coveredTexts = Array.isArray(coverage.covered) ? coverage.covered : [];
+        const missingTexts = Array.isArray(coverage.missing) ? coverage.missing : [];
+        let verifiedCount = 0;
+        let failedCount = 0;
+        let blockedCount = 0;
         list.forEach(item => {
-            const isMissing = missingTexts.some(m => requirementMatches(m, item.text));
-            const isCovered = allCovered || (coveredTexts ? coveredTexts.some(c => requirementMatches(c, item.text)) : !isMissing);
-            if (isCovered && !isMissing) item.done = true;
-            if (isMissing) item.done = false;
-            if (item.done) doneCount++;
+            const result = taskResults.find(t =>
+                (t.taskId && t.taskId === item.id) ||
+                (t.text && requirementMatches(t.text, item.text))
+            );
+            const explicitlyCovered = coveredTexts.some(c => c === item.id || requirementMatches(c, item.text));
+            const explicitlyMissing = missingTexts.some(m => m === item.id || requirementMatches(m, item.text));
+            if (result) {
+                if (result.canComplete) {
+                    item.status = 'verified';
+                    item.done = true;
+                    item.verifyReason = result.reason || '検証AIが実装と動作経路を確認しました。';
+                    verifiedCount++;
+                    return;
+                }
+                item.done = false;
+                item.status = result.status === 'blocked' ? 'blocked' : 'failed';
+                item.verifyReason = result.reason || result.issues.join(' / ') || '検証AIが完了条件を満たさないと判定しました。';
+                if (item.status === 'blocked') blockedCount++; else failedCount++;
+                return;
+            }
+            if (!coverage.legacy && explicitlyCovered && !explicitlyMissing) {
+                item.status = 'verified';
+                item.done = true;
+                item.verifyReason = '検証AIが covered として返しました。';
+                verifiedCount++;
+                return;
+            }
+            if (explicitlyMissing) {
+                item.status = 'failed';
+                item.done = false;
+                item.verifyReason = '検証AIが未実装・不十分・動作未確認として返しました。';
+                failedCount++;
+                return;
+            }
+            // 検証結果に含まれない項目は、安全側に倒して未完了として残す。
+            if (item.status !== 'verified') {
+                item.status = coverage.legacy ? 'blocked' : 'failed';
+                item.done = false;
+                item.verifyReason = coverage.legacy ? '旧形式の検証結果のため、この項目は動作確認済みと判断できません。' : '検証AIの結果にこのタスクの確認結果がありません。';
+                if (item.status === 'blocked') blockedCount++; else failedCount++;
+            } else {
+                verifiedCount++;
+            }
         });
+        const doneCount = list.filter(i => i.status === 'verified' && i.done === true).length;
         saveSpecList(list);
         renderSpecCards();
-        return { doneCount, total: list.length };
+        return { doneCount, total: list.length, verifiedCount: doneCount, failedCount, blockedCount };
     }
 
     async function verifySpecCoverage(code, options = {}) {
@@ -3198,31 +3321,34 @@ ${skill.content || ''}`).join('\n\n');
         const announce = !options.silent;
         let runningMsg = null;
         try {
+            markSpecListStatus('verifying', '検証AIが実装と動作経路を確認中です。');
             if (announce) {
-                runningMsg = { id: Date.now().toString() + '-verify-running', role: 'ai system-msg', text: '✅ 検証AIを実行しています。仕様リストと生成コードを照合します。', html: false };
+                runningMsg = { id: Date.now().toString() + '-verify-running', role: 'ai system-msg', text: '✅ 検証AIを実行しています。実装有無と動作経路を確認してからタスクを消し込みます。', html: false };
                 chatHistory.push(runningMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(runningMsg);
             }
             const prompt = buildStructuredVerificationPrompt(code);
             const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('verify'), taskType: 'verify' });
             const coverage = parseVerificationPayload(result.text);
             const applied = applyVerificationResultToSpecList(coverage);
+            const unresolvedTexts = getSpecList().filter(i => !(i.status === 'verified' && i.done === true)).map(i => i.text);
             let sysMsg;
-            if (coverage.missing.length > 0) {
-                const verifyItems = coverage.missing.map(m => ({ id: Date.now().toString() + Math.random().toString(36).slice(2, 6), text: m, source: 'verify', timestamp: Date.now() }));
+            if (unresolvedTexts.length > 0) {
+                const verifyItems = unresolvedTexts.map(m => ({ id: Date.now().toString() + Math.random().toString(36).slice(2, 6), text: m, source: 'verify', timestamp: Date.now() }));
                 await setVerifyMissing(verifyItems);
                 await refreshAllTaskCounts();
-                const header = getLabel('aiSystemMsgMissingReqs') || '未実装の要件があります。';
-                sysMsg = { id: Date.now().toString(), role: 'ai system-msg', text: `${header}${coverage.missing.map((m,i) => `  ${i+1}. ${m}`).join('\n')}\n\nタスクリスト消込: ${applied.doneCount}/${applied.total}`, html: false };
+                const header = getLabel('aiSystemMsgMissingReqs') || '未実装または動作未確認の要件があります。';
+                sysMsg = { id: Date.now().toString(), role: 'ai system-msg', text: `${header}\n${unresolvedTexts.map((m,i) => `  ${i+1}. ${m}`).join('\n')}\n\n検証済みタスク: ${applied.doneCount}/${applied.total}\n未完了タスクは削除せず残しました。`, html: false };
                 setTimeout(() => showAIQuestionModal(getLabel('aiQuestionPromptMissingReqs'), [getLabel('aiQuestionOptionFix'), getLabel('aiQuestionOptionSuggest')]), 1000);
             } else {
                 await clearVerifyMissing();
                 await refreshAllTaskCounts();
-                sysMsg = { id: Date.now().toString(), role: 'ai system-msg', text: `${getLabel('aiSystemMsgAllSpecsCovered')}\nタスクリスト消込: ${applied.doneCount}/${applied.total}`, html: false };
+                sysMsg = { id: Date.now().toString(), role: 'ai system-msg', text: `${getLabel('aiSystemMsgAllSpecsCovered')}\n検証済みタスク: ${applied.doneCount}/${applied.total}`, html: false };
             }
             chatHistory.push(sysMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsg);
-            return { ok: coverage.missing.length === 0, coverage, summary: sysMsg.text };
+            return { ok: unresolvedTexts.length === 0, coverage, summary: sysMsg.text };
         } catch(e) {
-            const msg = { id: Date.now().toString(), role: 'ai system-msg', text: `⚠️ 検証AIを実行できませんでした: ${e.message || e}`, html: false };
+            markSpecListStatus('blocked', `検証AIを実行できませんでした: ${e.message || e}`);
+            const msg = { id: Date.now().toString(), role: 'ai system-msg', text: `⚠️ 検証AIを実行できませんでした。タスクは消し込みません: ${e.message || e}`, html: false };
             chatHistory.push(msg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(msg);
             try { await addFailureLog('ai-error', `検証AI失敗: ${e.message || e}`, '検証対象タスク:\n' + specListToString()); } catch(_) {}
             return { ok: false, error: e, summary: msg.text };
@@ -4279,6 +4405,7 @@ ${codeOnlyInstruction}`;
             const files = project?.files && Object.keys(project.files).length ? project.files : { 'index.html': '' };
             const entryFile = project?.entryFile || (files['index.html'] !== undefined ? 'index.html' : Object.keys(files)[0]);
             setProjectFiles(files, entryFile);
+            markSpecListStatus('implemented', 'コード生成AIが実装を出力しました。まだ検証AIによる動作確認前です。');
             updatePreview(); showPage('preview', document.getElementById('tab-preview'));
             sysMsgObj.text = 'コード構築完了。検証AIを実行しています...'; sysMsgObj.html = false; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).textContent = sysMsgObj.text; await saveToDB('chatHistory', chatHistory);
             await verifySpecCoverage(projectToVerificationText(project));
@@ -4286,8 +4413,44 @@ ${codeOnlyInstruction}`;
         } catch (e) { sysMsgObj.text = `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${e.message}</span>`; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).innerHTML = sysMsgObj.text; saveToDB('chatHistory', chatHistory); try { addFailureLog('build-error', `コード生成失敗: ${e.message || e}`, '実装要件:\n' + specListToString()); } catch(_) {} }
     }
 
+    function submitDebugRequestByShortcut() {
+        if (window.__debugRequestShortcutLock) return;
+        window.__debugRequestShortcutLock = true;
+        window.setTimeout(() => { window.__debugRequestShortcutLock = false; }, 350);
+        try { sendDebugRequest(); } catch(e) { console.error('debug shortcut failed:', e); }
+    }
+
+    function handleDebugMemoKeydown(event) {
+        if (!isChatSendShortcut(event)) return true;
+        if (event.isComposing || event.keyCode === 229) return true;
+        event.preventDefault();
+        event.stopPropagation();
+        submitDebugRequestByShortcut();
+        return false;
+    }
+
+    function initDebugInputShortcuts() {
+        const memo = document.getElementById('debug-memo');
+        if (memo && memo.dataset.ctrlEnterBound !== '1') {
+            memo.dataset.ctrlEnterBound = '1';
+            memo.addEventListener('keydown', handleDebugMemoKeydown, true);
+            memo.addEventListener('keyup', (event) => {
+                if (!isChatSendShortcut(event)) return;
+                if (event.isComposing || event.keyCode === 229) return;
+                event.preventDefault();
+                event.stopPropagation();
+            }, true);
+        }
+        const btn = document.querySelector('.debug-panel .debug-btn');
+        if (btn) {
+            btn.setAttribute('title', getLabel('debugCtrlEnterHint') || 'Ctrl+Enterで修正依頼');
+            btn.setAttribute('aria-label', getLabel('debugRequestButton') || '修正を依頼');
+        }
+    }
+
     function sendDebugRequest() { 
-        const text = document.getElementById('debug-memo').value.trim(); 
+        const memoEl = document.getElementById('debug-memo');
+        const text = memoEl.value.trim(); 
         if (!text) return; 
         showPage('chat', document.getElementById('tab-chat')); 
         const input = document.getElementById('user-prompt'); 
@@ -4295,7 +4458,7 @@ ${codeOnlyInstruction}`;
         if (window.AIChatLogic?.setPendingTaskType) window.AIChatLogic.setPendingTaskType('debugging');
         else window.__pendingChatTaskType = 'debugging';
         autoGrow(input); 
-        document.getElementById('debug-memo').value = ''; 
+        memoEl.value = ''; 
         askAI(); 
     }
 
@@ -4346,7 +4509,13 @@ ${codeOnlyInstruction}`;
 
         // デバッグパネル
         document.getElementById('debug-memo').placeholder = getLabel('debugMemoPlaceholder');
-        document.querySelector('.debug-panel .debug-btn').textContent = getLabel('debugRequestButton');
+        const debugRequestBtn = document.querySelector('.debug-panel .debug-btn');
+        if (debugRequestBtn) {
+            debugRequestBtn.textContent = getLabel('debugRequestButton');
+            debugRequestBtn.setAttribute('title', getLabel('debugCtrlEnterHint') || 'Ctrl+Enterで修正依頼');
+            debugRequestBtn.setAttribute('aria-label', getLabel('debugRequestButton') || '修正を依頼');
+        }
+        try { initDebugInputShortcuts(); } catch(e) {}
 
         // 仕様モーダル
         document.querySelector('#spec-modal .modal-header h3').textContent = getLabel('specModalTitle');
