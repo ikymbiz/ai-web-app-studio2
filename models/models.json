@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "source": "models/models.json",
+  "github": {
+    "repo": "",
+    "branch": "main",
+    "path": "models/models.json"
+  },
+  "instructions": "モデル名はこの別ファイルで管理する。管理者はデプロイ後もこのJSONを更新すれば、利用者のチャット・コーディング・デバッグ用モデル選択プルダウンに反映できる。",
+  "models": [
+    {
+      "route": "gemini:gemini-2.5-flash",
+      "label": "Gemini 2.5 Flash",
+      "provider": "gemini",
+      "stages": ["chat", "coding", "debugging"],
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "route": "gemini:gemini-2.5-pro",
+      "label": "Gemini 2.5 Pro",
+      "provider": "gemini",
+      "stages": ["chat", "coding", "debugging"],
+      "enabled": true,
+      "order": 2
+    },
+    {
+      "route": "openai:gpt-4o",
+      "label": "GPT-4o",
+      "provider": "openai",
+      "stages": ["chat", "coding", "debugging"],
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "route": "openai:gpt-4o-mini",
+      "label": "GPT-4o mini",
+      "provider": "openai",
+      "stages": ["chat"],
+      "enabled": true,
+      "order": 4
+    },
+    {
+      "route": "claude:claude-sonnet-4-20250514",
+      "label": "Claude Sonnet 4",
+      "provider": "claude",
+      "stages": ["chat", "coding", "debugging"],
+      "enabled": true,
+      "order": 5
+    },
+    {
+      "route": "xai:grok-3",
+      "label": "Grok 3",
+      "provider": "xai",
+      "stages": ["chat", "coding", "debugging"],
+      "enabled": true,
+      "order": 6
+    },
+    {
+      "route": "groq:llama-3.3-70b-versatile",
+      "label": "Llama 3.3 70B Versatile",
+      "provider": "groq",
+      "stages": ["chat", "coding"],
+      "enabled": true,
+      "order": 7
+    },
+    {
+      "route": "custom:your-model",
+      "label": "Custom OpenAI Compatible",
+      "provider": "custom",
+      "stages": ["chat", "coding", "debugging"],
+      "enabled": false,
+      "order": 8
+    }
+  ]
+}
