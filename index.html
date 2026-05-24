@@ -154,7 +154,8 @@
         .failure-card-actions button.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 
         /* プレビュー画面の「動かない」ボタン */
-        .preview-feedback-btn { position: absolute; bottom: 15px; right: 15px; background: var(--danger); color: #fff; border: none; border-radius: 22px; padding: 10px 18px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239,68,68,0.4); display: flex; align-items: center; gap: 6px; font-family: var(--font-body); z-index: 100; }
+        #p-preview { position: relative; }
+        .preview-feedback-btn { position: absolute; right: 16px; bottom: calc(82px + env(safe-area-inset-bottom, 0px)); background: var(--danger); color: #fff; border: none; border-radius: 999px; padding: 10px 18px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239,68,68,0.4); display: flex; align-items: center; gap: 6px; font-family: var(--font-body); z-index: 95; max-width: calc(100vw - 32px); white-space: nowrap; }
         .preview-feedback-btn:active { transform: scale(0.97); }
 
         /* PWA インストールバナー */
@@ -297,10 +298,11 @@
         .repo-list li:hover, .file-list li:hover { background:var(--color-bg-elevated); }
 
         /* プレビュー */
-        #preview-frame { flex: 1; border: none; background: #fff; width: 100%; height: 100%; }
-        .debug-panel { background: var(--bg); border-top: 1px solid var(--color-border); padding: 12px 15px; display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; }
-        #debug-memo { flex: 1; min-height: 40px; max-height: 100px; background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 20px; padding: 10px 15px; color: #fff; font-size: 14px; outline: none; resize: none; font-family: var(--font-body); }
+        #preview-frame { flex: 1 1 auto; min-height: 0; border: none; background: #fff; width: 100%; height: 100%; }
+        .debug-panel { background: var(--bg); border-top: 1px solid var(--color-border); padding: 12px 15px max(12px, env(safe-area-inset-bottom, 0px)); display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; position: relative; z-index: 120; }
+        #debug-memo { flex: 1; min-height: 40px; max-height: 100px; background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 20px; padding: 10px 15px; color: #fff; font-size: 14px; outline: none; resize: none; font-family: var(--font-body); min-width: 0; }
         .debug-btn { background: #eab308; color: #000; border: none; height: 40px; padding: 0 16px; border-radius: 20px; font-weight: bold; cursor: pointer; flex-shrink: 0; font-size: 13px; font-family: var(--font-body); }
+        @media (max-width: 520px) { .preview-feedback-btn { right: 12px; bottom: calc(74px + env(safe-area-inset-bottom, 0px)); padding: 9px 14px; font-size: 12px; } .debug-panel { padding-left: 12px; padding-right: 12px; } .debug-btn { padding: 0 13px; } }
 
         /* 設定 */
         .settings { padding: 0; overflow: hidden; min-height: 0; flex-direction: column; }
@@ -4097,24 +4099,36 @@ ${specListToString()}`,
         if (endIndex >= 0) code = code.slice(0, endIndex + 7);
         return code.trim();
     }
+    function parseGeneratedProject(text) {
+        const parsed = window.AICodeLogic?.parseProjectFiles?.(text);
+        if (parsed?.files && Object.keys(parsed.files).length) return parsed;
+        const code = extractCodeFromText(text);
+        return { files: { 'index.html': code }, entryFile: 'index.html' };
+    }
+    function projectToVerificationText(project) {
+        const files = project?.files || { 'index.html': String(project || '') };
+        return Object.entries(files).map(([path, content]) => `--- ${path} ---\n${content}`).join('\n\n');
+    }
     async function runAgenticCodeBuild(buildPrompt, model) {
         // 1) 実装 → 2) 要件漏れ検証 → 3) 漏れがあれば1回だけ自己修復、という軽量エージェントループ。
         const first = await callLLM({ prompt: buildPrompt, stream: false, model, taskType: 'code' });
-        let code = extractCodeFromText(first.text);
+        let project = parseGeneratedProject(first.text);
+        let verificationText = projectToVerificationText(project);
         const specs = specListToString();
         if (specs !== '（なし）') {
             try {
-                const verifyPrompt = (document.getElementById('prompt-verify').value.trim() || getPrompt('verify')).replace('{specList}', specs).replace('{generatedCode}', code.slice(0, 30000));
+                const verifyPrompt = (document.getElementById('prompt-verify').value.trim() || getPrompt('verify')).replace('{specList}', specs).replace('{generatedCode}', verificationText.slice(0, 30000));
                 const verify = await callLLM({ prompt: verifyPrompt, stream: false, model: getModelForPrompt('verify'), taskType: 'verify' });
                 const missing = JSON.parse((verify.text || '').replace(/```json|```/g, '').trim());
                 if (Array.isArray(missing) && missing.length > 0) {
-                    const repairPrompt = `${buildPrompt}\n\n【自己検証で見つかった未実装要件】\n${missing.map((m,i)=>`${i+1}. ${m}`).join('\n')}\n\n【現在の生成コード】\n${code}\n\n未実装要件を必ず反映し、説明・計画・Markdownを含めず、完全なHTMLコードだけを再出力してください。`;
+                    const repairPrompt = `${buildPrompt}\n\n【自己検証で見つかった未実装要件】\n${missing.map((m,i)=>`${i+1}. ${m}`).join('\n')}\n\n【現在の生成ファイル】\n${verificationText}\n\n未実装要件を必ず反映し、説明・計画・Markdownを含めず、単一HTMLの場合は完全なHTMLだけを、複数ファイルの場合は entryFile と files を含むJSONだけを再出力してください。`;
                     const repaired = await callLLM({ prompt: repairPrompt, stream: false, model, taskType: 'code-repair' });
-                    code = extractCodeFromText(repaired.text);
+                    project = parseGeneratedProject(repaired.text);
+                    verificationText = projectToVerificationText(project);
                 }
             } catch(e) { console.warn('agentic verify/repair skipped:', e); }
         }
-        return code;
+        return project;
     }
 
     async function generateCode() {
@@ -4141,10 +4155,10 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
         ].filter(Boolean).join('\n\n');
         const system = `${codeOnlyInstruction}
 
-Expert Full-stack Web Developerとして完全なHTMLファイルを出力してください。
+Expert Full-stack Web Developerとして、要件に最適な単一HTMLまたは複数ファイル構成のWebアプリを出力してください。
 ${adminBuildSystem}
 ターゲットペルソナ: ${targetPersona}
-ルール: 出力はコードだけ。Markdownのコードブロック、説明、計画、Act/Plan、箇条書き、前置き、後書きは不要。
+ルール: 出力はコードだけ。Markdownのコードブロック、説明、計画、Act/Plan、箇条書き、前置き、後書きは不要。複数ファイルが必要な場合は files JSON だけを出力してください。
 ${themeCSS ? `【デザイン】以下のCSS変数を使用
 ${themeCSS}` : ''}
 ${currentCode ? `既存コード:
@@ -4155,10 +4169,13 @@ ${specListToString()}
 【最終出力形式】
 ${codeOnlyInstruction}`;
         try {
-            let code = await runAgenticCodeBuild(system, model);
-            window.setCode(code, 'index.html'); updatePreview(); showPage('preview', document.getElementById('tab-preview'));
+            const project = await runAgenticCodeBuild(system, model);
+            const files = project?.files && Object.keys(project.files).length ? project.files : { 'index.html': '' };
+            const entryFile = project?.entryFile || (files['index.html'] !== undefined ? 'index.html' : Object.keys(files)[0]);
+            setProjectFiles(files, entryFile);
+            updatePreview(); showPage('preview', document.getElementById('tab-preview'));
             sysMsgObj.text = getLabel('aiSystemMsgBuildComplete'); sysMsgObj.html = false; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).textContent = sysMsgObj.text; saveToDB('chatHistory', chatHistory);
-            verifySpecCoverage(code);
+            verifySpecCoverage(projectToVerificationText(project));
         } catch (e) { sysMsgObj.text = `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${e.message}</span>`; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).innerHTML = sysMsgObj.text; saveToDB('chatHistory', chatHistory); try { addFailureLog('build-error', `コード生成失敗: ${e.message || e}`, '実装要件:\n' + specListToString()); } catch(_) {} }
     }
 
@@ -4917,7 +4934,97 @@ ${String(a.textContent).slice(0, 24000)}`);
         if (skipped.length) showToast((getLabel('toastSomeFilesSkipped') || '一部の非テキストファイルをスキップしました') + ': ' + skipped.slice(0, 3).join('、'));
         input.value = '';
     }
-    function updatePreview() { syncCurrentEditorFile(); document.getElementById('preview-frame').srcdoc = projectFiles['index.html'] || window.getCode(); }
+    let previewObjectUrls = [];
+    function getPreviewMimeType(path) {
+        const ext = String(path || '').split('.').pop().toLowerCase();
+        if (ext === 'html' || ext === 'htm') return 'text/html;charset=utf-8';
+        if (ext === 'css') return 'text/css;charset=utf-8';
+        if (ext === 'js' || ext === 'mjs') return 'text/javascript;charset=utf-8';
+        if (ext === 'json') return 'application/json;charset=utf-8';
+        if (ext === 'svg') return 'image/svg+xml;charset=utf-8';
+        if (ext === 'xml') return 'application/xml;charset=utf-8';
+        return 'text/plain;charset=utf-8';
+    }
+    function resolvePreviewPath(basePath, ref) {
+        const value = String(ref || '').trim();
+        if (!value || /^(?:[a-z][a-z0-9+.-]*:|#|data:|blob:|mailto:|tel:)/i.test(value)) return null;
+        const clean = value.split('#')[0].split('?')[0];
+        if (!clean) return null;
+        const baseParts = normalizeFilePath(basePath || 'index.html').split('/');
+        baseParts.pop();
+        clean.split('/').forEach(part => {
+            if (!part || part === '.') return;
+            if (part === '..') baseParts.pop();
+            else baseParts.push(part);
+        });
+        return normalizeFilePath(baseParts.join('/'));
+    }
+    function findProjectFile(path) {
+        if (!path) return null;
+        const normalized = normalizeFilePath(path);
+        if (projectFiles[normalized] !== undefined) return normalized;
+        const lower = normalized.toLowerCase();
+        return Object.keys(projectFiles).find(p => normalizeFilePath(p).toLowerCase() === lower) || null;
+    }
+    function createPreviewBlobUrl(path, content) {
+        const url = URL.createObjectURL(new Blob([String(content ?? '')], { type: getPreviewMimeType(path) }));
+        previewObjectUrls.push(url);
+        return url;
+    }
+    function escapeScriptForInline(code) {
+        return String(code ?? '').replace(/<\/script/gi, '<\\/script');
+    }
+    function buildResourceUrlMap(files) {
+        const urlMap = {};
+        Object.entries(files || {}).forEach(([path, content]) => {
+            const normalized = normalizeFilePath(path);
+            if (!/\.html?$/i.test(normalized)) urlMap[normalized] = createPreviewBlobUrl(normalized, content);
+        });
+        return urlMap;
+    }
+    function rewriteHtmlForVirtualPreview(html, entryFile, urlMap) {
+        let out = String(html || '');
+        out = out.replace(/<link\b([^>]*?)\bhref=(['"])([^'"]+)\2([^>]*)>/gi, (full, before, quote, href, after) => {
+            if (!/rel\s*=\s*(['"]?)stylesheet\1/i.test(before + ' ' + after)) return full;
+            const resolved = findProjectFile(resolvePreviewPath(entryFile, href));
+            if (!resolved) return full;
+            return `<link${before}href=${quote}${urlMap[resolved] || href}${quote}${after}>`;
+        });
+        out = out.replace(/<script\b([^>]*?)\bsrc=(['"])([^'"]+)\2([^>]*)>\s*<\/script>/gi, (full, before, quote, src, after) => {
+            const resolved = findProjectFile(resolvePreviewPath(entryFile, src));
+            if (!resolved) return full;
+            return `<script${before}src=${quote}${urlMap[resolved] || src}${quote}${after}><\/script>`;
+        });
+        out = out.replace(/\b(src|href)=(['"])([^'"]+)\2/gi, (full, attr, quote, ref) => {
+            const resolved = findProjectFile(resolvePreviewPath(entryFile, ref));
+            if (!resolved || !urlMap[resolved]) return full;
+            return `${attr}=${quote}${urlMap[resolved]}${quote}`;
+        });
+        return out;
+    }
+    function buildFallbackPreviewHtml(files, entryFile) {
+        const cssLinks = Object.keys(files).filter(p => /\.css$/i.test(p)).map(p => `<link rel="stylesheet" href="${p}">`).join('\n');
+        const jsLinks = Object.keys(files).filter(p => /\.(?:js|mjs)$/i.test(p)).map(p => `<script src="${p}"><\/script>`).join('\n');
+        const title = escapeHtml(entryFile || 'Preview');
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title>${cssLinks}</head><body><div id="app"></div>${jsLinks}</body></html>`;
+    }
+    function buildVirtualPreviewDocument() {
+        syncCurrentEditorFile();
+        previewObjectUrls.forEach(url => URL.revokeObjectURL(url));
+        previewObjectUrls = [];
+        const files = { ...(projectFiles || {}) };
+        if (!Object.keys(files).length) files['index.html'] = window.getCode() || '';
+        const entryFile = files['index.html'] !== undefined ? 'index.html' : (Object.keys(files).find(p => /\.html?$/i.test(p)) || currentFilePath || Object.keys(files)[0] || 'index.html');
+        const entryPath = normalizeFilePath(entryFile);
+        const urlMap = buildResourceUrlMap(files);
+        const sourceHtml = /\.html?$/i.test(entryPath) && files[entryPath] !== undefined ? files[entryPath] : buildFallbackPreviewHtml(files, entryPath);
+        return rewriteHtmlForVirtualPreview(sourceHtml, entryPath, urlMap);
+    }
+    function updatePreview() {
+        const frame = document.getElementById('preview-frame');
+        if (!frame) return;
+        frame.srcdoc = buildVirtualPreviewDocument();
+    }
     function downloadCode() { const code = window.getCode(); if (!code) return showToast(getLabel('toastCodeMissing')); const blob = new Blob([code], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = currentFilePath || 'index.html'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 10000); showToast(getLabel('toastDownloadStarted')); }
 
     /* --- GitHub --- */
