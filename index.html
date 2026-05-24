@@ -4027,7 +4027,10 @@ ${getFeedbackInstruction()}
                 promptExtract: document.getElementById('prompt-extract').value, promptVerify: document.getElementById('prompt-verify').value,
                 modelOverrides: { ...modelOverrides },
                 feedbackSections: getSelectedFeedbackSections(),
-                fixApprovalMode: getFixApprovalMode()
+                fixApprovalMode: getFixApprovalMode(),
+                // バージョン整合性マーカー。prompts.json の _version が更新されたら、
+                // 起動時に管理側プロンプトのみを最新デフォルトへ自動更新する判定に使う。
+                _promptsVersion: String(PROMPTS_DATA?._version || '')
             };
             await saveToDB('settings', settings);
             syncGitHubPatInputs('settings');
@@ -5401,7 +5404,7 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
 
 Expert Full-stack Web Developerとして、要件に最適な構成のWebアプリを出力してください。生成アプリには必ず README.md（アプリ概要）と plan_log.md（実装計画・進捗・教訓）を含めてください。その他のフォルダ構成は規模に応じて任意で、ちょっとしたアプリは単一HTMLでも構いません。プレビュー用の入口は原則 index.html としてください。
 ${adminBuildSystem}
-ルール: 出力はコードだけ。Markdownのコードブロック、説明、計画、Act/Plan、箇条書き、前置き、後書きは不要。複数ファイルJSONだけを出力し、docs/ と src/ と config/ と .github/ を省略せず、管理画面の開発ルールにも従ってください。
+ルール: 出力はコードだけ。Markdownのコードブロック、説明、計画、Act/Plan、箇条書き、前置き、後書きは不要。複数ファイルJSONだけを出力し、管理画面の開発ルールにも従ってください。
 ${themeCSS ? `【デザイン】以下のCSS変数を使用
 ${themeCSS}` : ''}
 ${currentCode ? `既存コード:
@@ -5539,7 +5542,7 @@ ${specListToVerificationJson({ selectedTaskIds })}`,
 ${verifyMissingText}`,
             `【出力ルール】
 ${codeOnlyInstruction}
-現在の全ファイルを修正後の完全な内容として出力してください。entryFile と files を含むJSONだけを出力し、docs/ と src/ と config/ と .github/ を省略せず、管理画面の開発ルールにも従ってください。差分、省略、説明は禁止です。`
+現在の全ファイルを修正後の完全な内容として出力してください。entryFile と files を含むJSONだけを出力し、管理画面の開発ルールにも従ってください。差分、省略、説明は禁止です。`
         ].filter(Boolean).join('\n\n');
 
         try {
@@ -6140,6 +6143,45 @@ ${codeOnlyInstruction}
                     const savedValue = settings[camel];
                     document.getElementById(k).value = (savedValue !== undefined && savedValue !== "") ? savedValue : getFieldDefaults()[k];
                 });
+                // バージョン整合性チェック：prompts.json の _version が前回保存時から変わっている場合、
+                // 管理側プロンプトのみを最新デフォルトへ強制更新する。
+                // ユーザーが自身で書き込むフィールド（target-persona / user-system-prompt / system-prompt /
+                // skill-settings / user-skill-settings）は絶対に上書きしない。
+                try {
+                    const currentPromptsVersion = String(PROMPTS_DATA?._version || '');
+                    const savedPromptsVersion = String(settings._promptsVersion || '');
+                    if (currentPromptsVersion && currentPromptsVersion !== savedPromptsVersion) {
+                        const ADMIN_FIELDS_TO_MIGRATE = [
+                            'code-principles',
+                            'admin-development-rules',
+                            'admin-system-requirements',
+                            'admin-implementation-verification',
+                            'prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'
+                        ];
+                        const defaults = getFieldDefaults();
+                        ADMIN_FIELDS_TO_MIGRATE.forEach(k => {
+                            const def = defaults[k];
+                            if (def !== undefined && def !== '') {
+                                document.getElementById(k).value = def;
+                            }
+                        });
+                        // 移行後に新しいバージョンを保存（autoSaveSettings は debounce があるので明示的に保存）
+                        settings._promptsVersion = currentPromptsVersion;
+                        await saveToDB('settings', { ...settings,
+                            codePrinciples: defaults['code-principles'],
+                            adminDevelopmentRules: defaults['admin-development-rules'],
+                            adminSystemRequirements: defaults['admin-system-requirements'],
+                            adminImplementationVerification: defaults['admin-implementation-verification'],
+                            promptPlan: defaults['prompt-plan'],
+                            promptSuggest: defaults['prompt-suggest'],
+                            promptDebug: defaults['prompt-debug'],
+                            promptExtract: defaults['prompt-extract'],
+                            promptVerify: defaults['prompt-verify']
+                        });
+                        console.log(`[prompts-migration] 管理側プロンプトを ${savedPromptsVersion || '(未設定)'} → ${currentPromptsVersion} に更新しました。target-persona / user-system-prompt / system-prompt は触れていません。`);
+                        try { showToast(`管理プロンプトを最新版に更新しました (${currentPromptsVersion})。ユーザー入力欄は変更していません。`); } catch(_) {}
+                    }
+                } catch(migErr) { console.warn('[prompts-migration] スキップ:', migErr); }
                 if (settings.chatModel) { ensureModelOption(document.getElementById('chat-model'), settings.chatModel, 'chat'); document.getElementById('chat-model').value = settings.chatModel; }
                 if (settings.codeModel) { ensureModelOption(document.getElementById('code-model'), settings.codeModel, 'coding'); document.getElementById('code-model').value = settings.codeModel; }
                 if (settings.debugModel) { ensureModelOption(document.getElementById('debug-model'), settings.debugModel, 'debugging'); document.getElementById('debug-model').value = settings.debugModel; }
