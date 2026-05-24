@@ -22,4 +22,5 @@
 | 2026-05-24 | v25 | ターゲットペルソナに寄りすぎ、チャットで決めた内容が生成アプリに反映されないリスク | ペルソナが要件と同列または上位の指示として扱われた | 要件優先順位を明文化し、チャット合意・仕様リスト・手書き注釈を最優先、ペルソナは参考情報に限定する指示を各生成経路へ追加。 |
 | 2026-05-24 | v25 | 手書きツールバーが常時表示され、プレビュー確認の邪魔になるリスク | 手書き・ペン・蛍光ペン・戻す・クリアが上部に固定表示されていた | 修正依頼欄左にツールメニューを追加し、必要な時だけ手書き機能を表示・操作するUIへ変更。 |
 | 2026-05-24 | v26 | 原則更新漏れや同じミスの再発リスク | 修正指摘後の自己改善ループとタスク記録が弱い | PRINCIPLE / DEVELOPMENT_RULES に Workflow Orchestration、Task Management、Core Principles を追加し、tasks/todo.md と tasks/lessons.md を導入。 |
+| 2026-05-24 | v29.2 | 「生成アプリは README.md + plan_log.md だけ」(v29) と「docs 5本 + src + config + .github を必ず含めよ」(v26 以前) が同一プロンプト内で同時に AI に渡り、小規模アプリで空の docs を強引に出力する・JSON が途中で切れる等のチグハグが発生 | v29 方針を導入した際に、README / SYSTEM_DESIGN / DEVELOPMENT_RULES / index.html 5407 / js/ai-code-logic.js 16 / prompts.json admin-development-rules §1 §2 §6 の旧記述を更新し切らなかった | 上記すべてを v29 方針（最小=README.md + plan_log.md、他は任意）に統一。本体（A）の docs 5本・tasks/・src/・config/・.github/ は従来通り保持。SW キャッシュ名を v29-2 に更新。 |
 
