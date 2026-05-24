@@ -9,10 +9,7 @@ AI Web Studio Pro は、要件整理、タスク化、優先順位付け、コ�
 ```text
 /
 ├── docs/
-│   ├── PRINCIPLE.md
-│   ├── DEVELOPMENT_RULES.md
 │   ├── SYSTEM_DESIGN.md
-│   ├── FAILURE_LOG.md
 │   └── HANDOVER.md
 ├── tasks/
 │   ├── todo.md
