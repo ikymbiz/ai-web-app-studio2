@@ -64,3 +64,16 @@
 - 進行ログには UI Designer / Core Logic の段階を表示する。
 - サービスワーカーのキャッシュ名は v24 に更新済み。
 
+## v25 要件優先順位・手書きメニュー化の引き継ぎ状態
+- チャットで決めた内容、仕様リスト、直近のユーザー発言、添付・手書き注釈を最優先する「要件優先順位」指示を追加した。
+- ターゲットペルソナは UI/UX、文体、導線の参考情報に降格し、機能要件・サービス内容・画面構成を上書きしない制約を Planner / UI Designer / Core Logic / Debugger / Verifier 系プロンプトに反映した。
+- UI先行レビュー・通常生成・デバッグ修正・Core Logic 接続で `buildRequirementPriorityInstruction()` を渡し、ペルソナ起因の仕様逸脱を防ぐ。
+- プレビュー画面の手書きツールバーは常時表示しないようにし、修正依頼欄左のメニューボタンから必要時だけ表示・操作する導線に変更した。
+- 手書きモードON時は最小限のステータスバッジだけを表示し、ペン / 蛍光ペン / 戻す / クリア / 注釈添付確認は左メニューから操作する。
+- サービスワーカーのキャッシュ名は v25 に更新済み。
+
+## v26 Workflow Orchestration / Task Management 追加の引き継ぎ状態
+- docs/PRINCIPLE.md と docs/DEVELOPMENT_RULES.md に、Plan Node Default、Subagent Strategy、Self-Improvement Loop、Verification Before Done、Demand Elegance、Autonomous Bug Fixing を追加した。
+- Task Management と Core Principles を追記し、tasks/todo.md と tasks/lessons.md を追加した。
+- 今後の修正では、非自明な作業は計画化し、修正指摘後は lessons に再発防止パターンを残す。
+
