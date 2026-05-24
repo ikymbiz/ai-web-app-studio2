@@ -237,13 +237,26 @@
         .skill-github-grid { display:grid; grid-template-columns:1fr 0.55fr; gap:8px; margin-top:10px; }
         .skill-github-grid .wide { grid-column:1 / -1; }
         .skill-github-status { min-height:18px; font-size:11px; color:var(--color-text-secondary); margin-top:8px; line-height:1.4; }
+        .model-admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+        .model-admin-grid .wide { grid-column:1 / -1; }
+        .model-stage-row { display:flex; gap:8px; flex-wrap:wrap; padding:8px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-bg-elevated); }
+        .model-stage-row label { display:inline-flex; align-items:center; gap:6px; color:var(--color-text-secondary); font-size:12px; margin:0; }
+        .model-stage-row input { width:16px; height:16px; accent-color:var(--primary); }
+        .model-list { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+        .model-card { border:1px solid var(--color-border); background:var(--color-bg-elevated); border-radius:10px; padding:12px; }
+        .model-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+        .model-card-title { font-size:13px; font-weight:700; color:var(--color-text-primary); line-height:1.4; }
+        .model-card-meta { font-size:11px; color:var(--color-text-secondary); margin-top:4px; word-break:break-all; }
+        .model-card-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+        .model-badge { display:inline-flex; align-items:center; border-radius:999px; padding:3px 8px; font-size:10px; font-weight:700; background:rgba(59,130,246,0.15); color:#93c5fd; white-space:nowrap; }
+        .model-badge.off { background:rgba(107,114,128,0.18); color:var(--color-text-secondary); }
         .skill-modal-grid { display:grid; grid-template-columns:1fr; gap:10px; }
         .skill-modal-grid .setting-input, .skill-modal-grid textarea { width:100%; }
         .skill-modal-grid textarea { min-height:140px; resize:vertical; font-family:var(--font-mono); }
         .skill-stage-row { display:flex; gap:8px; flex-wrap:wrap; padding:8px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-bg-elevated); }
         .skill-stage-row label { display:inline-flex; align-items:center; gap:6px; color:var(--color-text-secondary); font-size:12px; margin:0; }
         .skill-stage-row input { width:16px; height:16px; accent-color:var(--primary); }
-        @media (max-width:640px) { .skill-github-grid { grid-template-columns:1fr; } .skill-manager-toolbar .modal-btn { flex-basis:100%; } }
+        @media (max-width:640px) { .skill-github-grid, .model-admin-grid { grid-template-columns:1fr; } .skill-manager-toolbar .modal-btn { flex-basis:100%; } .model-admin-grid .wide { grid-column:auto; } }
 
         .cm-editor { height: 100%; outline: none !important; }
         .editor-actions { position: static; display: flex; gap: 8px; z-index: 10; align-items: center; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 8px 10px; background: var(--color-bg-surface); border-bottom: 1px solid var(--color-border); flex-shrink: 0; -webkit-overflow-scrolling: touch; }
@@ -507,13 +520,18 @@
                         <input type="hidden" id="ai-provider" value="gemini">
                         <div class="field">
                             <label data-label="chatModelLabel">チャットモデル</label>
-                            <input id="chat-model" class="setting-input" value="gemini:gemini-2.5-flash" placeholder="provider:model-id" onchange="autoSaveSettings()">
-                            <div class="field-hint" data-label="modelRouteHintChat">PLAN / 要件整理の既定モデルルート。システムプロンプト単位の上書きも可能です。</div>
+                            <select id="chat-model" class="setting-input" onchange="autoSaveSettings(); toggleModelSelects(); updatePromptModelOptions();"></select>
+                            <div class="field-hint" data-label="modelRouteHintChat">管理設定のモデルリストから、PLAN / 要件整理で使う既定モデルを選びます。</div>
                         </div>
                         <div class="field">
                             <label data-label="codeModelLabel">コード生成モデル</label>
-                            <input id="code-model" class="setting-input" value="gemini:gemini-2.5-flash" placeholder="provider:model-id" onchange="autoSaveSettings()">
-                            <div class="field-hint" data-label="modelRouteHintCode">BUILD / VERIFY の既定モデルルート。ベンダーをまたいで指定できます。</div>
+                            <select id="code-model" class="setting-input" onchange="autoSaveSettings(); toggleModelSelects(); updatePromptModelOptions();"></select>
+                            <div class="field-hint" data-label="modelRouteHintCode">管理設定のモデルリストから、BUILD / VERIFY で使う既定モデルを選びます。</div>
+                        </div>
+                        <div class="field">
+                            <label data-label="debugModelLabel">デバッグモデル</label>
+                            <select id="debug-model" class="setting-input" onchange="autoSaveSettings(); toggleModelSelects(); updatePromptModelOptions();"></select>
+                            <div class="field-hint" data-label="modelRouteHintDebug">管理設定のモデルリストから、デバッグ依頼で使う既定モデルを選びます。</div>
                         </div>
                     </div>
                 </details>
@@ -643,6 +661,43 @@
                             <label data-label="serverEndpointLabel">Cloudflare Worker API Endpoint（任意）</label>
                             <input id="server-endpoint" class="setting-input" data-placeholder-label="serverEndpointPlaceholder" placeholder="https://your-worker.example.workers.dev/api/ai" onchange="autoSaveSettings()">
                             <div class="field-hint" data-label="serverEndpointHint">本番ではシステムプロンプトとAPIキーをWorker側に移し、このエンドポイント経由で実行できます。</div>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- 🤖 管理設定：モデル名リスト -->
+                <details class="settings-section" id="section-admin-models" open>
+                    <summary><span class="settings-section-icon">🤖</span><span data-label="sectionAdminModelsTitle">モデル名管理</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="modelRegistryLabel">モデルリスト</label>
+                            <div class="model-admin-grid">
+                                <input id="model-admin-route" class="setting-input wide" data-placeholder-label="modelRoutePlaceholder" placeholder="provider:model-id">
+                                <input id="model-admin-label" class="setting-input wide" data-placeholder-label="modelLabelPlaceholder" placeholder="表示名（例: Gemini 2.5 Flash）">
+                            </div>
+                            <div class="model-stage-row" style="margin-top:8px;">
+                                <label><input type="checkbox" id="model-stage-chat" checked> <span data-label="stageChatLabel">チャット</span></label>
+                                <label><input type="checkbox" id="model-stage-coding" checked> <span data-label="stageCodingLabel">コーディング</span></label>
+                                <label><input type="checkbox" id="model-stage-debugging" checked> <span data-label="stageDebuggingLabel">デバッグ</span></label>
+                            </div>
+                            <div class="skill-manager-toolbar">
+                                <button type="button" class="modal-btn" onclick="addOrUpdateAdminModel()" data-label="modelAddButton">＋ モデル追加 / 更新</button>
+                                <button type="button" class="modal-btn" style="background:var(--color-bg-elevated);" onclick="reloadModelRegistryFromFile(true)" data-label="modelReloadButton">models.jsonを再読込</button>
+                            </div>
+                            <div class="field-hint" data-label="modelRegistryHint">モデル名は models/models.json で管理します。利用者はこのリストからチャット・コード生成・デバッグ用モデルをプルダウン選択します。</div>
+                            <div id="admin-model-list" class="model-list"></div>
+                        </div>
+
+                        <div class="field" style="margin-top:14px;">
+                            <label data-label="modelGithubSaveLabel">モデルリストをGitHubへ保存</label>
+                            <div class="skill-github-grid">
+                                <input id="model-github-repo" class="setting-input wide" data-placeholder-label="skillGithubRepoPlaceholder" placeholder="owner/repository" onchange="syncModelGithubSettingsToRegistry(); saveModelRegistryLocal();">
+                                <input id="model-github-branch" class="setting-input" data-placeholder-label="skillGithubBranchPlaceholder" placeholder="main" value="main" onchange="syncModelGithubSettingsToRegistry(); saveModelRegistryLocal();">
+                                <input id="model-github-path" class="setting-input" data-placeholder-label="modelGithubPathPlaceholder" placeholder="models/models.json" value="models/models.json" onchange="syncModelGithubSettingsToRegistry(); saveModelRegistryLocal();">
+                            </div>
+                            <button type="button" class="modal-btn" style="margin-top:10px; background:var(--accent);" onclick="saveModelRegistryToGitHub()" data-label="modelGithubSaveButton">GitHubに保存</button>
+                            <div id="model-github-status" class="skill-github-status"></div>
+                            <div class="field-hint" data-label="modelGithubSaveHint">保存には「API・保存設定」のGitHub PATを使用します。デプロイ後はこのJSONファイルを更新すれば、利用者のプルダウンに反映できます。</div>
                         </div>
                     </div>
                 </details>
@@ -866,7 +921,7 @@
             <!-- プロンプトテンプレート編集時のみ表示：使用モデル選択 -->
             <div class="editor-model-row" id="prompt-editor-model-row" style="display:none;">
                 <label data-label="promptEditorModelLabel">使用モデル：</label>
-                <input id="prompt-editor-model-select" class="setting-input" placeholder="provider:model-id（空欄なら既定）">
+                <select id="prompt-editor-model-select" class="setting-input"></select>
             </div>
             <div class="editor-footer">
                 <button class="modal-btn" style="background:var(--color-bg-elevated);" type="button" onclick="resetPromptEditor()" data-label="resetDefaultButton">↺ 初期値</button>
@@ -1082,6 +1137,24 @@ profile: frontend
         xai: { chat: [['grok-3','Grok 3'],['grok-3-mini','Grok 3 Mini']], code: [['grok-3','Grok 3']] },
         groq: { chat: [['llama-3.3-70b-versatile','Llama 3.3 70B'],['mixtral-8x7b-32768','Mixtral 8x7B']], code: [['llama-3.3-70b-versatile','Llama 3.3 70B']] }
     };
+
+    const DEFAULT_MODEL_REGISTRY = {
+        version: 1,
+        source: 'models/models.json',
+        github: { repo: '', branch: 'main', path: 'models/models.json' },
+        instructions: 'モデル名は別ファイル models/models.json で管理する。利用者はこのリストからチャット、コーディング、デバッグの各段階で使用するモデルを選ぶ。',
+        models: [
+            { route: 'gemini:gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'gemini', stages: ['chat','coding','debugging'], enabled: true },
+            { route: 'gemini:gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'gemini', stages: ['chat','coding','debugging'], enabled: true },
+            { route: 'openai:gpt-4o', label: 'GPT-4o', provider: 'openai', stages: ['chat','coding','debugging'], enabled: true },
+            { route: 'openai:gpt-4o-mini', label: 'GPT-4o mini', provider: 'openai', stages: ['chat'], enabled: true },
+            { route: 'claude:claude-sonnet-4-20250514', label: 'Claude Sonnet 4', provider: 'claude', stages: ['chat','coding','debugging'], enabled: true },
+            { route: 'xai:grok-3', label: 'Grok 3', provider: 'xai', stages: ['chat','coding','debugging'], enabled: true },
+            { route: 'groq:llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile', provider: 'groq', stages: ['chat','coding'], enabled: true },
+            { route: 'custom:your-model', label: 'Custom OpenAI Compatible', provider: 'custom', stages: ['chat','coding','debugging'], enabled: false }
+        ]
+    };
+    let modelRegistry = JSON.parse(JSON.stringify(DEFAULT_MODEL_REGISTRY));
 
     /* === プロンプト管理 === */
     let PROMPTS_DATA = null;
@@ -1478,6 +1551,25 @@ profile: frontend
             "codeModelLabel": "Code generation model route",
             "modelRouteHintChat": "Default model route for planning and requirements. Each prompt can override it.",
             "modelRouteHintCode": "Default model route for build and verification. You can use a different vendor.",
+            "debugModelLabel": "Debug model route",
+            "modelRouteHintDebug": "Default model route for debugging. Choose from the admin model list.",
+            "sectionAdminModelsTitle": "Model name management",
+            "modelRegistryLabel": "Model list",
+            "modelRoutePlaceholder": "provider:model-id",
+            "modelLabelPlaceholder": "Display name (e.g. Gemini 2.5 Flash)",
+            "modelAddButton": "+ Add / update model",
+            "modelReloadButton": "Reload models.json",
+            "modelRegistryHint": "Model names are managed in models/models.json. Users choose chat, coding, and debugging models from these dropdowns.",
+            "modelGithubSaveLabel": "Save model list to GitHub",
+            "modelGithubPathPlaceholder": "models/models.json",
+            "modelGithubSaveButton": "Save to GitHub",
+            "modelGithubSaveHint": "Uses the GitHub PAT. After deployment, update this JSON file to update user dropdowns.",
+            "modelRouteRequired": "Enter a model route.",
+            "modelGithubSaving": "Saving model list to GitHub...",
+            "modelGithubSaved": "Model list saved to GitHub.",
+            "modelReloaded": "Model list reloaded.",
+            "modelSavedValueLabel": "Saved",
+            "modelEmpty": "No models.",
             "serverEndpointLabel": "Cloudflare Worker API Endpoint (optional)",
             "serverEndpointPlaceholder": "https://your-worker.example.workers.dev/api/ai",
             "serverEndpointHint": "In production, move system prompts and API keys to the Worker and call this endpoint.",
@@ -1743,6 +1835,7 @@ profile: frontend
         document.documentElement.lang = lang;
         try { applyUITexts(); } catch(e) { console.warn('applyUITexts after lang change:', e); }
         updateLangToggleUI();
+        try { renderAllModelSelects(); renderAdminModelManager(); } catch(e) {}
     }
     function updateLangToggleUI() {
         populateLanguageSelect();
@@ -1764,7 +1857,7 @@ profile: frontend
         'user-skill-settings': { titleKey: 'userSkillSettingsLabel', showModel: false },
         'prompt-plan':     { titleKey: 'planPromptLabel',      showModel: true,  modelKind: 'chat' },
         'prompt-suggest':  { titleKey: 'suggestPromptLabel',   showModel: true,  modelKind: 'chat' },
-        'prompt-debug':    { titleKey: 'debugPromptLabel',     showModel: true,  modelKind: 'chat' },
+        'prompt-debug':    { titleKey: 'debugPromptLabel',     showModel: true,  modelKind: 'debugging' },
         'prompt-extract':  { titleKey: 'extractPromptLabel',   showModel: true,  modelKind: 'chat' },
         'prompt-verify':   { titleKey: 'verifyPromptLabel',    showModel: true,  modelKind: 'code' }
     };
@@ -2367,6 +2460,283 @@ ${skill.content || ''}`).join('\n\n');
         }
     }
 
+    /* === 管理モデルリスト（models/models.json） === */
+    function cloneJson(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+    function getModelStagesFromAdminInputs() {
+        const stages = [];
+        if (document.getElementById('model-stage-chat')?.checked) stages.push('chat');
+        if (document.getElementById('model-stage-coding')?.checked) stages.push('coding');
+        if (document.getElementById('model-stage-debugging')?.checked) stages.push('debugging');
+        return stages;
+    }
+
+    function normalizeModelItem(item, idx = 0) {
+        const rawRoute = String(item?.route || item?.id || item?.model || '').trim();
+        const route = normalizeModelRoute(rawRoute || 'gemini:gemini-2.5-flash');
+        const provider = String(item?.provider || route.split(':')[0] || 'gemini').trim();
+        const label = String(item?.label || item?.name || route).trim();
+        const stages = Array.isArray(item?.stages) && item.stages.length
+            ? item.stages.map(v => String(v).trim()).filter(v => ['chat','coding','debugging'].includes(v))
+            : ['chat','coding','debugging'];
+        return { route, label, provider, stages: stages.length ? stages : ['chat','coding','debugging'], enabled: item?.enabled !== false, order: Number.isFinite(item?.order) ? item.order : idx + 1 };
+    }
+
+    function normalizeModelRegistry(raw) {
+        const base = cloneJson(DEFAULT_MODEL_REGISTRY);
+        const obj = raw && typeof raw === 'object' ? raw : {};
+        const models = Array.isArray(obj.models) ? obj.models : base.models;
+        const merged = {
+            version: Number(obj.version || base.version || 1),
+            source: String(obj.source || base.source || 'models/models.json'),
+            github: Object.assign({}, base.github, obj.github || {}),
+            instructions: String(obj.instructions || base.instructions || ''),
+            models: []
+        };
+        const seen = new Set();
+        models.map(normalizeModelItem).forEach(m => {
+            if (!m.route || seen.has(m.route)) return;
+            seen.add(m.route);
+            merged.models.push(m);
+        });
+        if (!merged.models.length) merged.models = base.models.map(normalizeModelItem);
+        return merged;
+    }
+
+    async function loadModelRegistry() {
+        let loaded = null;
+        try {
+            const res = await fetch('./models/models.json', { cache: 'no-store' });
+            if (res.ok) loaded = await res.json();
+        } catch(e) {
+            console.warn('models/models.json could not be loaded.', e);
+        }
+        try {
+            const saved = await getFromDB('modelRegistry');
+            // UIで編集した未保存のローカル変更がある場合だけ、別ファイルよりローカルを優先する。
+            if (saved && saved.localEdited) loaded = saved;
+            else if (saved?.github && loaded) loaded.github = Object.assign({}, loaded.github || {}, saved.github);
+        } catch(e) {}
+        modelRegistry = normalizeModelRegistry(loaded || DEFAULT_MODEL_REGISTRY);
+        renderAllModelSelects();
+        renderAdminModelManager();
+    }
+
+    async function reloadModelRegistryFromFile(showMessage = false) {
+        try { await deleteFromDB('modelRegistry'); } catch(e) {}
+        modelRegistry = cloneJson(DEFAULT_MODEL_REGISTRY);
+        await loadModelRegistry();
+        if (showMessage) showToast(getLabel('modelReloaded') || 'モデルリストを再読込しました');
+    }
+
+    function getModelsForStage(stage) {
+        const target = stage === 'code' ? 'coding' : (stage || 'chat');
+        return (modelRegistry.models || [])
+            .filter(m => m.enabled !== false)
+            .filter(m => !Array.isArray(m.stages) || !m.stages.length || m.stages.includes(target));
+    }
+
+    function modelOptionLabel(model) {
+        const label = model.label || model.route;
+        return label === model.route ? model.route : `${label}（${model.route}）`;
+    }
+
+    function ensureModelOption(select, value, stage) {
+        if (!select || !value) return;
+        if ([...select.options].some(opt => opt.value === value)) return;
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = `${getLabel('modelSavedValueLabel') || '保存済み'}: ${value}`;
+        select.appendChild(opt);
+    }
+
+    function populateModelSelect(selectId, stage, fallbackValue) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        const current = select.value || fallbackValue || '';
+        const models = getModelsForStage(stage);
+        select.innerHTML = '';
+        models.forEach(model => {
+            const opt = document.createElement('option');
+            opt.value = model.route;
+            opt.textContent = modelOptionLabel(model);
+            select.appendChild(opt);
+        });
+        const fallback = fallbackValue || models[0]?.route || 'gemini:gemini-2.5-flash';
+        ensureModelOption(select, current || fallback, stage);
+        select.value = current || fallback;
+    }
+
+    function renderAllModelSelects() {
+        populateModelSelect('chat-model', 'chat', 'gemini:gemini-2.5-flash');
+        populateModelSelect('code-model', 'coding', 'gemini:gemini-2.5-flash');
+        populateModelSelect('debug-model', 'debugging', document.getElementById('chat-model')?.value || 'gemini:gemini-2.5-flash');
+        updatePromptModelOptions();
+        toggleModelSelects();
+    }
+
+    function populatePromptModelSelect(key) {
+        const meta = PROMPT_EDITOR_META[key];
+        if (!meta || !meta.showModel) return;
+        const select = document.getElementById('prompt-editor-model-select');
+        if (!select) return;
+        const defaultRoute = meta.modelKind === 'code'
+            ? (document.getElementById('code-model')?.value || 'gemini:gemini-2.5-flash')
+            : (meta.modelKind === 'debugging'
+                ? (document.getElementById('debug-model')?.value || document.getElementById('chat-model')?.value || 'gemini:gemini-2.5-flash')
+                : (document.getElementById('chat-model')?.value || 'gemini:gemini-2.5-flash'));
+        const stage = meta.modelKind === 'code' ? 'coding' : (meta.modelKind === 'debugging' ? 'debugging' : 'chat');
+        select.innerHTML = '';
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = `${getLabel('modelDefault') || '既定モデルを使う'}: ${defaultRoute}`;
+        select.appendChild(defaultOpt);
+        getModelsForStage(stage).forEach(model => {
+            const opt = document.createElement('option');
+            opt.value = model.route;
+            opt.textContent = modelOptionLabel(model);
+            select.appendChild(opt);
+        });
+        ensureModelOption(select, modelOverrides[key], stage);
+        select.value = modelOverrides[key] || '';
+    }
+
+    function renderAdminModelManager() {
+        const list = document.getElementById('admin-model-list');
+        if (!list) return;
+        const repoEl = document.getElementById('model-github-repo');
+        const branchEl = document.getElementById('model-github-branch');
+        const pathEl = document.getElementById('model-github-path');
+        if (repoEl) repoEl.value = modelRegistry.github?.repo || '';
+        if (branchEl) branchEl.value = modelRegistry.github?.branch || 'main';
+        if (pathEl) pathEl.value = modelRegistry.github?.path || 'models/models.json';
+        const models = modelRegistry.models || [];
+        if (!models.length) {
+            list.innerHTML = `<div class="field-hint">${escapeHtml(getLabel('modelEmpty') || 'モデルがありません。')}</div>`;
+            return;
+        }
+        list.innerHTML = models.map((model, idx) => {
+            const stages = (model.stages || []).map(stage => getLabel('stage' + stage.charAt(0).toUpperCase() + stage.slice(1) + 'Label') || stage).join(' / ');
+            return `<div class="model-card">
+                <div class="model-card-head">
+                    <div>
+                        <div class="model-card-title">${escapeHtml(model.label || model.route)}</div>
+                        <div class="model-card-meta">${escapeHtml(model.route)} / ${escapeHtml(stages)}</div>
+                    </div>
+                    <span class="model-badge ${model.enabled === false ? 'off' : ''}">${escapeHtml(model.enabled === false ? (getLabel('skillDisabled') || '無効') : (getLabel('skillEnabled') || '有効'))}</span>
+                </div>
+                <div class="model-card-actions">
+                    <button type="button" class="skill-mini-btn" onclick="editAdminModel(${idx})">${escapeHtml(getLabel('editButton') || '編集')}</button>
+                    <button type="button" class="skill-mini-btn" onclick="toggleAdminModel(${idx})">${escapeHtml(model.enabled === false ? (getLabel('skillEnableButton') || '有効化') : (getLabel('skillDisableButton') || '無効化'))}</button>
+                    <button type="button" class="skill-mini-btn" onclick="deleteAdminModel(${idx})">${escapeHtml(getLabel('chatMsgDelete') || '削除')}</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    async function saveModelRegistryLocal(markEdited = true) {
+        syncModelGithubSettingsToRegistry();
+        const payload = normalizeModelRegistry(modelRegistry);
+        if (markEdited) payload.localEdited = true;
+        modelRegistry = payload;
+        try { await saveToDB('modelRegistry', payload); } catch(e) { console.warn('model registry save failed:', e); }
+        renderAllModelSelects();
+        renderAdminModelManager();
+    }
+
+    function syncModelGithubSettingsToRegistry() {
+        if (!modelRegistry.github) modelRegistry.github = { repo: '', branch: 'main', path: 'models/models.json' };
+        modelRegistry.github.repo = (document.getElementById('model-github-repo')?.value || modelRegistry.github.repo || '').trim();
+        modelRegistry.github.branch = (document.getElementById('model-github-branch')?.value || modelRegistry.github.branch || 'main').trim() || 'main';
+        modelRegistry.github.path = normalizeFilePath(document.getElementById('model-github-path')?.value || modelRegistry.github.path || 'models/models.json');
+    }
+
+    function addOrUpdateAdminModel() {
+        const rawRoute = (document.getElementById('model-admin-route')?.value || '').trim();
+        if (!rawRoute) return showToast(getLabel('modelRouteRequired') || 'モデルルートを入力してください');
+        const route = normalizeModelRoute(rawRoute);
+        const label = (document.getElementById('model-admin-label')?.value || '').trim() || route;
+        const stages = getModelStagesFromAdminInputs();
+        if (!stages.length) return showToast(getLabel('skillStageRequired') || '利用段階を1つ以上選択してください');
+        const item = normalizeModelItem({ route, label, stages, enabled: true });
+        const idx = (modelRegistry.models || []).findIndex(m => m.route === route);
+        if (idx >= 0) modelRegistry.models[idx] = Object.assign({}, modelRegistry.models[idx], item);
+        else modelRegistry.models.push(item);
+        const routeEl = document.getElementById('model-admin-route');
+        const labelEl = document.getElementById('model-admin-label');
+        if (routeEl) routeEl.value = '';
+        if (labelEl) labelEl.value = '';
+        saveModelRegistryLocal(true);
+        showToast(getLabel('toastSettingsSaved'));
+    }
+
+    function editAdminModel(idx) {
+        const model = modelRegistry.models?.[idx];
+        if (!model) return;
+        const routeEl = document.getElementById('model-admin-route');
+        const labelEl = document.getElementById('model-admin-label');
+        if (routeEl) routeEl.value = model.route || '';
+        if (labelEl) labelEl.value = model.label || '';
+        ['chat','coding','debugging'].forEach(stage => {
+            const el = document.getElementById('model-stage-' + stage);
+            if (el) el.checked = (model.stages || []).includes(stage);
+        });
+        document.getElementById('model-admin-route')?.focus();
+    }
+
+    function toggleAdminModel(idx) {
+        const model = modelRegistry.models?.[idx];
+        if (!model) return;
+        model.enabled = model.enabled === false;
+        saveModelRegistryLocal(true);
+    }
+
+    function deleteAdminModel(idx) {
+        if (!Array.isArray(modelRegistry.models) || !modelRegistry.models[idx]) return;
+        modelRegistry.models.splice(idx, 1);
+        saveModelRegistryLocal(true);
+    }
+
+    function getModelRegistryForExport() {
+        const out = normalizeModelRegistry(modelRegistry);
+        delete out.localEdited;
+        return out;
+    }
+
+    async function saveModelRegistryToGitHub() {
+        syncModelGithubSettingsToRegistry();
+        const status = document.getElementById('model-github-status');
+        const token = getGitHubPatFromInputs();
+        const repo = (modelRegistry.github?.repo || '').trim();
+        const branch = (modelRegistry.github?.branch || 'main').trim() || 'main';
+        const path = normalizeFilePath(modelRegistry.github?.path || 'models/models.json');
+        if (!repo) return showToast(getLabel('skillGithubRepoRequired') || 'owner/repository を入力してください');
+        if (!token) return showToast(getLabel('githubPatInvalid') || 'GitHub PATを入力してください');
+        if (status) status.textContent = getLabel('modelGithubSaving') || 'モデルリストをGitHubへ保存中...';
+        try {
+            const apiPath = encodeURIComponent(path).replace(/%2F/g, '/');
+            const url = `https://api.github.com/repos/${repo}/contents/${apiPath}`;
+            let sha = null;
+            const current = await fetch(url + '?ref=' + encodeURIComponent(branch), { headers: githubHeaders(token) });
+            if (current.ok) {
+                const data = await current.json();
+                sha = data.sha || null;
+            } else if (current.status !== 404) {
+                throw new Error('GET HTTP ' + current.status);
+            }
+            const json = JSON.stringify(getModelRegistryForExport(), null, 2) + '\n';
+            const body = { message: `Update ${path}`, branch, content: base64EncodeUtf8(json) };
+            if (sha) body.sha = sha;
+            const put = await fetch(url, { method: 'PUT', headers: githubHeaders(token, { 'Content-Type': 'application/json' }), body: JSON.stringify(body) });
+            if (!put.ok) throw new Error('PUT HTTP ' + put.status);
+            modelRegistry.localEdited = false;
+            await saveToDB('modelRegistry', modelRegistry);
+            if (status) status.innerHTML = `<span style="color:var(--success)">${escapeHtml(getLabel('modelGithubSaved') || 'モデルリストをGitHubへ保存しました')}</span>`;
+        } catch(e) {
+            if (status) status.innerHTML = `<span style="color:var(--danger)">${escapeHtml(getLabel('deployStatusError') || 'Error')}: ${escapeHtml(e.message || String(e))}</span>`;
+        }
+    }
+
     /* === プロンプト別モデル選択（§10） === */
     // modelOverrides: { 'prompt-plan': 'gemini-2.5-pro', ... } 空文字なら既定モデルを使う
     let modelOverrides = {};
@@ -2388,28 +2758,20 @@ ${skill.content || ''}`).join('\n\n');
         // promptKey は 'plan' / 'suggest' / 'debug' / 'extract' / 'verify' / 'code'
         const fieldId = promptKey === 'code' ? null : 'prompt-' + promptKey;
         const override = fieldId ? modelOverrides[fieldId] : modelOverrides['code'];
-        if (override) return normalizeModelRoute(override, promptKey === 'verify' || promptKey === 'code' ? 'code' : 'chat');
         const codeTypes = ['verify', 'code'];
-        const el = document.getElementById(codeTypes.includes(promptKey) ? 'code-model' : 'chat-model');
-        return normalizeModelRoute(el?.value, codeTypes.includes(promptKey) ? 'code' : 'chat');
+        const debugTypes = ['debug'];
+        const kind = codeTypes.includes(promptKey) ? 'code' : (debugTypes.includes(promptKey) ? 'debugging' : 'chat');
+        if (override) return normalizeModelRoute(override, kind);
+        const selectId = kind === 'code' ? 'code-model' : (kind === 'debugging' ? 'debug-model' : 'chat-model');
+        const el = document.getElementById(selectId);
+        return normalizeModelRoute(el?.value, kind);
     }
 
-    // プロンプト別モデル入力欄を初期化。プルダウンは使わず provider:model-id を直接入力する。
+    // プロンプト別モデルプルダウンを初期化。モデル名は models/models.json から読み込む。
     function updatePromptModelOptions() {
         if (!currentEditingKey) return;
         const meta = PROMPT_EDITOR_META[currentEditingKey];
         if (meta && meta.showModel) populatePromptModelSelect(currentEditingKey);
-    }
-
-    function populatePromptModelSelect(key) {
-        const meta = PROMPT_EDITOR_META[key];
-        if (!meta || !meta.showModel) return;
-        const input = document.getElementById('prompt-editor-model-select');
-        const defaultRoute = meta.modelKind === 'code'
-            ? (document.getElementById('code-model')?.value || 'gemini:gemini-2.5-flash')
-            : (document.getElementById('chat-model')?.value || 'gemini:gemini-2.5-flash');
-        input.placeholder = (getLabel('modelDefault') || '既定モデル') + ': ' + defaultRoute;
-        input.value = modelOverrides[key] || '';
     }
 
     function getFieldDefaults() { return { 'system-prompt': getDefault('system-prompt'), 'target-persona': getDefault('target-persona'), 'user-system-prompt': getDefault('user-system-prompt'), 'code-principles': getDefault('code-principles'), 'admin-system-requirements': getDefault('admin-system-requirements'), 'admin-implementation-verification': getDefault('admin-implementation-verification'), 'skill-settings': getDefault('skill-settings'), 'user-skill-settings': getDefault('user-skill-settings'), 'prompt-plan': getPrompt('plan'), 'prompt-suggest': getPrompt('suggest'), 'prompt-debug': getPrompt('debug'), 'prompt-extract': getPrompt('extract'), 'prompt-verify': getPrompt('verify') }; }
@@ -2767,10 +3129,11 @@ ${skill.content || ''}`).join('\n\n');
     function onProviderChange() { toggleModelSelects(); try { updatePromptModelOptions(); } catch(e) {} }
     function updateModelOptions() { /* provider:model-id の手入力方式に移行したため互換用 no-op */ }
     function toggleModelSelects() {
-        const chat = document.getElementById('chat-model'), code = document.getElementById('code-model');
-        if (!chat || !code) return;
-        chat.style.opacity = getCurrentApiKey(chat.value) || getServerEndpoint() ? '1' : '0.75';
-        code.style.opacity = getCurrentApiKey(code.value) || getServerEndpoint() ? '1' : '0.75';
+        const chat = document.getElementById('chat-model'), code = document.getElementById('code-model'), debug = document.getElementById('debug-model');
+        [chat, code, debug].forEach(el => {
+            if (!el) return;
+            el.style.opacity = getCurrentApiKey(el.value) || getServerEndpoint() ? '1' : '0.75';
+        });
     }
 
     /* --- 自動保存機能 --- */
@@ -2783,7 +3146,7 @@ ${skill.content || ''}`).join('\n\n');
             if (hasAnyKey) await saveEncryptedKeys(apiKeys); else await deleteFromDB('encryptedApiKeys');
             updateKeyExpiryStatus(hasAnyKey ? apiKeys : null);
             const settings = {
-                aiProvider: document.getElementById('ai-provider')?.value || 'gemini', chatModel: document.getElementById('chat-model').value, codeModel: document.getElementById('code-model').value, serverEndpoint: document.getElementById('server-endpoint')?.value || '', customBaseUrl: document.getElementById('api-base-custom')?.value || '', templateCatalogUrl: document.getElementById('template-catalog-url')?.value || '',
+                aiProvider: document.getElementById('ai-provider')?.value || 'gemini', chatModel: document.getElementById('chat-model').value, codeModel: document.getElementById('code-model').value, debugModel: document.getElementById('debug-model')?.value || document.getElementById('chat-model').value, serverEndpoint: document.getElementById('server-endpoint')?.value || '', customBaseUrl: document.getElementById('api-base-custom')?.value || '', templateCatalogUrl: document.getElementById('template-catalog-url')?.value || '',
                 targetPersona: document.getElementById('target-persona').value, userSystemPrompt: document.getElementById('user-system-prompt').value, systemPrompt: document.getElementById('system-prompt').value, codePrinciples: document.getElementById('code-principles').value, adminSystemRequirements: document.getElementById('admin-system-requirements').value, adminImplementationVerification: document.getElementById('admin-implementation-verification').value, skillSettings: document.getElementById('skill-settings').value, userSkillSettings: document.getElementById('user-skill-settings').value,
                 promptPlan: document.getElementById('prompt-plan').value, promptSuggest: document.getElementById('prompt-suggest').value, promptDebug: document.getElementById('prompt-debug').value,
                 promptExtract: document.getElementById('prompt-extract').value, promptVerify: document.getElementById('prompt-verify').value,
@@ -3992,7 +4355,7 @@ ${specListToString()}`;
 
             // Service Worker 登録（同一オリジン要件のため、別ファイル sw.js を使う）
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js?v=settings-tabs-skills-v4', { scope: './' })
+                navigator.serviceWorker.register('./sw.js?v=settings-tabs-skills-models-v6', { scope: './' })
                     .then(reg => { try { reg.update(); } catch(e) {} })
                     .catch(err => console.warn('SW registration failed:', err));
             }
@@ -4074,6 +4437,7 @@ ${specListToString()}`;
         await initI18n(savedLang);
         try { applyUITexts(); } catch(e) { console.warn('applyUITexts error:', e); }
         try { updateLangToggleUI(); } catch(e) {}
+        try { await loadModelRegistry(); } catch(e) { console.warn('loadModelRegistry error:', e); renderAllModelSelects(); }
         try {
             const settings = await getFromDB('settings');
             if (settings) {
@@ -4088,8 +4452,9 @@ ${specListToString()}`;
                     const savedValue = settings[camel];
                     document.getElementById(k).value = (savedValue !== undefined && savedValue !== "") ? savedValue : getFieldDefaults()[k];
                 });
-                if (settings.chatModel) document.getElementById('chat-model').value = settings.chatModel;
-                if (settings.codeModel) document.getElementById('code-model').value = settings.codeModel;
+                if (settings.chatModel) { ensureModelOption(document.getElementById('chat-model'), settings.chatModel, 'chat'); document.getElementById('chat-model').value = settings.chatModel; }
+                if (settings.codeModel) { ensureModelOption(document.getElementById('code-model'), settings.codeModel, 'coding'); document.getElementById('code-model').value = settings.codeModel; }
+                if (settings.debugModel) { ensureModelOption(document.getElementById('debug-model'), settings.debugModel, 'debugging'); document.getElementById('debug-model').value = settings.debugModel; }
                 if (settings.serverEndpoint && document.getElementById('server-endpoint')) document.getElementById('server-endpoint').value = settings.serverEndpoint;
                 if (settings.customBaseUrl && document.getElementById('api-base-custom')) document.getElementById('api-base-custom').value = settings.customBaseUrl;
                 if (settings.templateCatalogUrl && document.getElementById('template-catalog-url')) document.getElementById('template-catalog-url').value = settings.templateCatalogUrl;
@@ -4097,12 +4462,18 @@ ${specListToString()}`;
                 if (settings.modelOverrides && typeof settings.modelOverrides === 'object') {
                     modelOverrides = { ...settings.modelOverrides };
                 }
+                renderAllModelSelects();
+                if (settings.chatModel) { ensureModelOption(document.getElementById('chat-model'), settings.chatModel, 'chat'); document.getElementById('chat-model').value = settings.chatModel; }
+                if (settings.codeModel) { ensureModelOption(document.getElementById('code-model'), settings.codeModel, 'coding'); document.getElementById('code-model').value = settings.codeModel; }
+                if (settings.debugModel) { ensureModelOption(document.getElementById('debug-model'), settings.debugModel, 'debugging'); document.getElementById('debug-model').value = settings.debugModel; }
+                updatePromptModelOptions();
             } else {
                 onProviderChange(); ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => document.getElementById(k).value = getFieldDefaults()[k]); updateKeyExpiryStatus(null);
             }
             toggleModelSelects(); const ghToken = await getFromDB('gh_token'); if (ghToken) { const sgt = document.getElementById('setting-gh-token'); const dti = document.getElementById('deploy-token-input'); const gpm = document.getElementById('github-pat-modal-input'); if (sgt) sgt.value = ghToken; if (dti) dti.value = ghToken; if (gpm) gpm.value = ghToken; }
             try { renderSkillManager(); } catch(e) { console.warn('renderSkillManager error:', e); }
             try { renderUserSkillManager(); } catch(e) { console.warn('renderUserSkillManager error:', e); }
+            try { renderAdminModelManager(); } catch(e) { console.warn('renderAdminModelManager error:', e); }
             try { updatePromptPreviews(); } catch(e) {}
         } catch(e) { /* silent error */ }
         
