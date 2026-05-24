@@ -5,7 +5,7 @@
  *   - その他: cache-first
  * 注意: 単一ファイル運用なので、ハッシュ付きURLは持たない。バージョンアップ時はCACHE_NAMEを上げる。
  */
-const CACHE_NAME = 'ai-web-studio-v3-3-tabs-skills-models-v7';
+const CACHE_NAME = 'ai-web-studio-v3-3-tabs-skills-models-v10';
 const APP_SHELL = [
     './',
     './index.html',
@@ -14,12 +14,8 @@ const APP_SHELL = [
     './js/ai-chat-logic.js',
     './js/ai-code-logic.js',
     './js/ai-debug-logic.js',
-    './skills/skills.example.json',
-    './skills/skills.index.example.json',
-    './skills/skill-manager.md',
-    './skills/frontend.md',
-    './skills/backend.md',
-    './skills/devops.md'
+    './skills/admin-skills.json',
+    './skills/admin-skills.index.json'
 ];
 
 self.addEventListener('install', (event) => {
