@@ -140,6 +140,26 @@
         .task-pane { display: none; }
         .task-pane.active { display: flex; }
 
+        /* 処理の途中経過 */
+        .workflow-progress-summary { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; font-size: 12px; line-height: 1.6; color: var(--color-text-primary); }
+        .workflow-progress-status { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; background: var(--color-bg-elevated); color: var(--color-text-secondary); font-size: 10px; margin-left: 6px; }
+        .workflow-progress-status.running { background: rgba(59,130,246,0.16); color: var(--primary); }
+        .workflow-progress-status.completed { background: rgba(34,197,94,0.16); color: var(--success); }
+        .workflow-progress-status.error, .workflow-progress-status.interrupted { background: rgba(239,68,68,0.16); color: var(--danger); }
+        .workflow-progress-status.awaiting_approval { background: rgba(245,158,11,0.16); color: var(--warning); }
+        .workflow-event { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 9px 10px; margin-bottom: 7px; display: flex; gap: 8px; align-items: flex-start; }
+        .workflow-event-dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; }
+        .workflow-event.running .workflow-event-dot { background: var(--primary); box-shadow: 0 0 0 4px rgba(59,130,246,0.14); }
+        .workflow-event.completed .workflow-event-dot { background: var(--success); }
+        .workflow-event.error .workflow-event-dot, .workflow-event.interrupted .workflow-event-dot { background: var(--danger); }
+        .workflow-event.awaiting_approval .workflow-event-dot { background: var(--warning); }
+        .workflow-event-main { flex: 1; min-width: 0; }
+        .workflow-event-message { font-size: 12px; line-height: 1.5; color: var(--color-text-primary); white-space: pre-wrap; }
+        .workflow-event-meta { font-size: 10px; color: var(--color-text-secondary); margin-top: 3px; }
+        .workflow-progress-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+        .workflow-progress-actions button { background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-primary); padding: 8px 10px; font-size: 12px; cursor: pointer; font-family: var(--font-body); }
+        .workflow-progress-actions button.primary { background: var(--primary); border-color: var(--primary); color:#fff; }
+
         /* 失敗ログのカード */
         .failure-card { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-left: 3px solid var(--danger); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
         .failure-card.resolved { border-left-color: var(--success); opacity: 0.65; }
@@ -862,6 +882,9 @@
                 <button class="task-tab" data-cat="failure" onclick="switchTaskTab('failure')">
                     <span data-label="tabFailure">🐛 失敗ログ</span> <span class="task-tab-badge" id="badge-failure">0</span>
                 </button>
+                <button class="task-tab" data-cat="progress" onclick="switchTaskTab('progress')">
+                    <span>⏳ 進行</span> <span class="task-tab-badge empty" id="badge-progress">0</span>
+                </button>
             </div>
 
             <!-- 計画タブ -->
@@ -899,6 +922,16 @@
                 <div class="spec-add-row" style="margin-top:10px;">
                     <input type="text" id="failure-add-input" class="spec-add-input" placeholder="" onkeydown="if(event.key==='Enter')addFailureLogManual()">
                     <button class="spec-add-btn" onclick="addFailureLogManual()">＋</button>
+                </div>
+            </div>
+
+            <div id="task-progress" class="task-pane" style="flex:1; display:none; flex-direction:column; overflow:hidden;">
+                <p style="font-size:11px; color:var(--color-text-secondary); margin:0 0 8px 0;">コード生成、検証AI、原因分析、自動修正の途中経過を保存して表示します。ブラウザを閉じた場合は中断として記録します。</p>
+                <div id="workflow-progress-summary" class="workflow-progress-summary">処理履歴はありません。</div>
+                <div id="workflow-progress-view" class="spec-card-list" style="flex:1; overflow-y:auto; overflow-x:hidden; padding-right:4px;"></div>
+                <div class="workflow-progress-actions">
+                    <button class="primary" type="button" onclick="retryInterruptedWorkflow()">前回処理を再実行</button>
+                    <button type="button" onclick="clearWorkflowProgress()">履歴をクリア</button>
                 </div>
             </div>
 
@@ -2970,7 +3003,7 @@ ${lines.join('\n')}`;
     async function switchTaskTab(cat) {
         currentTaskTab = cat;
         document.querySelectorAll('.task-tab').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
-        ['plan','verify','failure'].forEach(c => {
+        ['plan','verify','failure','progress'].forEach(c => {
             const pane = document.getElementById('task-' + c);
             if (pane) {
                 if (c === cat) { pane.classList.add('active'); pane.style.display = 'flex'; }
@@ -2980,6 +3013,7 @@ ${lines.join('\n')}`;
         if (cat === 'plan') renderSpecCards();
         else if (cat === 'verify') await renderVerifyTab();
         else if (cat === 'failure') await renderFailureTab();
+        else if (cat === 'progress') renderWorkflowProgress();
         await refreshAllTaskCounts();
     }
 
@@ -2995,6 +3029,12 @@ ${lines.join('\n')}`;
             const f = (await getFailureLogs()).filter(l => l.status !== 'resolved');
             setTabBadge('badge-failure', String(f.length), f.length === 0);
         } catch(e) { setTabBadge('badge-failure', '0', true); }
+        try {
+            const events = getWorkflowEvents();
+            const state = getWorkflowState();
+            const active = state && ['running','awaiting_approval','interrupted','error'].includes(state.status);
+            setTabBadge('badge-progress', active ? '!' : String(events.length), !active && events.length === 0);
+        } catch(e) { setTabBadge('badge-progress', '0', true); }
     }
     function setTabBadge(id, txt, empty) {
         const el = document.getElementById(id);
@@ -3129,6 +3169,115 @@ ${lines.join('\n')}`;
         try { refreshAllTaskCounts(); } catch(e) {}
     }
     function updateFloatingGenerateBtn() { /* 常時表示のため何もしない（互換のため残置） */ }
+
+    /* === 実行中ワークフローの保存・可視化 === */
+    const WORKFLOW_STATE_KEY = 'aiWorkflowState';
+    const WORKFLOW_EVENTS_KEY = 'aiWorkflowEvents';
+    const WORKFLOW_MAX_EVENTS = 120;
+    let activeWorkflowRunId = null;
+    let workflowProgressTimer = null;
+
+    function workflowNowIso() { return new Date().toISOString(); }
+    function workflowTimeText(iso) { try { return new Date(iso).toLocaleString(); } catch(e) { return iso || ''; } }
+    function getWorkflowState() { try { return JSON.parse(localStorage.getItem(WORKFLOW_STATE_KEY) || 'null'); } catch(e) { return null; } }
+    function saveWorkflowState(state) { if (!state) localStorage.removeItem(WORKFLOW_STATE_KEY); else localStorage.setItem(WORKFLOW_STATE_KEY, JSON.stringify(state)); renderWorkflowProgress(); }
+    function getWorkflowEvents() { try { return JSON.parse(localStorage.getItem(WORKFLOW_EVENTS_KEY) || '[]'); } catch(e) { return []; } }
+    function saveWorkflowEvents(events) { localStorage.setItem(WORKFLOW_EVENTS_KEY, JSON.stringify((events || []).slice(-WORKFLOW_MAX_EVENTS))); renderWorkflowProgress(); }
+    function workflowStatusText(status) { return ({ running: '実行中', completed: '完了', error: 'エラー', interrupted: '中断', awaiting_approval: '承認待ち' })[status] || (status || '未開始'); }
+    function workflowStatusIcon(status) { return ({ running: '⏳', completed: '✅', error: '⚠️', interrupted: '⏸', awaiting_approval: '👤' })[status] || '•'; }
+    function startWorkflowRun(kind, label, selectedTaskIds = [], meta = {}) {
+        const id = Date.now().toString() + '-' + Math.random().toString(36).slice(2, 8);
+        const state = { id, kind, label, status: 'running', stage: '開始', selectedTaskIds, meta, startedAt: workflowNowIso(), updatedAt: workflowNowIso(), lastMessage: '処理を開始しました。' };
+        activeWorkflowRunId = id;
+        saveWorkflowState(state);
+        addWorkflowEvent('running', `${label || '処理'}を開始しました。`, { stage: '開始', runId: id });
+        startWorkflowProgressTicker();
+        return state;
+    }
+    function updateWorkflowState(patch = {}) {
+        const current = getWorkflowState() || {};
+        const state = { ...current, ...patch, updatedAt: workflowNowIso() };
+        activeWorkflowRunId = state.id || activeWorkflowRunId;
+        saveWorkflowState(state);
+        return state;
+    }
+    function addWorkflowEvent(status, message, detail = {}) {
+        const state = getWorkflowState();
+        const events = getWorkflowEvents();
+        events.push({ id: Date.now().toString() + Math.random().toString(36).slice(2, 5), runId: detail.runId || state?.id || activeWorkflowRunId || '', status, message: String(message || ''), stage: detail.stage || state?.stage || '', detail, createdAt: workflowNowIso() });
+        saveWorkflowEvents(events);
+        try { refreshAllTaskCounts(); } catch(e) {}
+    }
+    function updateWorkflowStep(stage, message) { updateWorkflowState({ status: 'running', stage, lastMessage: message || stage }); addWorkflowEvent('running', message || stage, { stage }); }
+    function markWorkflowAwaitingApproval(message) { updateWorkflowState({ status: 'awaiting_approval', stage: '承認待ち', lastMessage: message || '修正前の確認待ちです。' }); addWorkflowEvent('awaiting_approval', message || '修正前の確認待ちです。', { stage: '承認待ち' }); stopWorkflowProgressTicker(); }
+    function completeWorkflowRun(message) { updateWorkflowState({ status: 'completed', stage: '完了', lastMessage: message || '処理が完了しました。', completedAt: workflowNowIso() }); addWorkflowEvent('completed', message || '処理が完了しました。', { stage: '完了' }); stopWorkflowProgressTicker(); }
+    function failWorkflowRun(error, message) { const text = message || (error?.message ? error.message : String(error || 'エラーが発生しました。')); updateWorkflowState({ status: 'error', stage: 'エラー', lastMessage: text, error: text }); addWorkflowEvent('error', text, { stage: 'エラー' }); stopWorkflowProgressTicker(); }
+    function startWorkflowProgressTicker() { if (workflowProgressTimer) clearInterval(workflowProgressTimer); workflowProgressTimer = setInterval(() => { const state = getWorkflowState(); if (!state || state.status !== 'running') { stopWorkflowProgressTicker(); return; } renderWorkflowProgress(); }, 1000); }
+    function stopWorkflowProgressTicker() { if (workflowProgressTimer) clearInterval(workflowProgressTimer); workflowProgressTimer = null; }
+    function renderWorkflowProgress() {
+        const summary = document.getElementById('workflow-progress-summary');
+        const view = document.getElementById('workflow-progress-view');
+        const state = getWorkflowState();
+        const events = getWorkflowEvents().slice().reverse();
+        if (summary) {
+            if (!state && events.length === 0) summary.textContent = '処理履歴はありません。';
+            else {
+                const elapsed = state?.startedAt ? Math.max(0, Math.round((Date.now() - new Date(state.startedAt).getTime()) / 1000)) : 0;
+                summary.innerHTML = `現在の状態 <span class="workflow-progress-status ${escapeHtml(state?.status || '')}">${workflowStatusIcon(state?.status)} ${escapeHtml(workflowStatusText(state?.status))}</span><br>` +
+                    `処理: ${escapeHtml(state?.label || '-')}<br>` +
+                    `段階: ${escapeHtml(state?.stage || '-')}<br>` +
+                    `経過: ${elapsed ? elapsed + '秒' : '-'}<br>` +
+                    `最後の記録: ${escapeHtml(state?.lastMessage || '-')}`;
+            }
+        }
+        if (view) {
+            if (events.length === 0) view.innerHTML = '<div style="text-align:center;padding:30px;color:var(--color-text-muted);font-size:13px;">途中経過はまだありません。</div>';
+            else view.innerHTML = events.map(ev => `
+                <div class="workflow-event ${escapeHtml(ev.status || '')}">
+                    <span class="workflow-event-dot"></span>
+                    <div class="workflow-event-main">
+                        <div class="workflow-event-message">${escapeHtml(ev.message || '')}</div>
+                        <div class="workflow-event-meta">${escapeHtml(workflowTimeText(ev.createdAt))}${ev.stage ? ' / ' + escapeHtml(ev.stage) : ''}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+    function clearWorkflowProgress() { localStorage.removeItem(WORKFLOW_STATE_KEY); localStorage.removeItem(WORKFLOW_EVENTS_KEY); activeWorkflowRunId = null; renderWorkflowProgress(); try { refreshAllTaskCounts(); } catch(e) {} showToast('進行履歴をクリアしました'); }
+    function restoreInterruptedWorkflow() {
+        const state = getWorkflowState();
+        if (!state) { renderWorkflowProgress(); return; }
+        if (state.status === 'running') {
+            const msg = '前回の処理はブラウザ終了または再読み込みにより中断されました。タスクは消し込まず、必要なら「進行」タブから再実行してください。';
+            updateWorkflowState({ status: 'interrupted', stage: '中断', lastMessage: msg });
+            addWorkflowEvent('interrupted', msg, { stage: '中断' });
+            const list = getSpecList();
+            let changed = false;
+            list.forEach(item => {
+                if (item.selected && ['in_progress','implemented','verifying','auto_fixing'].includes(item.status)) {
+                    item.status = 'blocked';
+                    item.done = false;
+                    item.verifyReason = 'ブラウザ終了または再読み込みで処理が中断されたため、検証完了として扱いません。';
+                    changed = true;
+                }
+            });
+            if (changed) { saveSpecList(list); renderSpecCards(); }
+            if (Array.isArray(chatHistory)) {
+                const notice = { id: Date.now().toString() + '-interrupted', role: 'ai system-msg', text: msg, html: false };
+                chatHistory.push(notice); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(notice);
+            }
+        }
+        renderWorkflowProgress();
+        try { refreshAllTaskCounts(); } catch(e) {}
+    }
+    function retryInterruptedWorkflow() {
+        const state = getWorkflowState();
+        if (!state || !['interrupted','error'].includes(state.status)) return showToast('再実行できる中断・エラー状態の処理がありません');
+        if (state.kind === 'debug' && state.meta?.input) return runPreviewDebugRequest(state.meta.input);
+        if (state.kind === 'code') return generateCode();
+        showToast('この処理は自動再実行できません');
+    }
+
     function updateSpecProgress() { const list = getSpecList(); const pg = document.getElementById('spec-progress'); if (!pg) return; if (list.length === 0) { pg.style.display = 'none'; return; } pg.style.display = 'flex'; const done = list.filter(i => i.status === 'verified' && i.done === true).length; const pct = Math.round(done / list.length * 100); document.getElementById('spec-progress-text').textContent = `${done}/${list.length} (${pct}%)`; document.getElementById('spec-progress-fill').style.width = pct + '%'; }
     function clearNewSpecFlags() { const list = getSpecList(); let changed = false; list.forEach(i => { if(i.isNew) { i.isNew = false; changed = true; } }); if(changed) { saveSpecList(list); renderSpecCards(); } }
 
@@ -3465,6 +3614,7 @@ ${getFeedbackInstruction()}
                 runningMsg = { id: Date.now().toString() + '-verify-running', role: 'ai system-msg', text: '✅ 検証AIを実行しています。実装有無と動作経路を確認してからタスクを消し込みます。', html: false };
                 chatHistory.push(runningMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(runningMsg);
             }
+            updateWorkflowStep('検証AI', '検証AIが実装有無と動作経路を確認しています。');
             const prompt = buildStructuredVerificationPrompt(code, options);
             const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('verify'), taskType: 'verify' });
             const coverage = parseVerificationPayload(result.text);
@@ -3485,12 +3635,14 @@ ${getFeedbackInstruction()}
                 sysMsg = { id: Date.now().toString(), role: 'ai system-msg', text: `${getLabel('aiSystemMsgAllSpecsCovered')}\n検証済みタスク: ${applied.doneCount}/${applied.total}`, html: false };
             }
             chatHistory.push(sysMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsg);
+            addWorkflowEvent(unresolvedTexts.length === 0 ? 'completed' : 'error', unresolvedTexts.length === 0 ? '検証AIが対象タスクを確認し、消込条件を満たしたタスクだけ完了にしました。' : '検証AIが未完了または動作未確認のタスクを検出しました。', { stage: '検証AI' });
             return { ok: unresolvedTexts.length === 0, coverage, summary: sysMsg.text };
         } catch(e) {
             if (Array.isArray(options.selectedTaskIds)) markSelectedTasksStatus('blocked', `検証AIを実行できませんでした: ${e.message || e}`);
             else markSpecListStatus('blocked', `検証AIを実行できませんでした: ${e.message || e}`);
             const msg = { id: Date.now().toString(), role: 'ai system-msg', text: `⚠️ 検証AIを実行できませんでした。タスクは消し込みません: ${e.message || e}`, html: false };
             chatHistory.push(msg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(msg);
+            addWorkflowEvent('error', `検証AIを実行できませんでした: ${e.message || e}`, { stage: '検証AI' });
             try { await addFailureLog('ai-error', `検証AI失敗: ${e.message || e}`, '検証対象タスク:\n' + specListToString()); } catch(_) {}
             return { ok: false, error: e, summary: msg.text };
         }
@@ -3611,9 +3763,32 @@ ${getFeedbackInstruction()}
         }
         return '';
     }
+    const LLM_REQUEST_TIMEOUT_MS = 180000;
+    function isTransientFetchError(error) {
+        const msg = String(error?.message || error || '').toLowerCase();
+        return msg.includes('timeout') || msg.includes('network') || msg.includes('failed to fetch') || msg.includes('aborted') || msg.includes('temporarily') || msg.includes('503') || msg.includes('504') || msg.includes('429');
+    }
+    async function fetchWithTimeout(url, options = {}, timeoutMs = LLM_REQUEST_TIMEOUT_MS) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try { return await fetch(url, { ...options, signal: controller.signal }); }
+        catch (error) {
+            if (error?.name === 'AbortError') throw new Error(`AIリクエストがタイムアウトしました（${Math.round(timeoutMs / 1000)}秒）。途中経過は「進行」タブに保存しました。`);
+            throw error;
+        } finally { clearTimeout(timer); }
+    }
+    async function fetchLLM(url, options = {}, label = 'AI') {
+        try { return await fetchWithTimeout(url, options); }
+        catch (error) {
+            if (!isTransientFetchError(error)) throw error;
+            addWorkflowEvent('running', `${label} の応答が不安定なため、1回だけ再試行します。`, { stage: '再試行' });
+            return await fetchWithTimeout(url, options);
+        }
+    }
+
     async function callServerLLM({ prompt, model, images = [], taskType = 'generic' }) {
         const endpoint = getServerEndpoint() || PROXY_WORKER_URL;
-        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, model, route: model, images, taskType }) });
+        const res = await fetchLLM(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, model, route: model, images, taskType }) }, 'Cloudflare Worker');
         if (!res.ok) throw new Error('Cloudflare Worker API error: ' + res.status);
         const data = await res.json();
         return { text: data.text || data.response || extractTextFromProviderResponse(parseModelRoute(model).provider, data) || JSON.stringify(data) };
@@ -3631,11 +3806,11 @@ ${getFeedbackInstruction()}
             const parts = [{ text: prompt }];
             images.forEach(img => parts.push({ inline_data: { mime_type: img.mime, data: img.base64 } }));
             if (stream) {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(route.model)}:streamGenerateContent?alt=sse&key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts }] }) });
+                const res = await fetchLLM(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(route.model)}:streamGenerateContent?alt=sse&key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts }] }) }, 'Gemini');
                 if (!res.ok) throw new Error('Gemini API error: ' + res.status);
                 return { reader: res.body.getReader(), parseChunk: (line) => { try { const d = JSON.parse(line.slice(6)); return d.candidates?.[0]?.content?.parts?.[0]?.text || ''; } catch(e) { return ''; } }, prefix: 'data: ' };
             }
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(route.model)}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts }] }) });
+            const res = await fetchLLM(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(route.model)}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts }] }) }, 'Gemini');
             if (!res.ok) throw new Error('Gemini API error: ' + res.status);
             const data = await res.json();
             return { text: extractTextFromProviderResponse('gemini', data) };
@@ -3644,7 +3819,7 @@ ${getFeedbackInstruction()}
         if (provider === 'claude') {
             const content = [{ type: 'text', text: prompt }];
             images.forEach(img => content.push({ type: 'image', source: { type: 'base64', media_type: img.mime, data: img.base64 } }));
-            const res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model: route.model, max_tokens: 8192, messages: [{ role: 'user', content }] }) });
+            const res = await fetchLLM('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model: route.model, max_tokens: 8192, messages: [{ role: 'user', content }] }) }, 'Claude');
             if (!res.ok) throw new Error('Claude API error: ' + res.status);
             const data = await res.json();
             return { text: extractTextFromProviderResponse('claude', data) };
@@ -3655,7 +3830,7 @@ ${getFeedbackInstruction()}
         const content = images.length
             ? [{ type: 'text', text: prompt }, ...images.map(img => ({ type: 'image_url', image_url: { url: `data:${img.mime};base64,${img.base64}` } }))]
             : prompt;
-        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify({ model: route.model, messages: [{ role: 'user', content }], temperature: 0.2 }) });
+        const res = await fetchLLM(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify({ model: route.model, messages: [{ role: 'user', content }], temperature: 0.2 }) }, provider);
         if (!res.ok) throw new Error(provider + ' API error: ' + res.status);
         const data = await res.json();
         return { text: extractTextFromProviderResponse(provider, data) };
@@ -4565,9 +4740,10 @@ ${verificationText}
         const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('debug'), taskType: 'bug-analysis' });
         return normalizeBugAnalysisPayload(result.text, verification?.summary || '検証AIが未完了タスクを検出しました。');
     }
-    function showFixApprovalModal(analysis) { pendingFixProposal = analysis; const el = document.getElementById('fix-approval-summary'); if (el) el.textContent = formatFixApprovalText(analysis); document.getElementById('fix-approval-modal')?.classList.add('show'); }
+    let pendingFixProposalWorkflowRunId = null;
+    function showFixApprovalModal(analysis, workflowRun) { pendingFixProposal = analysis; pendingFixProposalWorkflowRunId = workflowRun?.id || getWorkflowState()?.id || null; const el = document.getElementById('fix-approval-summary'); if (el) el.textContent = formatFixApprovalText(analysis); document.getElementById('fix-approval-modal')?.classList.add('show'); }
     function closeFixApprovalModal() { document.getElementById('fix-approval-modal')?.classList.remove('show'); }
-    function rejectPendingFixProposal() { const summary = pendingFixProposal ? formatFixApprovalText(pendingFixProposal) : ''; closeFixApprovalModal(); try { addFailureLog('manual', '修正案はユーザーにより保留されました。', summary); } catch(_) {} pendingFixProposal = null; showToast('修正を保留しました'); }
+    function rejectPendingFixProposal() { const summary = pendingFixProposal ? formatFixApprovalText(pendingFixProposal) : ''; closeFixApprovalModal(); try { addFailureLog('manual', '修正案はユーザーにより保留されました。', summary); } catch(_) {} pendingFixProposal = null; pendingFixProposalWorkflowRunId = null; markWorkflowAwaitingApproval('修正案は保留されました。必要なら再実行してください。'); showToast('修正を保留しました'); }
     async function requestAlternativeFixProposal() {
         if (!pendingFixProposal) return; closeFixApprovalModal();
         const statusMsg = { id: Date.now().toString(), role: 'ai system-msg', text: '<div style="display:flex;align-items:center;"><div class="spinner"></div><span>別の修正案を作成しています。</span></div>', html: true };
@@ -4575,25 +4751,27 @@ ${verificationText}
         try { const result = await callLLM({ prompt: `次の修正案とは別案を作成してください。${getFeedbackInstruction()}\n\n【現在の修正案】\n${JSON.stringify(pendingFixProposal, null, 2)}\n\nJSONだけで返してください。`, stream: false, model: getModelForPrompt('debug'), taskType: 'bug-analysis' }); pendingFixProposal = normalizeBugAnalysisPayload(result.text, pendingFixProposal.bugSummary); updateChatProgressMessage(statusMsg, '別案を作成しました。確認してください。'); showFixApprovalModal(pendingFixProposal); } catch(e) { updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">別案作成に失敗しました: ${escapeHtml(e.message || String(e))}</span>`, true); }
     }
     async function approvePendingFixProposal() {
-        if (!pendingFixProposal) return; const proposal = pendingFixProposal; closeFixApprovalModal(); pendingFixProposal = null;
+        if (!pendingFixProposal) return; const proposal = pendingFixProposal; const workflowRun = getWorkflowState(); closeFixApprovalModal(); pendingFixProposal = null; pendingFixProposalWorkflowRunId = null;
         const statusMsg = { id: Date.now().toString(), role: 'ai system-msg', text: '<div style="display:flex;align-items:center;"><div class="spinner"></div><span>承認された修正案を適用しています。</span></div>', html: true };
         chatHistory.push(statusMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(statusMsg);
-        await runFixProposalOnce(proposal, getCurrentProjectSnapshot(), getSelectedTaskIds(), statusMsg);
+        await runFixProposalOnce(proposal, getCurrentProjectSnapshot(), getSelectedTaskIds(), statusMsg, workflowRun);
     }
-    async function runFixProposalOnce(analysis, project, selectedTaskIds, statusMsg) {
+    async function runFixProposalOnce(analysis, project, selectedTaskIds, statusMsg, workflowRun) {
         const currentProjectText = projectToVerificationText(project); const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
         const prompt = `${document.getElementById('system-prompt').value.trim()}\n\n${document.getElementById('code-principles').value.trim()}\n\n${document.getElementById('admin-implementation-verification')?.value.trim() || ''}\n\n${getFeedbackInstruction()}\n\n【承認済み修正案】\n${JSON.stringify(analysis, null, 2)}\n\n【選定タスク】\n${specListToVerificationJson({ selectedTaskIds })}\n\n【現在の全ファイル】\n${currentProjectText}\n\n【出力ルール】\n${codeOnlyInstruction}\n現在の全ファイルを修正後の完全な内容として、entryFile と files を含むJSONだけで出力してください。差分、省略、説明は禁止です。`;
-        try { markSelectedTasksStatus('auto_fixing', '承認済み修正案を適用中です。'); const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('debug'), taskType: 'auto-fix' }); const repaired = parseGeneratedProject(result.text); const normalized = normalizeGeneratedProject(repaired); setProjectFiles(normalized.files, normalized.entryFile, { refreshPreview: false }); markSelectedTasksStatus('implemented', '修正コードを反映しました。再検証前です。'); const verification = await verifySpecCoverage(projectToVerificationText(normalized), { selectedTaskIds }); if (verification.ok) { updatePreview(); showPage('preview', document.getElementById('tab-preview')); updateChatProgressMessage(statusMsg, '承認済み修正、検証AI、タスク消込が完了しました。プレビューを確認できます。'); } else { const analysis2 = await analyzeImplementationBugs(projectToVerificationText(normalized), verification, selectedTaskIds); await addFailureLog('ai-error', analysis2.bugSummary || '再検証で問題が残りました。', formatFixApprovalText(analysis2)); if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis2)) { updateChatProgressMessage(statusMsg, '再検証で問題が残ったため、自動修正を継続します。'); await runFixProposalOnce(analysis2, normalized, selectedTaskIds, statusMsg); } else { updateChatProgressMessage(statusMsg, '再検証で問題が残りました。修正案を確認してください。'); showFixApprovalModal(analysis2); } } } catch(e) { updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">修正適用に失敗しました: ${escapeHtml(e.message || String(e))}</span>`, true); try { await addFailureLog('build-error', `修正適用失敗: ${e.message || e}`, JSON.stringify(analysis, null, 2)); } catch(_) {} }
+        try { updateWorkflowStep('自動修正', '承認済み修正案をAIに適用させています。'); markSelectedTasksStatus('auto_fixing', '承認済み修正案を適用中です。'); const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('debug'), taskType: 'auto-fix' }); const repaired = parseGeneratedProject(result.text); const normalized = normalizeGeneratedProject(repaired); setProjectFiles(normalized.files, normalized.entryFile, { refreshPreview: false }); markSelectedTasksStatus('implemented', '修正コードを反映しました。再検証前です。'); const verification = await verifySpecCoverage(projectToVerificationText(normalized), { selectedTaskIds }); if (verification.ok) { updateWorkflowStep('プレビュー更新', '検証と消込が完了したためプレビューを更新しています。'); updatePreview(); showPage('preview', document.getElementById('tab-preview')); completeWorkflowRun('承認済み修正、検証AI、タスク消込が完了しました。プレビューを確認できます。'); updateChatProgressMessage(statusMsg, '承認済み修正、検証AI、タスク消込が完了しました。プレビューを確認できます。'); } else { const analysis2 = await analyzeImplementationBugs(projectToVerificationText(normalized), verification, selectedTaskIds); await addFailureLog('ai-error', analysis2.bugSummary || '再検証で問題が残りました。', formatFixApprovalText(analysis2)); if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis2)) { updateChatProgressMessage(statusMsg, '再検証で問題が残ったため、自動修正を継続します。'); await runFixProposalOnce(analysis2, normalized, selectedTaskIds, statusMsg, workflowRun); } else { updateChatProgressMessage(statusMsg, '再検証で問題が残りました。修正案を確認してください。'); markWorkflowAwaitingApproval('再検証で問題が残ったため、修正前の確認待ちです。'); showFixApprovalModal(analysis2, workflowRun); } } } catch(e) { updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">修正適用に失敗しました: ${escapeHtml(e.message || String(e))}</span>`, true); try { await addFailureLog('build-error', `修正適用失敗: ${e.message || e}`, JSON.stringify(analysis, null, 2)); } catch(_) {} }
     }
-    async function handleFailedVerificationFlow(project, verification, selectedTaskIds, progressMessage) {
+    async function handleFailedVerificationFlow(project, verification, selectedTaskIds, progressMessage, workflowRun) {
         const projectText = projectToVerificationText(project); let analysis;
         try { analysis = await analyzeImplementationBugs(projectText, verification, selectedTaskIds); } catch(e) { analysis = normalizeBugAnalysisPayload('', `原因分析AIを実行できませんでした: ${e.message || e}`); }
         await addFailureLog('ai-error', analysis.bugSummary || '検証で未完了タスクを検出しました。', formatFixApprovalText(analysis));
-        if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis)) { updateChatProgressMessage(progressMessage, '検証AIが問題を検出しました。確認不要モードのため、自動修正を開始します。'); await runFixProposalOnce(analysis, project, selectedTaskIds, progressMessage); }
-        else { updateChatProgressMessage(progressMessage, '検証AIが問題を検出しました。原因・修正案・影響範囲を確認してください。'); showFixApprovalModal(analysis); }
+        if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis)) { updateChatProgressMessage(progressMessage, '検証AIが問題を検出しました。確認不要モードのため、自動修正を開始します。'); await runFixProposalOnce(analysis, project, selectedTaskIds, progressMessage, workflowRun); }
+        else { updateChatProgressMessage(progressMessage, '検証AIが問題を検出しました。原因・修正案・影響範囲を確認してください。'); markWorkflowAwaitingApproval('検証AIが問題を検出しました。修正前の確認待ちです。'); showFixApprovalModal(analysis, workflowRun); }
     }
 
     async function commitProjectVerifyThenPreview(project, progressMessage, completeText, options = {}) {
+        const workflowRun = options.workflowRun || getWorkflowState();
+        updateWorkflowStep('コード反映', '生成されたファイルを保存し、検証前のプレビュー更新は保留しています。');
         const normalized = normalizeGeneratedProject(project);
         const projectForVerification = { files: normalized.files, entryFile: normalized.entryFile };
         const selectedTaskIds = options.selectedTaskIds || getSelectedTaskIds();
@@ -4602,29 +4780,40 @@ ${verificationText}
         updateChatProgressMessage(progressMessage, 'コードを反映しました。検証AIを実行しています。検証とタスク消込が終わるまでプレビューは表示しません。');
         const verification = await verifySpecCoverage(projectToVerificationText(projectForVerification), { selectedTaskIds });
         if (verification?.ok) {
+            updateWorkflowStep('プレビュー更新', '検証とタスク消込が完了したためプレビューを更新しています。');
             updatePreview();
             showPage('preview', document.getElementById('tab-preview'));
-            const suffix = verification?.summary ? `\n\n${verification.summary}` : '';
+            completeWorkflowRun('検証AIとタスク消込が完了しました。プレビューを確認できます。');
+            const suffix = verification?.summary ? `
+
+${verification.summary}` : '';
             updateChatProgressMessage(progressMessage, `${completeText || getLabel('aiSystemMsgBuildComplete')}${suffix}`.trim());
             return verification;
         }
-        await handleFailedVerificationFlow(projectForVerification, verification, selectedTaskIds, progressMessage);
+        await handleFailedVerificationFlow(projectForVerification, verification, selectedTaskIds, progressMessage, workflowRun);
         return verification;
     }
 
     async function generateCode() {
+        const workflowRun = startWorkflowRun('code', 'コード生成・検証', [], { reason: 'generateCode' });
+        let sysMsgObj = null;
+        try {
         clearNewSpecFlags();
+        updateWorkflowStep('タスク選定', '優先順位に基づいて今回実行するタスクを選定しています。');
         const selectedTasks = prioritizeAndSelectTasks('code-generation');
         markSelectedTasksStatus('in_progress', '優先順位に基づいて実行対象に選定しました。');
         const selectedTaskIds = selectedTasks.map(item => item.id);
+        updateWorkflowState({ selectedTaskIds, meta: { reason: 'generateCode', selectedTaskCount: selectedTaskIds.length } });
         const targetPersona = document.getElementById('target-persona').value;
         const codeRun = window.AICodeLogic?.prepareRun?.() || {};
         const model = codeRun.model || getModelForPrompt('code');
         const codeTaskType = codeRun.taskType || 'code';
         const currentCode = window.getCode();
-        const sysMsgObj = { id: Date.now().toString(), role: 'ai system-msg', text: `<div style="display:flex;align-items:center;"><div class="spinner"></div><span>${getLabel('aiSystemMsgBuildingCode')}</span></div>`, html: true };
+        sysMsgObj = { id: Date.now().toString(), role: 'ai system-msg', text: `<div style="display:flex;align-items:center;"><div class="spinner"></div><span>${getLabel('aiSystemMsgBuildingCode')}</span></div>`, html: true };
         chatHistory.push(sysMsgObj); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsgObj);
+        updateWorkflowStep('テーマ取得', '選択されたデザインテーマを読み込んでいます。');
         const themeCSS = await getSelectedThemeCSS();
+        updateWorkflowStep('Skill選定', '管理用・ユーザー用Skillsから必要なものを選定しています。');
         const skillContext = await buildSkillContextForTask(specListToString() + '\n\n' + currentCode.slice(0, 8000), model, codeTaskType);
         const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
         const adminBuildSystem = [
@@ -4660,10 +4849,11 @@ ${specListToString()}
 
 【最終出力形式】
 ${codeOnlyInstruction}`;
-        try {
+            updateWorkflowStep('コード生成AI', 'コード生成AIが選定タスクを実装しています。');
             const project = await runAgenticCodeBuild(system, model);
-            await commitProjectVerifyThenPreview(project, sysMsgObj, getLabel('aiSystemMsgBuildComplete'), { selectedTaskIds });
-        } catch (e) { updateChatProgressMessage(sysMsgObj, `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${e.message}</span>`, true); try { addFailureLog('build-error', `コード生成失敗: ${e.message || e}`, '実装要件:\n' + specListToString()); } catch(_) {} }
+            addWorkflowEvent('completed', 'コード生成AIの出力を受け取りました。検証AIに進みます。', { stage: 'コード生成AI' });
+            await commitProjectVerifyThenPreview(project, sysMsgObj, getLabel('aiSystemMsgBuildComplete'), { selectedTaskIds, workflowRun });
+        } catch (e) { failWorkflowRun(e, `コード生成に失敗しました: ${e.message || e}`); if (sysMsgObj) updateChatProgressMessage(sysMsgObj, `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${e.message}</span>`, true); try { addFailureLog('build-error', `コード生成失敗: ${e.message || e}`, '実装要件:\n' + specListToString()); } catch(_) {} }
     }
 
     function submitDebugRequestByShortcut() {
@@ -4703,6 +4893,7 @@ ${codeOnlyInstruction}`;
 
     async function runPreviewDebugRequest(text) {
         const preparedText = window.AIDebugLogic?.prepareUserInput ? window.AIDebugLogic.prepareUserInput(text) : text;
+        const workflowRun = startWorkflowRun('debug', 'デバッグ修正・検証', [], { reason: 'previewDebug', input: preparedText });
         showPage('chat', document.getElementById('tab-chat'));
         const userMsgObj = { id: Date.now().toString(), role: 'user', text: preparedText, html: false };
         chatHistory.push(userMsgObj); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(userMsgObj);
@@ -4715,11 +4906,14 @@ ${codeOnlyInstruction}`;
         const targetPersona = document.getElementById('target-persona').value;
         const currentProject = getCurrentProjectSnapshot();
         const currentProjectText = projectToVerificationText(currentProject);
+        updateWorkflowStep('タスク選定', 'デバッグ修正の対象タスクを選定しています。');
         const selectedTasks = prioritizeAndSelectTasks('debugging');
         markSelectedTasksStatus('in_progress', 'デバッグ修正の実行対象に選定しました。');
         const selectedTaskIds = selectedTasks.map(item => item.id);
+        updateWorkflowState({ selectedTaskIds, meta: { reason: 'previewDebug', input: preparedText, selectedTaskCount: selectedTaskIds.length } });
         const verifyMissing = await getVerifyMissing();
         const verifyMissingText = verifyMissing.length ? verifyMissing.map((item, i) => `${i + 1}. ${item.text || item}`).join('\n') : '（なし）';
+        updateWorkflowStep('Skill選定', 'デバッグ修正に必要なSkillsを選定しています。');
         const skillContext = await buildSkillContextForTask(preparedText + '\n\n' + currentProjectText, model, debugTaskType);
         const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
         const adminSystem = [
@@ -4757,10 +4951,13 @@ ${codeOnlyInstruction}
         ].filter(Boolean).join('\n\n');
 
         try {
+            updateWorkflowStep('デバッグAI', 'デバッグAIが修正コードを作成しています。');
             const result = await callLLM({ prompt, stream: false, model, taskType: debugTaskType });
+            addWorkflowEvent('completed', 'デバッグAIの出力を受け取りました。検証AIに進みます。', { stage: 'デバッグAI' });
             const project = parseGeneratedProject(result.text);
-            await commitProjectVerifyThenPreview(project, statusMsg, 'デバッグ修正と検証が完了しました。', { selectedTaskIds });
+            await commitProjectVerifyThenPreview(project, statusMsg, 'デバッグ修正と検証が完了しました。', { selectedTaskIds, workflowRun });
         } catch (e) {
+            failWorkflowRun(e, `デバッグ修正に失敗しました: ${e.message || e}`);
             updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${e.message}</span>`, true);
             try { addFailureLog('debug-error', `デバッグ修正失敗: ${e.message || e}`, '修正依頼:\n' + preparedText); } catch(_) {}
         }
@@ -5320,6 +5517,7 @@ ${codeOnlyInstruction}
         
         await initCodeMirror(await getFromDB('currentCode'));
         await loadChatHistory(); loadThemeManager(); loadTemplateList();
+        try { restoreInterruptedWorkflow(); } catch(e) { console.warn('restoreInterruptedWorkflow error:', e); }
         updateSpecBadge();
         if (getSpecBackup().length > 0) document.getElementById('spec-restore-btn').style.display = '';
         try { await initStorageMode(); } catch(e) { /* silent */ }
