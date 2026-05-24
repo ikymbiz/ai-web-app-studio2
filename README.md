@@ -200,3 +200,33 @@ https://<your-worker>.<subdomain>.workers.dev/api/templates
 - 管理用システムプロンプト画面に「プリンシプル」「システム要件」「実装検証用」を追加しました。
 - ユーザー用システムプロンプトは管理用システムプロンプトとは別項目として保存し、PLAN/BUILD時に追加指示として反映します。
 - `prompts.json` に追加項目の初期値を追加しました。
+
+
+## AI外部記憶 / docs
+
+このアプリ自身にも以下の docs ファイルを同梱しています。次のAIや開発者は最初に読む前提です。
+
+- `docs/PRINCIPLE.md`
+- `docs/DEVELOPMENT_RULES.md`
+- `docs/SYSTEM_DESIGN.md`
+- `docs/FAILURE_LOG.md`
+- `docs/HANDOVER.md`
+
+## 生成アプリの標準フォルダ構造
+
+AI Web Studio Pro で生成するアプリは、以下の構造を標準とします。
+
+```text
+/ (Root)
+├── docs/
+├── src/
+│   ├── apps/
+│   └── admin/
+├── config/
+└── .github/
+```
+
+
+## 管理設定の開発ルール
+
+管理画面の「開発ルール」には、AI-Only Operations、齟齬検証、HANDOVER運用、標準フォルダ構造、コスト制約を保存します。コード生成AI、デバッグAI、検証AIはこの設定値を共通制約として参照します。
