@@ -50,3 +50,21 @@ AI Web Studio Pro は、要件整理、タスク化、優先順位付け、コ�
 
 ## 6. 検証とタスク消込
 タスクは実装直後に完了にしない。検証AIが実装内容と動作経路を確認し、verified、implemented、behaviorChecked、canComplete がすべて真の場合だけ消し込む。
+
+
+## v20設計: プレビュー前レビュー・エージェントログ・HANDOVER
+
+### プレビュー表示フロー
+1. コード生成AIまたはデバッグAIが複数ファイルJSONを返す。
+2. アプリはファイルを保存するが、iframe プレビューは更新しない。
+3. 検証AIが選定タスクの実装有無と動作経路を検証する。
+4. verified 条件を満たしたタスクだけを消し込む。
+5. docs/HANDOVER.md を更新する。
+6. プレビュー前レビューのモーダルを表示する。
+7. ユーザーが「プレビューを表示」を押した場合だけ updatePreview() と preview 画面遷移を実行する。
+
+### エージェント進行ログ
+チャットと進行タブに、Planner / Coder / Debugger / Verifier / Bug Analyst / Reviewer / Handover の短い作業ログを表示する。内部思考ではなく、作業段階、対象、結果だけを表示する。
+
+### HANDOVER 更新
+ワークフロー開始、段階更新、検証、承認待ち、完了、エラー、中断、beforeunload 時に、現在のタスク状態と再開手順を docs/HANDOVER.md およびローカル保存へ反映する。
