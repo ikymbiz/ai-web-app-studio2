@@ -9,12 +9,36 @@
   "instructions": "モデル名はこの別ファイルで管理する。管理者はデプロイ後もこのJSONを更新すれば、利用者のチャット・コーディング・デバッグ用モデル選択プルダウンに反映できる。",
   "models": [
     {
+      "route": "claude:claude-opus-4-7",
+      "label": "Claude Opus 4.7",
+      "provider": "claude",
+      "stages": ["chat", "coding", "debugging"],
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "route": "gemini:gemini-3.1-pro-preview",
+      "label": "Gemini 3.1 Pro",
+      "provider": "gemini",
+      "stages": ["chat", "coding", "debugging"],
+      "enabled": true,
+      "order": 2
+    },
+    {
+      "route": "openai:gpt-5.5",
+      "label": "GPT-5.5",
+      "provider": "openai",
+      "stages": ["chat", "coding", "debugging"],
+      "enabled": true,
+      "order": 3
+    },
+    {
       "route": "gemini:gemini-2.5-flash",
       "label": "Gemini 2.5 Flash",
       "provider": "gemini",
       "stages": ["chat", "coding", "debugging"],
       "enabled": true,
-      "order": 1
+      "order": 4
     },
     {
       "route": "gemini:gemini-2.5-pro",
@@ -22,7 +46,7 @@
       "provider": "gemini",
       "stages": ["chat", "coding", "debugging"],
       "enabled": true,
-      "order": 2
+      "order": 5
     },
     {
       "route": "openai:gpt-4o",
@@ -30,7 +54,7 @@
       "provider": "openai",
       "stages": ["chat", "coding", "debugging"],
       "enabled": true,
-      "order": 3
+      "order": 6
     },
     {
       "route": "openai:gpt-4o-mini",
@@ -38,7 +62,7 @@
       "provider": "openai",
       "stages": ["chat"],
       "enabled": true,
-      "order": 4
+      "order": 7
     },
     {
       "route": "claude:claude-sonnet-4-20250514",
@@ -46,7 +70,7 @@
       "provider": "claude",
       "stages": ["chat", "coding", "debugging"],
       "enabled": true,
-      "order": 5
+      "order": 8
     },
     {
       "route": "xai:grok-3",
@@ -54,7 +78,7 @@
       "provider": "xai",
       "stages": ["chat", "coding", "debugging"],
       "enabled": true,
-      "order": 6
+      "order": 9
     },
     {
       "route": "groq:llama-3.3-70b-versatile",
@@ -62,7 +86,7 @@
       "provider": "groq",
       "stages": ["chat", "coding"],
       "enabled": true,
-      "order": 7
+      "order": 10
     },
     {
       "route": "custom:your-model",
@@ -70,7 +94,7 @@
       "provider": "custom",
       "stages": ["chat", "coding", "debugging"],
       "enabled": false,
-      "order": 8
+      "order": 11
     }
   ]
 }
