@@ -335,17 +335,29 @@
         /* プレビュー */
         .preview-stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #fff; }
         #preview-frame { flex: 1 1 auto; min-height: 0; border: none; background: #fff; width: 100%; height: 100%; }
-        .preview-annotation-toolbar { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 135; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; pointer-events: none; }
+        .preview-annotation-toolbar { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 135; display: none; gap: 8px; flex-wrap: wrap; align-items: center; pointer-events: none; }
+        .preview-annotation-toolbar.show { display: flex; }
         .preview-annotation-toolbar .preview-tool-btn, .preview-annotation-toolbar .preview-tool-hint { pointer-events: auto; }
         .preview-tool-btn { border: 1px solid rgba(42,45,54,0.88); background: rgba(13,15,20,0.78); color: #fff; border-radius: 999px; min-height: 36px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-size: 12px; font-family: var(--font-body); backdrop-filter: blur(8px); transition: 0.2s; }
         .preview-tool-btn.active { background: rgba(59,130,246,0.92); border-color: rgba(147,197,253,0.92); }
         .preview-tool-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
         .preview-tool-btn.preview-tool-accent.active { background: rgba(234,179,8,0.94); border-color: rgba(253,224,71,0.92); color: #111827; }
         .preview-tool-hint { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: rgba(13,15,20,0.72); color: var(--color-text-primary); border: 1px solid rgba(42,45,54,0.88); font-size: 11px; line-height: 1.45; backdrop-filter: blur(8px); }
+        .preview-annotation-status { position:absolute; top:10px; left:10px; z-index:134; display:none; align-items:center; gap:6px; min-height:32px; padding:5px 10px; border-radius:999px; background:rgba(13,15,20,0.74); color:#fff; border:1px solid rgba(42,45,54,0.88); font-size:11px; backdrop-filter:blur(8px); pointer-events:none; }
+        .preview-annotation-status.show { display:inline-flex; }
         .preview-annotation-layer { position: absolute; inset: 0; z-index: 132; pointer-events: none; touch-action: none; }
         .preview-annotation-layer.active { pointer-events: auto; }
         .preview-annotation-canvas { width: 100%; height: 100%; display: block; }
         .debug-panel { background: var(--bg); border-top: 1px solid var(--color-border); padding: 12px 15px max(12px, env(safe-area-inset-bottom, 0px)); display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; position: relative; z-index: 120; }
+        .debug-tools-wrap { position:relative; flex:0 0 auto; }
+        .debug-tools-btn { width:40px; height:40px; border-radius:50%; border:1px solid var(--color-border-focus); background:var(--color-bg-elevated); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; font-family:var(--font-body); }
+        .debug-tools-btn.active { background:var(--primary); border-color:var(--primary); }
+        .debug-tools-menu { display:none; position:absolute; left:0; bottom:48px; width:min(280px, calc(100vw - 32px)); background:rgba(22,25,32,0.98); border:1px solid var(--color-border); border-radius:16px; box-shadow:0 16px 46px rgba(0,0,0,0.55); padding:8px; z-index:160; backdrop-filter:blur(12px); }
+        .debug-tools-menu.show { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .debug-tools-menu .wide { grid-column:1 / -1; }
+        .debug-tools-menu button { min-height:38px; border-radius:12px; border:1px solid var(--color-border); background:var(--color-bg-elevated); color:var(--color-text-primary); font-size:12px; font-weight:700; font-family:var(--font-body); cursor:pointer; }
+        .debug-tools-menu button.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+        .debug-tools-menu .hint { grid-column:1 / -1; font-size:11px; line-height:1.45; color:var(--color-text-secondary); padding:4px 6px; }
         #debug-memo { flex: 1; min-height: 40px; max-height: 100px; background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 20px; padding: 10px 15px; color: #fff; font-size: 14px; outline: none; resize: none; font-family: var(--font-body); min-width: 0; }
         .debug-btn { background: #eab308; color: #000; border: none; height: 40px; padding: 0 16px; border-radius: 20px; font-weight: bold; cursor: pointer; flex-shrink: 0; font-size: 13px; font-family: var(--font-body); }
         @media (max-width: 520px) {
@@ -537,11 +549,24 @@
                 <button type="button" class="preview-tool-btn" id="preview-tool-clear" onclick="clearPreviewAnnotations()"></button>
                 <div class="preview-tool-hint" id="preview-annotation-hint"></div>
             </div>
+            <div class="preview-annotation-status" id="preview-annotation-status">手書きON</div>
             <div class="preview-annotation-layer" id="preview-annotation-layer" aria-hidden="true">
                 <canvas id="preview-annotation-canvas" class="preview-annotation-canvas"></canvas>
             </div>
         </div>
         <div class="debug-panel">
+            <div class="debug-tools-wrap">
+                <button type="button" class="debug-tools-btn" id="debug-tools-btn" onclick="toggleDebugToolMenu()" aria-haspopup="menu" aria-expanded="false">☰</button>
+                <div class="debug-tools-menu" id="debug-tools-menu" role="menu">
+                    <button type="button" id="debug-tool-handwrite" class="wide" onclick="togglePreviewAnnotationMode(); closeDebugToolMenu(false)"></button>
+                    <button type="button" id="debug-tool-pen" onclick="setPreviewAnnotationTool('pen'); togglePreviewAnnotationMode(true); closeDebugToolMenu(false)"></button>
+                    <button type="button" id="debug-tool-highlighter" onclick="setPreviewAnnotationTool('highlighter'); togglePreviewAnnotationMode(true); closeDebugToolMenu(false)"></button>
+                    <button type="button" id="debug-tool-undo" onclick="undoPreviewAnnotation(); closeDebugToolMenu(false)"></button>
+                    <button type="button" id="debug-tool-clear" onclick="clearPreviewAnnotations(); closeDebugToolMenu(false)"></button>
+                    <button type="button" id="debug-tool-attach" class="wide" onclick="previewAnnotationAttachNotice(); closeDebugToolMenu(false)"></button>
+                    <div class="hint" id="debug-tools-hint"></div>
+                </div>
+            </div>
             <textarea id="debug-memo" rows="1" oninput="autoGrow(this)" onkeydown="return handleDebugMemoKeydown(event)"></textarea>
             <button class="debug-btn" onclick="sendDebugRequest()"></button>
         </div>
@@ -1343,21 +1368,21 @@ profile: frontend
         PROMPTS_DATA = {
             defaults: {
                 'system-prompt': "# Role: Senior Full-Stack & Mobile App Engineer / Strict Change Executor\n\nあなたは AI Web Studio Pro の実装担当です。以下を最優先で守ってください。\n\n## 最重要ルール\n1. **勝手に削除しない**: 既存機能、UI、設定、保存形式、デプロイ処理、言語切替、APIキー管理、GitHub連携、タスク/検証/失敗ログを、明示指示なしに削除・省略・簡略化しない。\n2. **勝手に解釈しない**: ユーザーの指示と既存仕様に書かれていることだけを実装対象にする。曖昧な場合は、既存挙動を保持したまま最小変更で対応する。\n3. **修正したと言う前に検証する**: 変更箇所、未変更箇所、影響範囲、残課題を必ず確認する。確認できていないことを「修正済み」と言わない。\n4. **既存コード優先**: リファクタリング、全面置換、関数名変更、構造変更は、明示指示がある場合だけ行う。既存のID・CSSクラス・localStorage/IndexedDBキー・関数名を維持する。\n5. **差分思考**: 変更は必要最小限にする。追加・修正・削除の理由を明確にできないコードには触らない。\n\n## 作業手順\n- [Analyze] 現在のコード、データ構造、UI、イベント、保存処理を確認する。\n- [Plan] 変更対象と変更しない対象を短く列挙する。\n- [Act] 最小差分で実装する。\n- [Verify] 仕様リストとコードを照合し、漏れ・退行・削除がないか確認する。\n- [Report] 実施内容、検証結果、未確認事項を日本語で報告する。\n\n## 技術前提\n- HTML5 / Tailwind CSS CDN / Vanilla JavaScript を基本とする。\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲット、History API、manifest、Service Workerを維持する。\n- IndexedDB / localStorage の既存データ互換性を壊さない。\n- Gemini / OpenAI / Claude / xAI / Groq / Custom OpenAI互換 / server ルートに対応する。\n- APIキーとGitHub PATはハードコードしない。\n- XSS対策として表示文字列はサニタイズする。\n\n## 出力ルール\n- 返答は日本語。\n- コードコメントは日本語。\n- 生成コードは省略しない。\n- 実装できていない項目は正直に未実装と書く。",
-                'target-persona': "（未設定）開発するアプリのターゲットユーザー像をここに記載してください。例：30代女性、子育て中、スマホでサクッと予約したい。",
-                'code-principles': "日本語で答えること！\n\n1. Analyze First: 既存コード・状態・データ構造を確認してから変更する。\n2. Minimal Intervention: 明示指示なしに既存コード、機能、UI、保存形式を削除・省略・置換しない。\n3. No Assumption Rewrite: ユーザー指示を勝手に拡大解釈・縮小解釈しない。曖昧な場合は既存挙動を保持する。\n4. Preserve Feature Set: APIキー管理、GitHub PAT、デプロイ、言語切替、タスク、検証、失敗ログ、プロンプトJSON管理を維持する。\n5. Plan-Act-Verify: 変更計画 → 実装 → 仕様照合 → 退行確認の順に行う。\n6. Evidence Before Claim: 検証できていないことを「修正済み」と言わない。\n7. JSON Prompt Source: システムプロンプトと各プロンプトは prompts.json を正として扱い、fallback も同内容に同期する。\n8. Multi-file First: 複数ファイル構成を保持し、公開・保存・読み込みでファイルを落とさない。\n9. Generated App Structure: 生成アプリは docs/、src/apps/、src/admin/、config/、.github/ を標準構造とし、docs配下の5ファイルを省略しない。",
+                'target-persona': "（未設定）開発するアプリのターゲットユーザー像をここに記載してください。これはUI/UX・文体・導線の参考情報であり、チャットで決めた仕様や機能を上書きしません。",
+                'code-principles': "日本語で答えること！\n\n1. Analyze First: 既存コード・状態・データ構造を確認してから変更する。\n2. Minimal Intervention: 明示指示なしに既存コード、機能、UI、保存形式を削除・省略・置換しない。\n3. No Assumption Rewrite: ユーザー指示を勝手に拡大解釈・縮小解釈しない。曖昧な場合は既存挙動を保持する。\n4. Preserve Feature Set: APIキー管理、GitHub PAT、デプロイ、言語切替、タスク、検証、失敗ログ、プロンプトJSON管理を維持する。\n5. Plan-Act-Verify: 変更計画 → 実装 → 仕様照合 → 退行確認の順に行う。\n6. Evidence Before Claim: 検証できていないことを「修正済み」と言わない。\n7. JSON Prompt Source: システムプロンプトと各プロンプトは prompts.json を正として扱い、fallback も同内容に同期する。\n8. Multi-file First: 複数ファイル構成を保持し、公開・保存・読み込みでファイルを落とさない。\n9. Generated App Structure: 生成アプリは docs/、src/apps/、src/admin/、config/、.github/ を標準構造とし、docs配下の5ファイルを省略しない。\n\n## v26追加原則: Workflow Orchestration / Task Management / Core Principles\n\n### Workflow Orchestration\n\n#### 1. Plan Node Default\n- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions).\n- If something goes sideways, STOP and re-plan immediately – don't keep pushing.\n- Use plan mode for verification steps, not just building.\n- Write detailed specs upfront to reduce ambiguity.\n\n#### 2. Subagent Strategy\n- Use subagents liberally to keep main context window clean.\n- Offload research, exploration, and parallel analysis to subagents.\n- For complex problems, throw more compute at it via subagents.\n- One task per subagent for focused execution.\n\n#### 3. Self-Improvement Loop\n- After ANY correction from the user: update tasks/lessons.md with the pattern.\n- Write rules for yourself that prevent the same mistake.\n- Ruthlessly iterate on these lessons until mistake rate drops.\n- Review lessons at session start for relevant project.\n\n#### 4. Verification Before Done\n- Never mark a task complete without proving it works.\n- Diff behavior between main and your changes when relevant.\n- Ask yourself: \"Would a staff engineer approve this?\"\n- Run tests, check logs, demonstrate correctness.\n\n#### 5. Demand Elegance (Balanced)\n- For non-trivial changes: pause and ask \"is there a more elegant way?\"\n- If a fix feels hacky: \"Knowing everything I know now, implement the elegant solution.\"\n- Skip this for simple, obvious fixes – don't over-engineer.\n- Challenge your own work before presenting it.\n\n#### 6. Autonomous Bug Fixing\n- When given a bug report: just fix it. Don't ask for hand-holding.\n- Point at logs, errors, failing tests – then resolve them.\n- Zero context switching required from the user.\n- Go fix failing CI tests without being told how.\n\n### Task Management\n1. **Plan First**: Write plan to tasks/todo.md with checkable items.\n2. **Verify Plan**: Check in before starting implementation.\n3. **Track Progress**: Mark items complete as you go.\n4. **Explain Changes**: High-level summary at each step.\n5. **Document Results**: Add review section to tasks/todo.md.\n6. **Capture Lessons**: Update tasks/lessons.md after corrections.\n\n### Core Principles\n- **Simplicity First**: Make every change as simple as possible. Impact minimal code.\n- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.\n- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.\n",
                 'user-system-prompt': "（任意）生成したいアプリの雰囲気、制約、優先したい操作感、避けたい表現などを入力してください。",
-                'admin-system-requirements': "## システム要件\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲットを維持する。\n- ZIP/複数ファイル、IndexedDB、GitHubデプロイ、APIキー管理、保存先設定を削除しない。\n- 既存ID・関数名・保存キーを不用意に変更しない。\n- 生成アプリは docs/、src/apps/、src/admin/、config/、.github/ の標準構造を持ち、docs/PRINCIPLE.md、docs/DEVELOPMENT_RULES.md、docs/SYSTEM_DESIGN.md、docs/FAILURE_LOG.md、docs/HANDOVER.md を含める。",
-                'admin-development-rules': "# DEVELOPMENT RULES: AI-Only Operations\n\n## 1. AIコーディング・操作プロトコル\n- 全アセットの同期: コード変更は必ず定義されたディレクトリ配下に反映し、docs/SYSTEM_DESIGN.md との完全な一致を確認する。\n- 出力形式の統一: すべての成果物は、最終的に一つのZIPファイルとしてパッケージング可能な構造を維持して提示する。\n- 省略禁止: 生成物、設定、docs、src、config、.github の必要ファイルを省略しない。\n- 無断削除禁止: ユーザーが明示しない既存機能・設定・ファイル・保存形式を削除しない。\n\n## 2. 齟齬検証（Alignment Check）ルール\n- 対応表の照合: AIはコード出力時、それが docs/SYSTEM_DESIGN.md のどのセクションに基づいているかを明示できる状態にし、設計上の制約、コスト、閾値、通信プロトコルを遵守しているかセルフチェックする。\n- 乖離時のアクション: 齟齬を発見した場合は docs/FAILURE_LOG.md に記載し、ユーザーに修正方針の承認を求める。\n- タスク消込: タスクは実装だけでは完了にせず、検証AIが実装内容と動作経路を確認し、verified と判定した場合だけ消し込む。\n\n## 3. 引き継ぎファイル（HANDOVER.md）の運用\n- 毎ターンの更新: 現在のステータスと、次に着手すべき具体的作業を docs/HANDOVER.md に詳細に記述する。\n- コンテキストの維持: 前後の文脈を知らないAIが、そのファイルだけで開発を続行できるようにする。\n\n## 4. ディレクトリ構造定義\nAIは生成するアプリでこの構造を逸脱してはならない。\n- /docs: PRINCIPLE.md, DEVELOPMENT_RULES.md, SYSTEM_DESIGN.md, FAILURE_LOG.md, HANDOVER.md\n- /src/apps: メインアプリケーション、コアロジック、バックエンド処理\n- /src/admin: 管理・運用ツール、ダッシュボード、フロントエンド\n- /config: 動作環境や外部連携の設定\n- /.github: CI/CD、テスト、自動検証スケジュール\n\n## 5. コスト削減とリソース制約\n- LLMレイヤリング: チャット、コード生成、デバッグ、検証、原因分析を役割ごとに分離する。\n- 必要最小限のコンテキスト: Skillはインデックスを先に渡し、必要な本文だけをオンデマンドで読み込む。\n- 静的配信戦略: 可能な成果物は静的ファイルとして配信できる構造を維持する。\n\n## 6. 実行強制ワークフロー\n1. PLAN: 最小3ステップの具体的計画、検証方法、予見される失敗への対応策を立てる。\n2. SUBTASKS: 並列実行または分割可能なタスク単位に分解する。\n3. LESSONS: 過去のミス、省略、誤解、バグ、設計乖離のパターンを確認する。\n4. PROGRESS: ステップごとの進捗を可視化する。\n5. EXECUTION: タスクを実行する。\n6. VERIFICATION & ALIGNMENT: 期待結果、タスク、docs/SYSTEM_DESIGN.md、実装の一致を検証する。\n7. ELEGANCE CHECK: より簡潔、高度、低コストな代替案を検討する。\n8. PRINCIPLES CHECK: 根本原因の解決、影響の最小化、一貫性を確認する。\n9. PRINCIPLES EXPANSION CHECK: 目標達成度、観測可能性、仮説検証、安全性、コストを確認する。\n10. FINAL ANSWER: 成果物を完全な構造で提示する。\n",
+                'admin-system-requirements': "## システム要件\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲットを維持する。\n- ZIP/複数ファイル、IndexedDB、GitHubデプロイ、APIキー管理、保存先設定を削除しない。\n- 既存ID・関数名・保存キーを不用意に変更しない。\n- 生成アプリは docs/、tasks/、src/apps/、src/admin/、config/、.github/ の標準構造を持ち、docs/PRINCIPLE.md、docs/DEVELOPMENT_RULES.md、docs/SYSTEM_DESIGN.md、docs/FAILURE_LOG.md、docs/HANDOVER.md を含める。\n- tasks/todo.md と tasks/lessons.md を含め、非自明な作業の計画、レビュー、修正指摘から得た教訓を保持する。",
+                'admin-development-rules': "# DEVELOPMENT RULES: AI-Only Operations\n\n## 1. AIコーディング・操作プロトコル\n- 全アセットの同期: コード変更は必ず定義されたディレクトリ配下に反映し、docs/SYSTEM_DESIGN.md との完全な一致を確認する。\n- 出力形式の統一: すべての成果物は、最終的に一つのZIPファイルとしてパッケージング可能な構造を維持して提示する。\n- 省略禁止: 生成物、設定、docs、src、config、.github の必要ファイルを省略しない。\n- 無断削除禁止: ユーザーが明示しない既存機能・設定・ファイル・保存形式を削除しない。\n\n## 2. 齟齬検証（Alignment Check）ルール\n- 対応表の照合: AIはコード出力時、それが docs/SYSTEM_DESIGN.md のどのセクションに基づいているかを明示できる状態にし、設計上の制約、コスト、閾値、通信プロトコルを遵守しているかセルフチェックする。\n- 乖離時のアクション: 齟齬を発見した場合は docs/FAILURE_LOG.md に記載し、ユーザーに修正方針の承認を求める。\n- タスク消込: タスクは実装だけでは完了にせず、検証AIが実装内容と動作経路を確認し、verified と判定した場合だけ消し込む。\n\n## 3. 引き継ぎファイル（HANDOVER.md）の運用\n- 毎ターンの更新: 現在のステータスと、次に着手すべき具体的作業を docs/HANDOVER.md に詳細に記述する。\n- コンテキストの維持: 前後の文脈を知らないAIが、そのファイルだけで開発を続行できるようにする。\n\n## 4. ディレクトリ構造定義\nAIは生成するアプリでこの構造を逸脱してはならない。\n- /docs: PRINCIPLE.md, DEVELOPMENT_RULES.md, SYSTEM_DESIGN.md, FAILURE_LOG.md, HANDOVER.md\n- /src/apps: メインアプリケーション、コアロジック、バックエンド処理\n- /src/admin: 管理・運用ツール、ダッシュボード、フロントエンド\n- /config: 動作環境や外部連携の設定\n- /.github: CI/CD、テスト、自動検証スケジュール\n\n## 5. コスト削減とリソース制約\n- LLMレイヤリング: チャット、コード生成、デバッグ、検証、原因分析を役割ごとに分離する。\n- 必要最小限のコンテキスト: Skillはインデックスを先に渡し、必要な本文だけをオンデマンドで読み込む。\n- 静的配信戦略: 可能な成果物は静的ファイルとして配信できる構造を維持する。\n\n## 6. 実行強制ワークフロー\n1. PLAN: 最小3ステップの具体的計画、検証方法、予見される失敗への対応策を立てる。\n2. SUBTASKS: 並列実行または分割可能なタスク単位に分解する。\n3. LESSONS: 過去のミス、省略、誤解、バグ、設計乖離のパターンを確認する。\n4. PROGRESS: ステップごとの進捗を可視化する。\n5. EXECUTION: タスクを実行する。\n6. VERIFICATION & ALIGNMENT: 期待結果、タスク、docs/SYSTEM_DESIGN.md、実装の一致を検証する。\n7. ELEGANCE CHECK: より簡潔、高度、低コストな代替案を検討する。\n8. PRINCIPLES CHECK: 根本原因の解決、影響の最小化、一貫性を確認する。\n9. PRINCIPLES EXPANSION CHECK: 目標達成度、観測可能性、仮説検証、安全性、コストを確認する。\n10. FINAL ANSWER: 成果物を完全な構造で提示する。\n\n## 7. AI Web Studio Pro における適用\n- 管理画面の「開発ルール」設定値を、コード生成AI、デバッグAI、検証AIの共通制約として扱う。\n- 生成アプリにも docs/PRINCIPLE.md, docs/DEVELOPMENT_RULES.md, docs/SYSTEM_DESIGN.md, docs/FAILURE_LOG.md, docs/HANDOVER.md を必ず含める。\n- このアプリ自身の変更時も、index.html、js/*.js、prompts.json、models/models.json、skills/admin-skills.json、docs/*.md、sw.js の整合性を確認する。\n\n\n## v20運用規則: 進行可視化と中断時引き継ぎ\n- 長時間処理ではチャットにエージェント進行ログを表示する。\n- Planner、Coder、Debugger、Verifier、Bug Analyst、Reviewer、Handover の作業段階を進行ログに残す。\n- 進行タブには時刻、担当エージェント、処理段階、結果を保存する。\n- ブラウザ終了、更新、AIエラー、中断時には HANDOVER.md を更新し、タスクを勝手に verified にしない。\n- プレビューは検証完了後のレビュー確認後にのみ表示する。\n\n## v25運用規則: ペルソナ制約と手書きツール\n- ターゲットペルソナは参考情報であり、チャット合意・仕様リスト・手書き注釈を上書きしてはならない。\n- UI Designer / Core Logic / Debugger / Verifier は、ペルソナ適合より仕様反映を優先する。\n- 手書きツールは必要時だけ表示し、通常のプレビュー確認を妨げない。\n\n\n\n## v26追加原則: Workflow Orchestration / Task Management / Core Principles\n\n### Workflow Orchestration\n\n#### 1. Plan Node Default\n- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions).\n- If something goes sideways, STOP and re-plan immediately – don't keep pushing.\n- Use plan mode for verification steps, not just building.\n- Write detailed specs upfront to reduce ambiguity.\n\n#### 2. Subagent Strategy\n- Use subagents liberally to keep main context window clean.\n- Offload research, exploration, and parallel analysis to subagents.\n- For complex problems, throw more compute at it via subagents.\n- One task per subagent for focused execution.\n\n#### 3. Self-Improvement Loop\n- After ANY correction from the user: update tasks/lessons.md with the pattern.\n- Write rules for yourself that prevent the same mistake.\n- Ruthlessly iterate on these lessons until mistake rate drops.\n- Review lessons at session start for relevant project.\n\n#### 4. Verification Before Done\n- Never mark a task complete without proving it works.\n- Diff behavior between main and your changes when relevant.\n- Ask yourself: \"Would a staff engineer approve this?\"\n- Run tests, check logs, demonstrate correctness.\n\n#### 5. Demand Elegance (Balanced)\n- For non-trivial changes: pause and ask \"is there a more elegant way?\"\n- If a fix feels hacky: \"Knowing everything I know now, implement the elegant solution.\"\n- Skip this for simple, obvious fixes – don't over-engineer.\n- Challenge your own work before presenting it.\n\n#### 6. Autonomous Bug Fixing\n- When given a bug report: just fix it. Don't ask for hand-holding.\n- Point at logs, errors, failing tests – then resolve them.\n- Zero context switching required from the user.\n- Go fix failing CI tests without being told how.\n\n### Task Management\n1. **Plan First**: Write plan to tasks/todo.md with checkable items.\n2. **Verify Plan**: Check in before starting implementation.\n3. **Track Progress**: Mark items complete as you go.\n4. **Explain Changes**: High-level summary at each step.\n5. **Document Results**: Add review section to tasks/todo.md.\n6. **Capture Lessons**: Update tasks/lessons.md after corrections.\n\n### Core Principles\n- **Simplicity First**: Make every change as simple as possible. Impact minimal code.\n- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.\n- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.\n",
                 'admin-implementation-verification': "## 実装検証\n- 変更前後で要件とコードを照合する。\n- 修正したと報告する前に構文チェックと主要導線の確認を行う。\n- 未確認事項は未確認として明記する。",
                 'skill-settings': "{\n  \"version\": 3,\n  \"mode\": \"pattern-b-json-bundle\",\n  \"toolName\": \"load_skill_profile\",\n  \"storage\": \"github-json\",\n  \"github\": {\n    \"repo\": \"\",\n    \"branch\": \"main\",\n    \"path\": \"skills/admin-skills.json\"\n  },\n  \"indexPath\": \"skills/admin-skills.index.json\",\n  \"instructions\": \"管理用Skillsは skills/admin-skills.json に集約して管理する。AIには最初にSkillのインデックスだけを渡す。各Skillのstagesで chat / coding / debugging のどの段階で使うかを必ず確認し、現在の段階に一致するSkillだけを候補にする。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけをオンデマンドで読み込む。不要なSkill本文は送らない。ユーザー追加Skillは別ロジックで管理し、この管理用JSONやGitHub保存対象に混ぜない。\",\n  \"skills\": [\n    {\n      \"id\": \"skill-manager\",\n      \"file\": \"skills/admin-skills.json#skills.skill-manager\",\n      \"title\": \"Skill Manager Skill\",\n      \"description\": \"Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。\",\n      \"triggers\": [\n        \"Skill\",\n        \"skills\",\n        \"skill index\",\n        \"Pattern B\",\n        \"stages\",\n        \"管理用Skill\",\n        \"ユーザーSkill\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# Skill Manager Skill\\n\\n## Purpose\\nUse this skill when designing, editing, validating, or debugging Skill definitions.\\n\\n## Rules\\n- Every Skill must explicitly declare `stages` with one or more of: `chat`, `coding`, `debugging`.\\n- Admin Skills may be saved as GitHub JSON files.\\n- User Skills are local app settings only and must not be included in GitHub file saves.\\n- The Skill index must contain metadata only: id, title, description, triggers, stages, file, enabled.\\n- Skill body content is loaded only after the selector chooses the Skill.\\n- Do not mix admin Skill selection logic with user Skill selection logic.\\n\\n## Validation Checklist\\n1. Skill has a stable id.\\n2. Skill has explicit stages.\\n3. Skill has clear triggers.\\n4. Admin/user storage boundaries are preserved.\\n5. Index and content are separated for Pattern B.\",\n      \"source\": \"admin-json-bundle\"\n    },\n    {\n      \"id\": \"frontend\",\n      \"file\": \"skills/admin-skills.json#skills.frontend\",\n      \"title\": \"Frontend Skill Profile\",\n      \"description\": \"UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。\",\n      \"triggers\": [\n        \"UI\",\n        \"React\",\n        \"Next.js\",\n        \"TypeScript\",\n        \"Tailwind\",\n        \"CSS\",\n        \"state management\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# Frontend Skill Profile\\n\\n## Skill Level\\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\\n- State Management: Prefer React Context or Zustand over Redux.\\n- Async Pattern: Use async/await. No `.then()` chains.\",\n      \"source\": \"admin-json-bundle\"\n    },\n    {\n      \"id\": \"backend\",\n      \"file\": \"skills/admin-skills.json#skills.backend\",\n      \"title\": \"Backend Skill Profile\",\n      \"description\": \"Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。\",\n      \"triggers\": [\n        \"Node.js\",\n        \"database\",\n        \"API\",\n        \"Prisma\",\n        \"server\",\n        \"backend\",\n        \"PostgreSQL\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# Backend Skill Profile\\n\\n## Skill Level\\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Provide standard best practices with brief meaningful explanations.\\n- Architecture: Enforce Controllers, Services, Repositories.\\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.\",\n      \"source\": \"admin-json-bundle\"\n    },\n    {\n      \"id\": \"devops\",\n      \"file\": \"skills/admin-skills.json#skills.devops\",\n      \"title\": \"DevOps & Infra Skill Profile\",\n      \"description\": \"Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。\",\n      \"triggers\": [\n        \"Docker\",\n        \"Compose\",\n        \"CI/CD\",\n        \"GitHub Actions\",\n        \"AWS\",\n        \"infra\",\n        \"deployment\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# DevOps & Infra Skill Profile\\n\\n## Skill Level\\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\\n\\n## Rules & Conventions\\n- Language: English for code, Japanese for chat explanations.\\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\\n- Best Practices: Ensure production containers run as non-root users.\",\n      \"source\": \"admin-json-bundle\"\n    }\n  ],\n  \"source\": \"skills/admin-skills.json\"\n}",
                 'user-skill-settings': "{\n  \"version\": 1,\n  \"mode\": \"user-local-skills\",\n  \"storage\": \"local-settings-only\",\n  \"instructions\": \"ユーザー追加Skillはこの端末のアプリ設定だけに保存する。GitHub保存用の管理Skill JSONには含めない。各Skillのstagesで chat / coding / debugging のどの段階で使うかを明示し、現在の段階に一致するSkillだけを候補にする。\",\n  \"skills\": []\n}"
             },
             prompts: {
-                plan: "あなたはプロのWeb開発ディレクターです。ユーザーのアイディアを具体化し、実装（BUILD）に向けた設計図を作成します。\n{systemPrompt}\n\nターゲットペルソナは参考情報です。要件そのものとして固定しないでください: {targetPersona}\n\n## 応答ルール\n1. ユーザーの発言、現在の仕様リスト、直近の会話だけを根拠にする。\n2. 勝手に機能を削除・省略・置換しない。\n3. 不足情報がある場合は、質問を1テーマずつ分ける。複数の質問と選択肢を出す場合は、質問ごとに見出しと選択肢を分ける。\n4. 選択肢を提示する場合は、質問ごとに次の形を守る。\n   1. **質問名：** 質問文\n      * 選択肢A\n      * 選択肢B\n      * その他\n5. コードは書かず、仕様合意に徹する。\n6. 仕様が固まったら「素晴らしいプランです。⚡️コードを作成 ボタンから実装を開始しましょう」と促す。\n7. 次のステップ提案が必要な場合は「次に進むための要件を提案しましょうか？✨ 要件をおまかせ ボタンから次のステップを提案できます。」と応答する。\n\n【現在の仕様リスト】\n{specList}\n\n【直近の会話】\n{recentChat}\n{codeContext}",
-                suggest: "現在の会話履歴、現在の仕様リスト、既存コードを元に、次に開発すべき要件を提案してください。\n\n## 厳守\n- 既存機能を勝手に削除・省略・置換しない。\n- ペルソナはデザイン/UX判断の参考に留め、機能要件として固定しない。\n- 既存の仕様と重複する提案は避ける。\n- 提案は実装可能な粒度に分解する。\n- 複数の質問や選択肢が必要な場合は、質問ごとにグループ化して提示する。\n\n出力は日本語で、短い見出しと箇条書きで整理してください。",
+                plan: "あなたはプロのWeb開発ディレクターです。ユーザーのアイディアを具体化し、実装（BUILD）に向けた設計図を作成します。\n{systemPrompt}\n\nターゲットペルソナは参考情報です。要件そのものとして固定しないでください。チャットで決めた内容・仕様リスト・直近のユーザー発言を最優先し、ペルソナを理由にサービス内容や機能を変更しないでください: {targetPersona}\n\n## 応答ルール\n1. ユーザーの発言、現在の仕様リスト、直近の会話だけを根拠にする。\n2. 勝手に機能を削除・省略・置換しない。\n3. 不足情報がある場合は、質問を1テーマずつ分ける。複数の質問と選択肢を出す場合は、質問ごとに見出しと選択肢を分ける。\n4. 選択肢を提示する場合は、質問ごとに次の形を守る。\n   1. **質問名：** 質問文\n      * 選択肢A\n      * 選択肢B\n      * その他\n5. コードは書かず、仕様合意に徹する。\n6. 仕様が固まったら「素晴らしいプランです。⚡️コードを作成 ボタンから実装を開始しましょう」と促す。\n7. 次のステップ提案が必要な場合は「次に進むための要件を提案しましょうか？✨ 要件をおまかせ ボタンから次のステップを提案できます。」と応答する。\n\n【現在の仕様リスト】\n{specList}\n\n【直近の会話】\n{recentChat}\n{codeContext}",
+                suggest: "現在の会話履歴、現在の仕様リスト、既存コードを元に、次に開発すべき要件を提案してください。\n\n## 厳守\n- 既存機能を勝手に削除・省略・置換しない。\n- ペルソナはデザイン/UX判断の参考に留め、機能要件として固定しない。チャットで決めた内容や仕様リストより優先しない。\n- 既存の仕様と重複する提案は避ける。\n- 提案は実装可能な粒度に分解する。\n- 複数の質問や選択肢が必要な場合は、質問ごとにグループ化して提示する。\n\n出力は日本語で、短い見出しと箇条書きで整理してください。",
                 debug: "あなたはプロのWeb開発ディレクター兼デバッグ担当です。次の修正依頼を、既存機能を壊さずに解決するための要件に整理してください。\n\n【修正依頼】\n{memoText}\n\n## 厳守\n- ユーザーが削除を明示していない機能を削除・省略しない。\n- 「修正した」と判断するには、原因、変更対象、検証方法が必要。\n- 原因が不明な場合は、切り分けログ・再現手順・確認ポイントを提案する。\n- 修正要件は既存仕様に追加する形で整理する。\n- 既に実装済みの仕様を再実装扱いにしない。\n\n## 出力\n1. バグ/要望の判定\n2. 推定原因\n3. 変更すべき要件\n4. 変更してはいけない既存機能\n5. 検証方法",
                 extract: "以下のユーザーとAIの直近のやり取りから、実装すべき要件・修正点・仕様変更を抽出してください。\n\n【ユーザーの発言】\n{userMessage}\n\n【AIの応答】\n{aiResponse}\n\n【既存の仕様リスト】\n{existingSpecs}\n\n【ルール】\n- ユーザーが明示した項目、またはAIが実装対象として合意した項目だけを抽出すること\n- 既存リストと重複する項目は除外すること\n- 既存機能の削除・省略・置換を示す項目は、ユーザーが明示した場合以外は抽出しないこと\n- 「修正済み」「対応済み」などの主張だけを要件として抽出しないこと\n- 新規の項目のみ出力すること\n- 出力はJSON配列のみ（例: [\"項目1\", \"項目2\"]）\n- 抽出すべき新規項目がなければ空配列 [] を返すこと\n- JSON以外のテキストは一切出力しないこと",
-                verify: "以下の仕様リストと生成されたコードを照合し、各仕様が実装済みか、未実装または退行しているかを判定してください。\n\n【仕様リスト】\n{specList}\n\n【生成されたコード】\n{generatedCode}\n\n【ルール】\n- 各仕様がコード内に実装されているか1つずつ確認すること\n- 既存機能の削除・省略・ID変更・保存形式変更・UI導線消失も漏れとして扱うこと\n- 「似た機能がある」だけでは実装済みにしないこと。ユーザー指定と一致しているか確認すること\n- 仕様リストの各項目を covered または missing のどちらかに必ず振り分けること\n- covered / missing には、できる限り仕様リストの原文をそのまま入れること\n- JSON以外のテキストは一切出力しないこと\n\n【出力形式】\n{\n  \"covered\": [\"実装済みの仕様リスト項目\"],\n  \"missing\": [\"未実装または退行している仕様リスト項目\"]\n}\n\n【例】\n{\n  \"covered\": [\"送信ボタンをクリック・タップで実行できる\"],\n  \"missing\": [\"Ctrl+Enterで送信できる\"]\n}"
+                verify: "以下の仕様リスト・チャットで決めた内容・生成されたコードを照合し、各仕様が実装済みか、未実装または退行しているかを判定してください。\n\n【仕様リスト】\n{specList}\n\n【生成されたコード】\n{generatedCode}\n\n【ルール】\n- 各仕様がコード内に実装されているか1つずつ確認すること\n- 既存機能の削除・省略・ID変更・保存形式変更・UI導線消失も漏れとして扱うこと\n- 「似た機能がある」だけでは実装済みにしないこと。ユーザー指定と一致しているか確認すること\n- 仕様リストの各項目を covered または missing のどちらかに必ず振り分けること\n- covered / missing には、できる限り仕様リストの原文をそのまま入れること\n- JSON以外のテキストは一切出力しないこと\n\n【出力形式】\n{\n  \"covered\": [\"実装済みの仕様リスト項目\"],\n  \"missing\": [\"未実装または退行している仕様リスト項目\"]\n}\n\n【例】\n{\n  \"covered\": [\"送信ボタンをクリック・タップで実行できる\"],\n  \"missing\": [\"Ctrl+Enterで送信できる\"]\n}"
             },
             ui: { ja: { // UIラベルセクション（日本語）
                 // 言語名
@@ -1378,7 +1403,8 @@ profile: frontend
                 downloadButton: "💾 保存", deployButton: "🚀 公開",
                 debugMemoPlaceholder: "修正したい点を入力...", debugRequestButton: "修正を依頼", debugCtrlEnterHint: "Ctrl+Enterで修正依頼",
                 previewAnnotateToggle: "✍️ 手書き", previewAnnotateOff: "表示のみ", previewPenTool: "ペン", previewHighlighterTool: "蛍光ペン", previewUndoButton: "↶ 戻す", previewClearButton: "🧹 クリア",
-                previewAnnotateHint: "手書きモードをONにすると、プレビュー上に直接書き込めます。書き込み後に修正依頼を送ると画像付きで添付します。", previewAnnotateHintActive: "手書きモード中です。指やペンで位置をなぞってください。修正依頼に画像付きで添付します。",
+                previewToolsMenuButton: "ツール", previewAttachNoticeButton: "注釈を修正依頼に添付", previewAnnotationStatusPen: "手書きON・ペン", previewAnnotationStatusHighlighter: "手書きON・蛍光ペン",
+                previewAnnotateHint: "手書きツールは左メニューから必要な時だけ表示します。書き込み後に修正依頼を送ると画像付きで添付します。", previewAnnotateHintActive: "手書きモード中です。指やペンで位置をなぞってください。修正依頼に画像付きで添付します。",
                 // 設定セクション見出し
                 sectionAiTitle: "AI接続", sectionDevTitle: "開発設定", sectionSecurityTitle: "セキュリティ",
                 settingsTabBasic: "基本設定", settingsTabConnection: "API・保存設定", settingsTabAdmin: "管理設定", sectionServerEndpointTitle: "API接続エンドポイント",
@@ -1389,7 +1415,7 @@ profile: frontend
                 apiKeyGroqLabel: "APIキー — Groq",
                 // 設定: 開発
                 targetPersonaLabel: "ターゲットペルソナ（このアプリを使う人）",
-                targetPersonaHint: "アプリの想定ユーザー像。AIへの生成指示に使われます。",
+                targetPersonaHint: "アプリの想定ユーザー像。UI/UX・文体・導線の参考にのみ使い、チャットで決めた仕様は上書きしません。",
                 systemPromptLabel: "システムプロンプト",
                 systemPromptHint: "開発者自身の好み・スタイル・制約もここに書けます。",
                 codePrinciplesLabel: "コード生成の原則",
@@ -1791,7 +1817,11 @@ profile: frontend
             "previewHighlighterTool": "Highlighter",
             "previewUndoButton": "Undo",
             "previewClearButton": "Clear",
-            "previewAnnotateHint": "Turn draw mode on to write directly on the preview. When you request a fix, the drawing is attached as an image.",
+            "previewToolsMenuButton": "Tools",
+            "previewAttachNoticeButton": "Attach annotation to fix request",
+            "previewAnnotationStatusPen": "Draw ON · Pen",
+            "previewAnnotationStatusHighlighter": "Draw ON · Highlighter",
+            "previewAnnotateHint": "Open handwriting tools from the left menu only when needed. When you request a fix, the drawing is attached as an image.",
             "previewAnnotateHintActive": "Draw mode is on. Mark the location with your finger or pen. The drawing will be attached to the fix request.",
             "sectionAiTitle": "AI connection",
             "apiKeyManageLabel": "API keys",
@@ -1837,7 +1867,7 @@ profile: frontend
             "apiKeySaveCloseButton": "Save and close",
             "sectionDevTitle": "Development settings",
             "targetPersonaLabel": "Target persona",
-            "targetPersonaHint": "The intended user of the app. This is used for AI generation instructions.",
+            "targetPersonaHint": "The intended user of the app. Use only as UI/UX reference; it must not override agreed requirements.",
             "systemPromptLabel": "System prompt",
             "systemPromptHint": "Write your preferences, style, and constraints here.",
             "codePrinciplesLabel": "Code generation principles",
@@ -3083,6 +3113,23 @@ ${lines.join('\n')}`;
         const risk = String(analysis?.riskLevel || analysis?.risk || '').toLowerCase();
         const text = JSON.stringify(analysis || {}).toLowerCase();
         return risk === 'high' || risk === 'critical' || /delete|remove|api key|token|github|deploy|storage|credential|secret|削除|apiキー|トークン|github|デプロイ|保存先|認証/.test(text);
+    }
+
+    function buildRequirementPriorityInstruction(targetPersonaText = '') {
+        const persona = String(targetPersonaText || '').trim() || '（未設定）';
+        return `【要件優先順位・ターゲットペルソナ制約】
+次の優先順位を厳守してください。
+1. チャットでユーザーと合意した内容、直近のユーザー発言、添付・手書き注釈。
+2. 仕様リスト・選定タスク・未完了タスク。
+3. ユーザー用システムプロンプトの好み・制約。
+4. 管理用システムプロンプト、開発ルール、検証ルール。
+5. ターゲットペルソナ。
+
+ターゲットペルソナはUI/UX・文体・導線の参考情報に限定します。
+ターゲットペルソナを根拠に、チャットで決めた機能、サービス内容、画面構成、タスク、表示文言を削除・変更・置換してはいけません。
+チャット内容とペルソナが衝突する場合は、必ずチャット内容・仕様リストを優先してください。
+ターゲットペルソナ（参考のみ）:
+${persona}`;
     }
 
     /* === タスク管理（計画 / 検証 / 失敗ログ / 進行 の4カテゴリ） === */
@@ -4821,8 +4868,10 @@ ${window.getCode()}
 ${attachmentBlock}` : '');
         const skillContext = await buildSkillContextForTask(promptForAI + '\n\n' + codeContext, model, chatTaskType);
         const requirementFlowInstruction = buildRequirementFlowInstruction(chatTaskType);
+        const priorityInstruction = buildRequirementPriorityInstruction(targetPersona);
         const adminSystem = [
             document.getElementById('system-prompt').value.trim(),
+            priorityInstruction,
             document.getElementById('admin-system-requirements')?.value.trim(),
             document.getElementById('admin-development-rules')?.value.trim(),
             document.getElementById('admin-implementation-verification')?.value.trim(),
@@ -5169,6 +5218,7 @@ ${verification.summary}` : '';
             const selectedTaskIds = selectedTasks.map(item => item.id);
             updateWorkflowState({ selectedTaskIds, status: 'running', stage: 'UI先行レビュー準備', meta: { reason: 'uiFirstReview', selectedTaskCount: selectedTaskIds.length, uiFirst: true } });
             const targetPersona = document.getElementById('target-persona').value;
+            const priorityInstruction = buildRequirementPriorityInstruction(targetPersona);
             const codeRun = window.AICodeLogic?.prepareRun?.() || {};
             const model = codeRun.model || getModelForPrompt('code');
             const themeCSS = await getSelectedThemeCSS();
@@ -5192,13 +5242,15 @@ ${verification.summary}` : '';
 - ダミーデータは見た目確認に必要な範囲だけ使う。
 - fetch、外部API、ログイン、本物の保存処理、本物の課金処理はまだ実装しない。
 - UIレビューで手書き修正しやすいよう、主要領域のidとクラスを明確にする。
+- チャットで決めた内容と仕様リストを最優先し、ターゲットペルソナを理由に別アプリへ作り替えない。
+- ターゲットペルソナはUIの雰囲気・文体・導線の参考に限定し、機能要件を上書きしない。
 
 ${document.getElementById('system-prompt').value.trim()}
+${priorityInstruction}
 ${document.getElementById('code-principles').value.trim()}
 ${document.getElementById('admin-development-rules')?.value.trim() || ''}
 ${skillContext}
 
-ターゲットペルソナ: ${targetPersona}
 ${themeCSS ? `【デザイン】以下のCSS変数を使用\n${themeCSS}` : ''}
 ${currentCode ? `【既存コード】\n${currentCode}` : '【既存コード】なし'}
 
@@ -5238,6 +5290,8 @@ ${codeOnlyInstruction}`;
             addWorkflowEvent('running', '承認済みUIを壊さず、コアロジック実装へ進みます。', { stage: 'コアロジック接続', agent: 'Core Logic' });
             addAgentProgressLog('Core Logic', '承認済みUIを壊さず、コアロジック実装へ進みます。');
             const model = getModelForPrompt('code');
+            const targetPersona = document.getElementById('target-persona')?.value || '';
+            const priorityInstruction = buildRequirementPriorityInstruction(targetPersona);
             const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
             const approvedText = projectToVerificationText(approvedProject);
             const surface = state.surface || summarizeUiSurface(approvedProject);
@@ -5260,6 +5314,7 @@ ${uiLock}
 
 【管理ルール】
 ${document.getElementById('system-prompt').value.trim()}
+${priorityInstruction}
 ${document.getElementById('code-principles').value.trim()}
 ${document.getElementById('admin-development-rules')?.value.trim() || ''}
 ${document.getElementById('admin-system-requirements')?.value.trim() || ''}
@@ -5307,6 +5362,7 @@ ${codeOnlyInstruction}`;
         const selectedTaskIds = selectedTasks.map(item => item.id);
         updateWorkflowState({ selectedTaskIds, meta: { reason: 'generateCode', selectedTaskCount: selectedTaskIds.length } });
         const targetPersona = document.getElementById('target-persona').value;
+        const priorityInstruction = buildRequirementPriorityInstruction(targetPersona);
         const codeRun = window.AICodeLogic?.prepareRun?.() || {};
         const model = codeRun.model || getModelForPrompt('code');
         const codeTaskType = codeRun.taskType || 'code';
@@ -5321,6 +5377,7 @@ ${codeOnlyInstruction}`;
         const adminBuildSystem = [
             codeOnlyInstruction,
             document.getElementById('system-prompt').value.trim(),
+            priorityInstruction,
             document.getElementById('code-principles').value.trim(),
             document.getElementById('admin-development-rules')?.value.trim(),
             document.getElementById('admin-system-requirements')?.value.trim(),
@@ -5331,9 +5388,8 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
         ].filter(Boolean).join('\n\n');
         const system = `${codeOnlyInstruction}
 
-Expert Full-stack Web Developerとして、要件に最適な複数ファイル構成のWebアプリを出力してください。生成するアプリはRoot直下に docs/、src/apps/、src/admin/、config/、.github/ を持つ構成を標準とし、docs/PRINCIPLE.md、docs/DEVELOPMENT_RULES.md、docs/SYSTEM_DESIGN.md、docs/FAILURE_LOG.md、docs/HANDOVER.md を必ず含めてください。プレビュー用の入口は原則 src/admin/index.html としてください。
+Expert Full-stack Web Developerとして、要件に最適な複数ファイル構成のWebアプリを出力してください。生成するアプリはRoot直下に docs/、tasks/、src/apps/、src/admin/、config/、.github/ を持つ構成を標準とし、docs/PRINCIPLE.md、docs/DEVELOPMENT_RULES.md、docs/SYSTEM_DESIGN.md、docs/FAILURE_LOG.md、docs/HANDOVER.md を必ず含めてください。プレビュー用の入口は原則 src/admin/index.html としてください。
 ${adminBuildSystem}
-ターゲットペルソナ: ${targetPersona}
 ルール: 出力はコードだけ。Markdownのコードブロック、説明、計画、Act/Plan、箇条書き、前置き、後書きは不要。複数ファイルJSONだけを出力し、docs/ と src/ と config/ と .github/ を省略せず、管理画面の開発ルールにも従ってください。
 ${themeCSS ? `【デザイン】以下のCSS変数を使用
 ${themeCSS}` : ''}
@@ -5412,6 +5468,7 @@ ${codeOnlyInstruction}`;
         const model = debugRun.model || getModelForPrompt('debug');
         const debugTaskType = debugRun.taskType || 'debugging';
         const targetPersona = document.getElementById('target-persona').value;
+        const priorityInstruction = buildRequirementPriorityInstruction(targetPersona);
         const currentProject = getCurrentProjectSnapshot();
         const currentProjectText = projectToVerificationText(currentProject);
         updateWorkflowStep(isUiReviewRevision ? 'UIレビュー修正' : 'タスク選定', isUiReviewRevision ? 'UI先行レビューの修正対象を保持しています。' : 'デバッグ修正の対象タスクを選定しています。');
@@ -5429,6 +5486,7 @@ ${codeOnlyInstruction}`;
         const adminSystem = [
             codeOnlyInstruction,
             document.getElementById('system-prompt').value.trim(),
+            priorityInstruction,
             document.getElementById('code-principles').value.trim(),
             document.getElementById('admin-development-rules')?.value.trim(),
             document.getElementById('admin-system-requirements')?.value.trim(),
@@ -5449,7 +5507,12 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
                 .replace('{specList}', specListToString())
                 .replace('{recentChat}', getRecentChat(3)),
             `【プレビュー画面からの修正依頼】
-${preparedText}`,
+${preparedText}
+
+【修正優先順位】
+- 手書き注釈画像がある場合は、画像上の位置指定と本文の修正依頼を最優先にする。
+- UI先行レビュー中の場合は、UIだけを修正し、コアロジック実装へ進まない。
+- ターゲットペルソナを理由に、チャットで決まった内容や仕様リストを変更しない。`,
             isUiReviewRevision ? `【UI先行レビュー修正モード】
 現在はUIレビュー中です。コアロジック、永続化、API接続、複雑な状態管理はまだ実装しないでください。
 手書き注釈と依頼文に基づいて、画面・レイアウト・文言・スタイルだけを修正し、再度UIレビュー可能な状態で出力してください。` : '',
@@ -5508,6 +5571,7 @@ ${codeOnlyInstruction}
         const images = annotationImage ? [annotationImage] : [];
         memoEl.value = '';
         if (images.length) showToast('プレビュー注釈画像を添付しました');
+        closeDebugToolMenu(false);
         runPreviewDebugRequest(text, images);
     }
 
@@ -5584,6 +5648,22 @@ ${codeOnlyInstruction}
         if (undoBtn) undoBtn.textContent = getLabel('previewUndoButton');
         const clearBtn = document.getElementById('preview-tool-clear');
         if (clearBtn) clearBtn.textContent = getLabel('previewClearButton');
+        const debugToolsBtn = document.getElementById('debug-tools-btn');
+        if (debugToolsBtn) debugToolsBtn.setAttribute('aria-label', getLabel('previewToolsMenuButton') || 'Tools');
+        const debugHandwriteBtn = document.getElementById('debug-tool-handwrite');
+        if (debugHandwriteBtn) debugHandwriteBtn.textContent = getLabel('previewAnnotateToggle');
+        const debugPenBtn = document.getElementById('debug-tool-pen');
+        if (debugPenBtn) debugPenBtn.textContent = getLabel('previewPenTool');
+        const debugHighlighterBtn = document.getElementById('debug-tool-highlighter');
+        if (debugHighlighterBtn) debugHighlighterBtn.textContent = getLabel('previewHighlighterTool');
+        const debugUndoBtn = document.getElementById('debug-tool-undo');
+        if (debugUndoBtn) debugUndoBtn.textContent = getLabel('previewUndoButton');
+        const debugClearBtn = document.getElementById('debug-tool-clear');
+        if (debugClearBtn) debugClearBtn.textContent = getLabel('previewClearButton');
+        const debugAttachBtn = document.getElementById('debug-tool-attach');
+        if (debugAttachBtn) debugAttachBtn.textContent = getLabel('previewAttachNoticeButton');
+        const debugToolsHint = document.getElementById('debug-tools-hint');
+        if (debugToolsHint) debugToolsHint.textContent = getLabel('previewAnnotateHint');
         updatePreviewAnnotationUi();
         updateProgressHeaderButton();
 
@@ -6431,10 +6511,34 @@ ${String(a.textContent).slice(0, 24000)}`);
         previewAnnotationState.strokes.forEach(stroke => drawPreviewStroke(ctx, stroke));
         if (previewAnnotationState.currentStroke) drawPreviewStroke(ctx, previewAnnotationState.currentStroke);
     }
+    function toggleDebugToolMenu(force) {
+        const menu = document.getElementById('debug-tools-menu');
+        const btn = document.getElementById('debug-tools-btn');
+        if (!menu) return;
+        const next = typeof force === 'boolean' ? force : !menu.classList.contains('show');
+        menu.classList.toggle('show', next);
+        if (btn) btn.setAttribute('aria-expanded', next ? 'true' : 'false');
+        updatePreviewAnnotationUi();
+    }
+    function closeDebugToolMenu(update = true) {
+        const menu = document.getElementById('debug-tools-menu');
+        const btn = document.getElementById('debug-tools-btn');
+        if (menu) menu.classList.remove('show');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        if (update) updatePreviewAnnotationUi();
+    }
+    function previewAnnotationAttachNotice() {
+        const annotationImage = exportPreviewAnnotationImage();
+        if (annotationImage) showToast('次の修正依頼にプレビュー注釈画像を添付します');
+        else showToast('まだ手書き注釈がありません');
+    }
+
     function updatePreviewAnnotationUi() {
         const active = previewAnnotationState.active;
         const layer = getPreviewAnnotationLayer();
         if (layer) layer.classList.toggle('active', active);
+        const toolbar = document.getElementById('preview-annotation-toolbar');
+        if (toolbar) toolbar.classList.remove('show');
         const toggleBtn = document.getElementById('preview-annotation-toggle');
         if (toggleBtn) {
             toggleBtn.classList.toggle('active', active);
@@ -6450,6 +6554,26 @@ ${String(a.textContent).slice(0, 24000)}`);
         if (highlighterBtn) highlighterBtn.classList.toggle('active', active && previewAnnotationState.tool === 'highlighter');
         const hint = document.getElementById('preview-annotation-hint');
         if (hint) hint.textContent = active ? (getLabel('previewAnnotateHintActive') || 'Draw mode is on.') : (getLabel('previewAnnotateHint') || 'Turn draw mode on to annotate the preview.');
+        const status = document.getElementById('preview-annotation-status');
+        if (status) {
+            status.classList.toggle('show', active);
+            status.textContent = previewAnnotationState.tool === 'highlighter'
+                ? (getLabel('previewAnnotationStatusHighlighter') || 'Draw ON · Highlighter')
+                : (getLabel('previewAnnotationStatusPen') || 'Draw ON · Pen');
+        }
+        const debugToolsBtn = document.getElementById('debug-tools-btn');
+        if (debugToolsBtn) debugToolsBtn.classList.toggle('active', active);
+        const debugHandwriteBtn = document.getElementById('debug-tool-handwrite');
+        if (debugHandwriteBtn) {
+            debugHandwriteBtn.classList.toggle('active', active);
+            debugHandwriteBtn.textContent = active ? (getLabel('previewAnnotateOff') || 'View only') : (getLabel('previewAnnotateToggle') || 'Draw');
+        }
+        const debugPenBtn = document.getElementById('debug-tool-pen');
+        const debugHighlighterBtn = document.getElementById('debug-tool-highlighter');
+        if (debugPenBtn) debugPenBtn.classList.toggle('active', active && previewAnnotationState.tool === 'pen');
+        if (debugHighlighterBtn) debugHighlighterBtn.classList.toggle('active', active && previewAnnotationState.tool === 'highlighter');
+        const debugToolsHint = document.getElementById('debug-tools-hint');
+        if (debugToolsHint) debugToolsHint.textContent = active ? (getLabel('previewAnnotateHintActive') || '') : (getLabel('previewAnnotateHint') || '');
     }
     function togglePreviewAnnotationMode(force) {
         previewAnnotationState.active = typeof force === 'boolean' ? force : !previewAnnotationState.active;
