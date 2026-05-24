@@ -1,91 +1,57 @@
-# PRINCIPLE: AI-Driven Development System
-
-## 1. 核心的論理構造
-本プロジェクトは、AIによる開発作業の自動化、成果物の完全性維持、設計と実装の齟齬防止、およびセッションをまたいだ文脈維持を最上位の目的とする。
-
-## 2. 実行強制命令（10ステップ・ワークフロー）
-すべての思考、設計、および出力プロセスは、以下の10手順を省略なく実行する。
-
-1. [PLAN]: 最小3ステップの具体的計画、検証方法、および予見される失敗への対応策を作る。
-2. [SUBTASKS]: 並列実行または分割可能なタスク単位へ分解する。
-3. [LESSONS]: 過去のミス、省略、誤解、バグ、設計乖離のパターンを確認し、防止策を明確にする。
-4. [PROGRESS]: ステップごとの進捗状況を記録する。
-5. [EXECUTION]: タスクを具体的に実行する。
-6. [VERIFICATION & ALIGNMENT]: 期待結果、タスク、docs/SYSTEM_DESIGN.md、実装の齟齬を検証する。
-7. [ELEGANCE CHECK]: 現状の策より簡潔、高度、低コストな代替案を検討する。
-8. [PRINCIPLES CHECK]: 簡潔さ、根本原因の解決、影響の最小化を確認する。
-9. [PRINCIPLES EXPANSION CHECK]: 目標達成度、観測可能性、仮説検証、安全性、コスト、一貫性を確認する。
-10. [FINAL ANSWER]: そのターンの成果物を完全な構造で提示する。
-
-## 3. 不変性と完全性の原則
-- 省略の禁止: トークン節約等を理由とした省略表現や未出力を禁止する。
-- 無断削除の禁止: ユーザー承認なしに既存の機能、コード、設定、ドキュメントを削除・変更しない。
-- 引き継ぎの義務: 状態が変わる作業では docs/HANDOVER.md を更新する。
-- 整合性の義務: 設計ドキュメントと実装の齟齬を許容しない。
-
-## 4. 開発哲学
-- Documentation First: 実装に先立ち設計書を更新し、論理的整合性を確保する。
-- Full Asset Delivery: 成果物は常にZIP化可能な完全なディレクトリ構造を維持する。
-- Verified Completion: タスクは検証AIが実装と動作経路を確認してから完了にする。
-
-
-## v20追加原則: Preview After Review
-- プレビューはコード生成直後に表示しない。
-- 検証AIがタスクの実装と動作経路を確認し、タスク消込が完了した後に、プレビュー前レビューを表示する。
-- 人がレビュー内容を確認して「プレビューを表示」を押した場合のみ、プレビュー画面へ遷移する。
-- 中断時には必ず HANDOVER.md に現在状態、選定タスク、未完了タスク、次に再開すべき作業を残す。
-
-
-
-## v26追加原則: Workflow Orchestration / Task Management / Core Principles
-
-### Workflow Orchestration
-
-#### 1. Plan Node Default
-- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions).
-- If something goes sideways, STOP and re-plan immediately – don't keep pushing.
-- Use plan mode for verification steps, not just building.
-- Write detailed specs upfront to reduce ambiguity.
-
-#### 2. Subagent Strategy
-- Use subagents liberally to keep main context window clean.
-- Offload research, exploration, and parallel analysis to subagents.
-- For complex problems, throw more compute at it via subagents.
-- One task per subagent for focused execution.
-
-#### 3. Self-Improvement Loop
-- After ANY correction from the user: update tasks/lessons.md with the pattern.
-- Write rules for yourself that prevent the same mistake.
-- Ruthlessly iterate on these lessons until mistake rate drops.
-- Review lessons at session start for relevant project.
-
-#### 4. Verification Before Done
-- Never mark a task complete without proving it works.
-- Diff behavior between main and your changes when relevant.
-- Ask yourself: "Would a staff engineer approve this?"
-- Run tests, check logs, demonstrate correctness.
-
-#### 5. Demand Elegance (Balanced)
-- For non-trivial changes: pause and ask "is there a more elegant way?"
-- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution."
-- Skip this for simple, obvious fixes – don't over-engineer.
-- Challenge your own work before presenting it.
-
-#### 6. Autonomous Bug Fixing
-- When given a bug report: just fix it. Don't ask for hand-holding.
-- Point at logs, errors, failing tests – then resolve them.
-- Zero context switching required from the user.
-- Go fix failing CI tests without being told how.
-
-### Task Management
-1. **Plan First**: Write plan to tasks/todo.md with checkable items.
-2. **Verify Plan**: Check in before starting implementation.
-3. **Track Progress**: Mark items complete as you go.
-4. **Explain Changes**: High-level summary at each step.
-5. **Document Results**: Add review section to tasks/todo.md.
-6. **Capture Lessons**: Update tasks/lessons.md after corrections.
-
-### Core Principles
-- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
-- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
-- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
+# AI-Driven Development System (統合リファレンス)
+## 1. 核心的開発哲学 ＆ コアプリシプル (Core Principles)
+本システムの最上位目的は、**AIによる開発作業の自動化**、**成果物の完全性維持**、**設計と実装の齟齬防止**、および**セッションをまたいだ文脈維持**である。
+ * **Simplicity First（簡潔さ最優先）:** すべての変更は可能な限りシンプルに、影響範囲を最小限に抑える。
+ * **No Laziness（根本原因の解決）:** トークン節約などを理由とした省略や一時的な場当たり的修正を禁止する。シニア開発者基準を満たす根本解決を行う。
+ * **Minimal Impact（影響の最小化）:** 必要な箇所のみを変更し、既存機能へ予期せぬバグを混入させない。
+ * **Documentation First:** 実装に先立ち必ず設計書を更新し、論理的整合性を確保する。
+ * **Full Asset Delivery:** 成果物は常にZIP化可能な完全なディレクトリ構造を維持して提示する。
+ * **Verified Completion:** 実装した動作経路を検証し、確実に動作することを確認するまではタスクを完了とみなさない。
+## 2. 実行強制ワークフロー (Workflow Orchestration)
+あらゆる非自明なタスク（3ステップ以上の作業、またはアーキテクチャ設計の決定を伴うもの）においては、以下の**10ステップ・ワークフロー**を省略なく厳格に実行する。
+### 10ステップ・オーケストレーション
+ 1. **[PLAN] (Plan Node Default)**
+   * 最小3ステップの具体的計画、検証方法、および予見される失敗への対応策を策定する。
+   * 曖昧さを排除するため、事前に詳細な仕様を記述する。作業が難航した場合は即座に立ち止まり、再計画を行う（検証ステップも計画に含める）。
+ 2. **[SUBTASKS] (Subagent Strategy)**
+   * 並列実行または分割可能なタスク単位へ分解する。
+   * メインのコンテキストウィンドウをクリーンに保つため、調査や並列分析、複雑な問題の処理にはサブagentを積極的に活用する（1サブagentにつき1タスクの原則）。
+ 3. **[LESSONS] (Self-Improvement Loop)**
+   * 過去のミス、省略、誤解、バグ、設計乖離のパターンを確認し、防止策を明確にする。
+   * ユーザーから指摘や修正を受けた場合は、即座に tasks/lessons.md にそのパターンと再発防止ルールを記録・更新する。
+ 4. **[PROGRESS]**
+   * ステップごとの進捗状況をリアルタイムで記録・管理する。
+ 5. **[EXECUTION] (Autonomous Bug Fixing)**
+   * タスクを具体的に実行する。
+   * バグ報告を受けた際は、手取り足取りの指示を待たず、ログやエラー、失敗したテストを自律的に特定・修正する。
+ 6. **[VERIFICATION & ALIGNMENT] (Verification Before Done)**
+   * 期待結果、タスク、docs/SYSTEM_DESIGN.md、および実装コードの間に齟齬がないか徹底検証する。
+   * メインの挙動と変更後の挙動の差分（Diff）を確認し、テストの実行やログチェックを通じて「スタッフエンジニアが承認できる基準」を証明する。
+ 7. **[ELEGANCE CHECK] (Demand Elegance)**
+   * 現状の策より簡潔、高度、低コストな代替案がないか、一歩引いて自問自答する。
+   * 修正がその場しのぎ（Hacky）だと感じた場合は、既存の知見を総動員して最もエレガントな解決策を再実装する（※明白で単純な修正に対して過剰な設計は行わない）。
+ 8. **[PRINCIPLES CHECK]**
+   * 「簡潔さ」「根本原因の解決」「影響の最小化」が達成されているかを最終確認する。
+ 9. **[PRINCIPLES EXPANSION CHECK]**
+   * 目標達成度、観測可能性、仮説検証、安全性、コスト、一貫性の各観点から妥当性をチェックする。
+ 10. **[FINAL ANSWER]**
+   * そのターンの成果物を、省略のない完全な構造で提示する。
+## 3. タスクマネジメント ＆ ドキュメント管理
+日々のタスク管理は、記述・追跡・記録のサイクルを厳格に回すことでコンテキストを維持する。
+ 1. **Plan First:** 実行計画を tasks/todo.md にチェック可能なアイテムとして明文化する。
+ 2. **Verify Plan:** 実装を開始する前に、計画が適切であるか確認（チェックイン）を行う。
+ 3. **Track Progress:** 作業の進行に伴い、完了したアイテムのチェックボックスを確実に更新する。
+ 4. **Explain Changes:** 各ステップにおいて、どのような変更を行ったかハイレベルな要約を説明する。
+ 5. **Document Results:** 作業完了後、tasks/todo.md にレビューセクションを追加し、結果をドキュメント化する。
+ 6. **Capture Lessons:** 修正や学びが発生したセッションの終了時・開始時には、必ず tasks/lessons.md をレビュー・更新する。
+## 4. 不変性・完全性 ＆ プレビュー原則
+### 変更と引き継ぎの制限
+ * **省略の禁止:** トークン節約などを理由とする、コードやドキュメントの省略表現（// 既存のコード... など）を一切禁止する。
+ * **無断削除の禁止:** ユーザーの明示的な承認なしに、既存の機能、コード、設定、ドキュメントを削除・変更してはならない。
+ * **引き継ぎの義務 (Handover):** 作業が未完了のまま中断する場合や状態が変わる作業では、必ず docs/HANDOVER.md を作成・更新し、「現在状態」「選定タスク」「未完了タスク」「次に再開すべき作業」を厳密に残す。
+ * **整合性の義務:** 設計ドキュメント（docs/SYSTEM_DESIGN.md）と実際の実装に、いかなる齟齬も許容しない。
+### Preview After Review（プレビュー制御ルール）
+ * コード生成の直後にプレビューを自動表示することを禁止する。
+ * コード生成後、まずは検証AI（または検証プロセス）がタスクの実装状態と動作経路を確認し、タスクの消し込みを完了させる。
+ * その後、ユーザーに対して「プレビュー前レビュー」を提示する。
+ * ユーザーがレビュー内容を確認し、明示的に「プレビューを表示」を押した場合のみ、プレビュー画面へ遷移する。
