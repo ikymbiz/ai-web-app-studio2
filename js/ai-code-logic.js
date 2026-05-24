@@ -43,20 +43,112 @@
   }
 
   function stripFence(text) {
-    return String(text || '').replace(/^```(?:json|html|css|javascript|js|xml)?\s*/i, '').replace(/```\s*$/i, '').trim();
+    return String(text || '').replace(/^```(?:json|html|css|javascript|js|xml|md|markdown|ts|tsx|jsx)?\s*/i, '').replace(/```\s*$/i, '').trim();
+  }
+
+  // Drop a leading bare language tag like "json", "javascript", etc. that some models
+  // emit without backticks. Only strips when followed by whitespace then '{' or '['.
+  function stripLeadingLangTag(text) {
+    return String(text || '').replace(/^\s*(?:json|javascript|js|html|css|xml|md|markdown)\b\s*(?=[{\[])/i, '');
+  }
+
+  // Walk the text and return the substring covering the first balanced JSON object,
+  // respecting string literals and escape sequences. Useful for recovering JSON when
+  // there is trailing prose, multiple objects, or extra closing braces inside strings.
+  function sliceFirstBalancedObject(text, startIndex) {
+    const s = String(text || '');
+    const start = typeof startIndex === 'number' ? startIndex : s.indexOf('{');
+    if (start < 0) return null;
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = start; i < s.length; i++) {
+      const c = s[i];
+      if (escape) { escape = false; continue; }
+      if (inString) {
+        if (c === '\\') { escape = true; continue; }
+        if (c === '"') { inString = false; }
+        continue;
+      }
+      if (c === '"') { inString = true; continue; }
+      if (c === '{') depth++;
+      else if (c === '}') {
+        depth--;
+        if (depth === 0) return s.slice(start, i + 1);
+      }
+    }
+    return null;
+  }
+
+  // Best-effort repair for truncated JSON (e.g. cut off by token limit):
+  // closes any open string and balances brackets/braces.
+  function repairTruncatedJson(text) {
+    const s = String(text || '');
+    const start = s.indexOf('{');
+    if (start < 0) return null;
+    let depth = 0;
+    const stack = [];
+    let inString = false;
+    let escape = false;
+    let endTrim = s.length;
+    for (let i = start; i < s.length; i++) {
+      const c = s[i];
+      if (escape) { escape = false; continue; }
+      if (inString) {
+        if (c === '\\') { escape = true; continue; }
+        if (c === '"') { inString = false; }
+        continue;
+      }
+      if (c === '"') { inString = true; continue; }
+      if (c === '{' || c === '[') { stack.push(c); depth++; }
+      else if (c === '}' || c === ']') { stack.pop(); depth--; }
+    }
+    let body = s.slice(start, endTrim);
+    if (inString) body += '"';
+    // Strip trailing commas that would otherwise become syntax errors after appending closers.
+    body = body.replace(/,\s*$/, '');
+    while (stack.length) {
+      const opener = stack.pop();
+      body += opener === '{' ? '}' : ']';
+    }
+    return body;
   }
 
   function extractJsonProject(text) {
     const raw = String(text || '').trim();
     const candidates = [];
+
+    // 1) Strip a leading fence (e.g. ```json) and trailing ``` if present at the edges.
     candidates.push(stripFence(raw));
-    const fencedJson = raw.match(/```json\s*([\s\S]*?)```/i);
-    if (fencedJson) candidates.push(fencedJson[1].trim());
+
+    // 2) All fenced blocks anywhere in the response (handles preambles before the fence).
+    const fenceRegex = /```(?:json|javascript|js|html|xml|css|md|markdown|ts|tsx|jsx)?\s*([\s\S]*?)```/gi;
+    let fm;
+    while ((fm = fenceRegex.exec(raw))) {
+      const inner = fm[1].trim();
+      if (inner) candidates.push(inner);
+    }
+
+    // 3) Bare leading language tag with no fences (e.g. "json\n{...}").
+    candidates.push(stripLeadingLangTag(raw));
+
+    // 4) First balanced JSON object — robust against trailing prose or extra braces in strings.
+    const balanced = sliceFirstBalancedObject(raw);
+    if (balanced) candidates.push(balanced);
+
+    // 5) Naive slice from first '{' to last '}' (legacy fallback).
     const firstBrace = raw.indexOf('{');
     const lastBrace = raw.lastIndexOf('}');
     if (firstBrace >= 0 && lastBrace > firstBrace) candidates.push(raw.slice(firstBrace, lastBrace + 1));
 
+    // 6) Last-resort: try to repair a truncated JSON by balancing brackets.
+    const repaired = repairTruncatedJson(raw);
+    if (repaired) candidates.push(repaired);
+
+    const seen = new Set();
     for (const candidate of candidates) {
+      if (!candidate || seen.has(candidate)) continue;
+      seen.add(candidate);
       try {
         const parsed = JSON.parse(candidate);
         const filesArray = Array.isArray(parsed?.files) ? parsed.files : null;
@@ -104,8 +196,10 @@
     const project = parseProjectFiles(text);
     if (project?.files) return project.files[project.entryFile] || project.files['index.html'] || Object.values(project.files)[0] || '';
     const raw = String(text || '');
-    const fenced = raw.match(/```(?:html|xml)?\s*([\s\S]*?)```/i);
+    const fenced = raw.match(/```(?:html|xml|json|javascript|js|css|md|markdown|ts|tsx|jsx)?\s*([\s\S]*?)```/i);
     let code = (fenced ? fenced[1] : raw).trim();
+    // Strip any leftover bare language tag that some models emit without backticks.
+    code = code.replace(/^\s*(?:json|javascript|js|html|css|xml|md|markdown)\b\s*\n/i, '').trim();
     const startMatch = code.search(/<!doctype\s+html|<html[\s>]/i);
     if (startMatch > 0) code = code.slice(startMatch);
     const endIndex = code.toLowerCase().lastIndexOf('</html>');
