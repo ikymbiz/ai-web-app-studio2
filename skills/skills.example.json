@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "mode": "pattern-b-on-demand",
   "toolName": "load_skill_profile",
   "storage": "github-json",
@@ -8,8 +8,31 @@
     "branch": "main",
     "path": "skills/skills.json"
   },
-  "instructions": "AIには最初にSkillのインデックスだけを渡す。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけを追加で渡す。不要なSkill本文は送らない。",
+  "indexPath": "skills/skills.index.json",
+  "instructions": "AIには最初にSkillのインデックスだけを渡す。各Skillのstagesで chat / coding / debugging のどの段階で使うかを必ず確認し、現在の段階に一致するSkillだけを候補にする。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけをオンデマンドで読み込む。不要なSkill本文は送らない。",
   "skills": [
+    {
+      "id": "skill-manager",
+      "file": "skills/skill-manager.md",
+      "title": "Skill Manager Skill",
+      "description": "Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。",
+      "triggers": [
+        "Skill",
+        "skills",
+        "skill index",
+        "Pattern B",
+        "stages",
+        "管理用Skill",
+        "ユーザーSkill"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true,
+      "content": "---\nprofile: skill-manager\ntarget: Skill definitions, Skill index, Pattern B, user/admin skill separation\nstages:\n  - chat\n  - coding\n  - debugging\n---\n\n# Skill Manager Skill\n\n## Purpose\nUse this skill when designing, editing, validating, or debugging Skill definitions.\n\n## Rules\n- Every Skill must explicitly declare `stages` with one or more of: `chat`, `coding`, `debugging`.\n- Admin Skills may be saved as GitHub JSON files.\n- User Skills are local app settings only and must not be included in GitHub file saves.\n- The Skill index must contain metadata only: id, title, description, triggers, stages, file, enabled.\n- Skill body content is loaded only after the selector chooses the Skill.\n- Do not mix admin Skill selection logic with user Skill selection logic.\n\n## Validation Checklist\n1. Skill has a stable id.\n2. Skill has explicit stages.\n3. Skill has clear triggers.\n4. Admin/user storage boundaries are preserved.\n5. Index and content are separated for Pattern B."
+    },
     {
       "id": "frontend",
       "file": "skills/frontend.md",
@@ -24,8 +47,13 @@
         "CSS",
         "state management"
       ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
       "enabled": true,
-      "content": "---\nprofile: frontend\ntarget: UI, React, Next.js, CSS, State Management\n---\n\n# Frontend Skill Profile\n\n## Skill Level\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\n- State Management: Prefer React Context or Zustand over Redux.\n- Async Pattern: Use async/await. No `.then()` chains."
+      "content": "---\nprofile: frontend\ntarget: UI, React, Next.js, CSS, State Management\nstages:\n  - chat\n  - coding\n  - debugging\n---\n\n# Frontend Skill Profile\n\n## Skill Level\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\n- State Management: Prefer React Context or Zustand over Redux.\n- Async Pattern: Use async/await. No `.then()` chains."
     },
     {
       "id": "backend",
@@ -41,8 +69,13 @@
         "backend",
         "PostgreSQL"
       ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
       "enabled": true,
-      "content": "---\nprofile: backend\ntarget: Node.js, Database, API, Prisma\n---\n\n# Backend Skill Profile\n\n## Skill Level\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Provide standard best practices with brief meaningful explanations.\n- Architecture: Enforce Controllers, Services, Repositories.\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage."
+      "content": "---\nprofile: backend\ntarget: Node.js, Database, API, Prisma\nstages:\n  - chat\n  - coding\n  - debugging\n---\n\n# Backend Skill Profile\n\n## Skill Level\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Provide standard best practices with brief meaningful explanations.\n- Architecture: Enforce Controllers, Services, Repositories.\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage."
     },
     {
       "id": "devops",
@@ -58,8 +91,13 @@
         "infra",
         "deployment"
       ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
       "enabled": true,
-      "content": "---\nprofile: devops\ntarget: Docker, CI/CD, AWS, Infrastructure\n---\n\n# DevOps & Infra Skill Profile\n\n## Skill Level\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\n\n## Rules & Conventions\n- Language: English for code, Japanese for chat explanations.\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\n- Best Practices: Ensure production containers run as non-root users."
+      "content": "---\nprofile: devops\ntarget: Docker, CI/CD, AWS, Infrastructure\nstages:\n  - chat\n  - coding\n  - debugging\n---\n\n# DevOps & Infra Skill Profile\n\n## Skill Level\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\n\n## Rules & Conventions\n- Language: English for code, Japanese for chat explanations.\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\n- Best Practices: Ensure production containers run as non-root users."
     }
   ]
 }
