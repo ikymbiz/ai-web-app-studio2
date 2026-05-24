@@ -44,3 +44,11 @@ AIは生成するアプリでこの構造を逸脱してはならない。
 - 管理画面の「開発ルール」設定値を、コード生成AI、デバッグAI、検証AIの共通制約として扱う。
 - 生成アプリにも docs/PRINCIPLE.md, docs/DEVELOPMENT_RULES.md, docs/SYSTEM_DESIGN.md, docs/FAILURE_LOG.md, docs/HANDOVER.md を必ず含める。
 - このアプリ自身の変更時も、index.html、js/*.js、prompts.json、models/models.json、skills/admin-skills.json、docs/*.md、sw.js の整合性を確認する。
+
+
+## v20運用規則: 進行可視化と中断時引き継ぎ
+- 長時間処理ではチャットにエージェント進行ログを表示する。
+- Planner、Coder、Debugger、Verifier、Bug Analyst、Reviewer、Handover の作業段階を進行ログに残す。
+- 進行タブには時刻、担当エージェント、処理段階、結果を保存する。
+- ブラウザ終了、更新、AIエラー、中断時には HANDOVER.md を更新し、タスクを勝手に verified にしない。
+- プレビューは検証完了後のレビュー確認後にのみ表示する。
