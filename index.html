@@ -3447,8 +3447,8 @@ ${files.length ? files.map(f => `- ${f}`).join('\n') : '- ファイルなし'}
             const markdown = buildHandoverMarkdown(reason);
             localStorage.setItem(HANDOVER_SNAPSHOT_KEY, markdown);
             if (projectFiles && typeof projectFiles === 'object') {
-                projectFiles['docs/HANDOVER.md'] = markdown;
-                if (currentFilePath === 'docs/HANDOVER.md' && cmView) {
+                projectFiles['plan_log.md'] = markdown;
+                if (currentFilePath === 'plan_log.md' && cmView) {
                     isSwitchingEditorFile = true;
                     cmView.dispatch({ changes: { from: 0, to: cmView.state.doc.length, insert: markdown } });
                     isSwitchingEditorFile = false;
@@ -4983,7 +4983,7 @@ ${missing.map((m,i)=>`${i+1}. ${m}`).join('\n')}
 【現在の生成ファイル】
 ${verificationText}
 
-未実装要件を必ず反映し、説明・計画・Markdownを含めず、entryFile と files を含むJSONだけを再出力してください。docs/、src/、config/、.github/ の標準構造と docs の5ファイルは省略しないでください。管理画面の開発ルールにも従ってください。`;
+未実装要件を必ず反映し、説明・計画・Markdownを含めず、entryFile と files を含むJSONだけを再出力してください。生成アプリには README.md と plan_log.md を必ず含めてください。管理画面の開発ルールにも従ってください。`;
                     const repaired = await callLLM({ prompt: repairPrompt, stream: false, model, taskType: 'code-repair' });
                     project = parseGeneratedProject(repaired.text);
                     verificationText = projectToVerificationText(project);
@@ -4998,7 +4998,7 @@ ${verificationText}
         if (window.AICodeLogic?.ensureRequiredProjectStructure) {
             files = window.AICodeLogic.ensureRequiredProjectStructure(files);
         }
-        const entryCandidate = project?.entryFile || currentFilePath || (files['src/admin/index.html'] !== undefined ? 'src/admin/index.html' : (files['index.html'] !== undefined ? 'index.html' : Object.keys(files).find(p => /\.html?$/i.test(p)) || Object.keys(files)[0]));
+        const entryCandidate = project?.entryFile || currentFilePath || (files['index.html'] !== undefined ? 'index.html' : (files['src/admin/index.html'] !== undefined ? 'src/admin/index.html' : Object.keys(files).find(p => /\.html?$/i.test(p)) || Object.keys(files)[0]));
         const entryFile = normalizeFilePath(entryCandidate);
         return { files, entryFile };
     }
@@ -5247,8 +5247,8 @@ ${verification.summary}` : '';
 
 【強制ルール】
 - 出力は entryFile と files を含む複数ファイルJSONのみ。
-- docs/、src/apps/、src/admin/、config/、.github/ の標準構造と docs の5ファイルは省略しない。
-- プレビュー用の入口は原則 src/admin/index.html。
+- 生成アプリには README.md と plan_log.md を必ず含める。
+- プレビュー用の入口は原則 index.html。
 - ボタンには後でロジック接続しやすい id / data-action を付ける。
 - ダミーデータは見た目確認に必要な範囲だけ使う。
 - fetch、外部API、ログイン、本物の保存処理、本物の課金処理はまだ実装しない。
@@ -5344,7 +5344,7 @@ ${specListToString()}
 - 承認済みUIのHTML構造・id・class・文言・CSSを可能な限り変更しない。
 - 既存のUIを削除・置換しない。
 - イベントリスナー、状態管理、localStorage/IndexedDB、バリデーション、エラー処理、モック解除などを実装する。
-- docs/、src/apps/、src/admin/、config/、.github/ と docs の5ファイルを保持する。
+- 生成アプリには README.md と plan_log.md を保持する。
 - entryFile と files を含むJSONだけを出力する。
 
 【最終出力形式】
@@ -5399,7 +5399,7 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
         ].filter(Boolean).join('\n\n');
         const system = `${codeOnlyInstruction}
 
-Expert Full-stack Web Developerとして、要件に最適な複数ファイル構成のWebアプリを出力してください。生成するアプリはRoot直下に docs/、tasks/、src/apps/、src/admin/、config/、.github/ を持つ構成を標準とし、docs/PRINCIPLE.md、docs/DEVELOPMENT_RULES.md、docs/SYSTEM_DESIGN.md、docs/FAILURE_LOG.md、docs/HANDOVER.md を必ず含めてください。プレビュー用の入口は原則 src/admin/index.html としてください。
+Expert Full-stack Web Developerとして、要件に最適な構成のWebアプリを出力してください。生成アプリには必ず README.md（アプリ概要）と plan_log.md（実装計画・進捗・教訓）を含めてください。その他のフォルダ構成は規模に応じて任意で、ちょっとしたアプリは単一HTMLでも構いません。プレビュー用の入口は原則 index.html としてください。
 ${adminBuildSystem}
 ルール: 出力はコードだけ。Markdownのコードブロック、説明、計画、Act/Plan、箇条書き、前置き、後書きは不要。複数ファイルJSONだけを出力し、docs/ と src/ と config/ と .github/ を省略せず、管理画面の開発ルールにも従ってください。
 ${themeCSS ? `【デザイン】以下のCSS変数を使用
@@ -6705,16 +6705,15 @@ ${String(a.textContent).slice(0, 24000)}`);
         return [
             '# AI Web Studio App',
             '',
-            'AI Web Studioで生成・編集したWebアプリです。標準構造として docs / src / config / .github を含みます。',
+            'AI Web Studioで生成・編集したWebアプリです。最小ドキュメントとして README.md と plan_log.md を含みます。',
             '',
             '## 構成',
             '',
-            '標準構造:',
-            '- `docs/` AIの外部記憶・憲法',
-            '- `src/apps/` メインアプリケーション',
-            '- `src/admin/` 管理・運用ツール',
-            '- `config/` 設定',
-            '- `.github/` 自動化設定',
+            '最小ドキュメント:',
+            '- `README.md` アプリ概要',
+            '- `plan_log.md` 実装計画・進捗・教訓',
+            '',
+            'その他のフォルダ構成はアプリの規模に応じます。',
             '',
             '## ファイル',
             fileList,
