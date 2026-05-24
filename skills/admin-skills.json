@@ -1,0 +1,108 @@
+{
+  "version": 3,
+  "mode": "pattern-b-json-bundle",
+  "toolName": "load_skill_profile",
+  "storage": "github-json",
+  "github": {
+    "repo": "",
+    "branch": "main",
+    "path": "skills/admin-skills.json"
+  },
+  "indexPath": "skills/admin-skills.index.json",
+  "instructions": "管理用Skillsは skills/admin-skills.json に集約して管理する。AIには最初にSkillのインデックスだけを渡す。各Skillのstagesで chat / coding / debugging のどの段階で使うかを必ず確認し、現在の段階に一致するSkillだけを候補にする。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけをオンデマンドで読み込む。不要なSkill本文は送らない。ユーザー追加Skillは別ロジックで管理し、この管理用JSONやGitHub保存対象に混ぜない。",
+  "skills": [
+    {
+      "id": "skill-manager",
+      "file": "skills/admin-skills.json#skills.skill-manager",
+      "title": "Skill Manager Skill",
+      "description": "Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。",
+      "triggers": [
+        "Skill",
+        "skills",
+        "skill index",
+        "Pattern B",
+        "stages",
+        "管理用Skill",
+        "ユーザーSkill"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true,
+      "content": "# Skill Manager Skill\n\n## Purpose\nUse this skill when designing, editing, validating, or debugging Skill definitions.\n\n## Rules\n- Every Skill must explicitly declare `stages` with one or more of: `chat`, `coding`, `debugging`.\n- Admin Skills may be saved as GitHub JSON files.\n- User Skills are local app settings only and must not be included in GitHub file saves.\n- The Skill index must contain metadata only: id, title, description, triggers, stages, file, enabled.\n- Skill body content is loaded only after the selector chooses the Skill.\n- Do not mix admin Skill selection logic with user Skill selection logic.\n\n## Validation Checklist\n1. Skill has a stable id.\n2. Skill has explicit stages.\n3. Skill has clear triggers.\n4. Admin/user storage boundaries are preserved.\n5. Index and content are separated for Pattern B.",
+      "source": "admin-json-bundle"
+    },
+    {
+      "id": "frontend",
+      "file": "skills/admin-skills.json#skills.frontend",
+      "title": "Frontend Skill Profile",
+      "description": "UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。",
+      "triggers": [
+        "UI",
+        "React",
+        "Next.js",
+        "TypeScript",
+        "Tailwind",
+        "CSS",
+        "state management"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true,
+      "content": "# Frontend Skill Profile\n\n## Skill Level\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\n- State Management: Prefer React Context or Zustand over Redux.\n- Async Pattern: Use async/await. No `.then()` chains.",
+      "source": "admin-json-bundle"
+    },
+    {
+      "id": "backend",
+      "file": "skills/admin-skills.json#skills.backend",
+      "title": "Backend Skill Profile",
+      "description": "Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。",
+      "triggers": [
+        "Node.js",
+        "database",
+        "API",
+        "Prisma",
+        "server",
+        "backend",
+        "PostgreSQL"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true,
+      "content": "# Backend Skill Profile\n\n## Skill Level\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Provide standard best practices with brief meaningful explanations.\n- Architecture: Enforce Controllers, Services, Repositories.\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.",
+      "source": "admin-json-bundle"
+    },
+    {
+      "id": "devops",
+      "file": "skills/admin-skills.json#skills.devops",
+      "title": "DevOps & Infra Skill Profile",
+      "description": "Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。",
+      "triggers": [
+        "Docker",
+        "Compose",
+        "CI/CD",
+        "GitHub Actions",
+        "AWS",
+        "infra",
+        "deployment"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true,
+      "content": "# DevOps & Infra Skill Profile\n\n## Skill Level\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\n\n## Rules & Conventions\n- Language: English for code, Japanese for chat explanations.\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\n- Best Practices: Ensure production containers run as non-root users.",
+      "source": "admin-json-bundle"
+    }
+  ],
+  "source": "skills/admin-skills.json"
+}
