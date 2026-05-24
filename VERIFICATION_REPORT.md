@@ -122,10 +122,16 @@
 - `index.html` 内のインライン `<script>` を抽出し、`node --check` でJavaScript構文を検証。
 - `js/ai-chat-logic.js` / `js/ai-code-logic.js` / `js/ai-debug-logic.js` を `node --check` で検証。
 - `sw.js` を `node --check` で検証。
-- `prompts.json` / `models/models.json` / `skills/skills.example.json` / `skills/skills.index.example.json` を `python3 -m json.tool` で検証。
+- `prompts.json` / `models/models.json` / `skills/admin-skills.json` / `skills/admin-skills.index.json` を `python3 -m json.tool` で検証。
 - 実DOM用IDの重複がないことを確認。
 
 ## v7 未確認事項
 
 - Android実機でのタップ操作、モーダル表示、Service Worker更新反映は未確認。
 - 実AI APIを使った生成結果の完全な挙動は、APIキーとネットワーク接続に依存するため未実行。
+
+
+## v10 追加整理
+- 管理用Skillsは `skills/admin-skills.json` と `skills/admin-skills.index.json` に一本化。
+- 旧 `skills/*.md` と旧 example JSON は削除。
+- Service Worker のキャッシュ対象から旧Skillファイルを削除。
