@@ -1,0 +1,100 @@
+{
+  "version": 2,
+  "purpose": "Pattern B selector index for skills/admin-skills.json. This file contains metadata only. Skill body content is embedded in admin-skills.json and loaded only after selection.",
+  "source": "skills/admin-skills.json",
+  "stages": [
+    "chat",
+    "coding",
+    "debugging"
+  ],
+  "skills": [
+    {
+      "id": "skill-manager",
+      "file": "skills/admin-skills.json#skills.skill-manager",
+      "title": "Skill Manager Skill",
+      "description": "Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。",
+      "triggers": [
+        "Skill",
+        "skills",
+        "skill index",
+        "Pattern B",
+        "stages",
+        "管理用Skill",
+        "ユーザーSkill"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true,
+      "source": "admin-json-bundle"
+    },
+    {
+      "id": "frontend",
+      "file": "skills/admin-skills.json#skills.frontend",
+      "title": "Frontend Skill Profile",
+      "description": "UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。",
+      "triggers": [
+        "UI",
+        "React",
+        "Next.js",
+        "TypeScript",
+        "Tailwind",
+        "CSS",
+        "state management"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true,
+      "source": "admin-json-bundle"
+    },
+    {
+      "id": "backend",
+      "file": "skills/admin-skills.json#skills.backend",
+      "title": "Backend Skill Profile",
+      "description": "Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。",
+      "triggers": [
+        "Node.js",
+        "database",
+        "API",
+        "Prisma",
+        "server",
+        "backend",
+        "PostgreSQL"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true,
+      "source": "admin-json-bundle"
+    },
+    {
+      "id": "devops",
+      "file": "skills/admin-skills.json#skills.devops",
+      "title": "DevOps & Infra Skill Profile",
+      "description": "Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。",
+      "triggers": [
+        "Docker",
+        "Compose",
+        "CI/CD",
+        "GitHub Actions",
+        "AWS",
+        "infra",
+        "deployment"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true,
+      "source": "admin-json-bundle"
+    }
+  ]
+}
