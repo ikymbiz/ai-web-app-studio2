@@ -130,9 +130,9 @@
         #prompt-editor-modal .editor-footer { display: flex; gap: 10px; padding-top: 8px; border-top: 1px solid var(--color-border); }
         #prompt-editor-modal .editor-footer .modal-btn { margin: 0; flex: 1; }
 
-        /* タスク管理タブ（Phase 2） */
-        .task-tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
-        .task-tab { background: transparent; border: none; padding: 10px 8px; color: var(--color-text-secondary); cursor: pointer; font-size: 12px; border-bottom: 2px solid transparent; transition: 0.2s; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; font-family: var(--font-body); }
+        /* タスク管理タブ（計画 / 検証 / 失敗ログ / 進行） */
+        .task-tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+        .task-tab { background: transparent; border: none; padding: 10px 8px; color: var(--color-text-secondary); cursor: pointer; font-size: 12px; border-bottom: 2px solid transparent; transition: 0.2s; display: flex; align-items: center; gap: 6px; flex: 1 0 96px; justify-content: center; font-family: var(--font-body); white-space: nowrap; }
         .task-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
         .task-tab-badge { background: var(--color-bg-elevated); padding: 1px 7px; border-radius: 10px; font-size: 10px; min-width: 16px; text-align: center; line-height: 1.4; }
         .task-tab.active .task-tab-badge { background: var(--primary); color: #fff; }
@@ -155,7 +155,8 @@
         .workflow-event.awaiting_approval .workflow-event-dot { background: var(--warning); }
         .workflow-event-main { flex: 1; min-width: 0; }
         .workflow-event-message { font-size: 12px; line-height: 1.5; color: var(--color-text-primary); white-space: pre-wrap; }
-        .workflow-event-meta { font-size: 10px; color: var(--color-text-secondary); margin-top: 3px; }
+        .workflow-event-meta { font-size: 10px; color: var(--color-text-secondary); margin-top: 3px; display:flex; gap:5px; flex-wrap:wrap; align-items:center; }
+        .workflow-event-agent { color: var(--color-text-primary); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 999px; padding: 1px 6px; font-size: 10px; line-height: 1.4; }
         .workflow-progress-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
         .workflow-progress-actions button { background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-primary); padding: 8px 10px; font-size: 12px; cursor: pointer; font-family: var(--font-body); }
         .workflow-progress-actions button.primary { background: var(--primary); border-color: var(--primary); color:#fff; }
@@ -422,6 +423,12 @@
         body.keyboard-open #chat-log { gap: 12px; padding-top: 10px; padding-bottom: 10px; }
         body.keyboard-open .input-container { padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
         body.keyboard-open #user-prompt { max-height: 105px; }
+        @media (max-width: 560px) {
+            .task-tabs { padding-bottom: 2px; scrollbar-width: thin; }
+            .task-tab { flex: 0 0 auto; min-width: 86px; padding-left: 8px; padding-right: 8px; }
+            .task-tab-badge { flex-shrink: 0; }
+            #spec-modal .modal-body.spec-page { height: min(72vh, calc(100dvh - 96px)); }
+        }
         @media (max-width: 480px) {
             .tabs { min-height: 52px; }
             .tab-btn { min-height: 52px; font-size: 13px; }
@@ -3000,7 +3007,7 @@ ${lines.join('\n')}`;
         return risk === 'high' || risk === 'critical' || /delete|remove|api key|token|github|deploy|storage|credential|secret|削除|apiキー|トークン|github|デプロイ|保存先|認証/.test(text);
     }
 
-    /* === タスク管理（Phase 2: 計画 / 検証 / 失敗ログ の3カテゴリ） === */
+    /* === タスク管理（計画 / 検証 / 失敗ログ / 進行 の4カテゴリ） === */
     let currentTaskTab = 'plan';
 
     function openSpecModal(tab) {
@@ -3209,7 +3216,7 @@ ${lines.join('\n')}`;
     function workflowAgentForStage(stage, kind) {
         const text = String(stage || '');
         if (/タスク|優先|選定/.test(text)) return 'Planner';
-        if (/Skill/.test(text)) return 'Skill Selector';
+        if (/Skill|スキル/.test(text)) return 'Planner';
         if (/コード生成|コード反映|テーマ/.test(text)) return 'Coder';
         if (/デバッグ|修正/.test(text)) return 'Debugger';
         if (/検証/.test(text)) return 'Verifier';
@@ -3360,7 +3367,7 @@ ${files.length ? files.map(f => `- ${f}`).join('\n') : '- ファイルなし'}
                     <span class="workflow-event-dot"></span>
                     <div class="workflow-event-main">
                         <div class="workflow-event-message">${escapeHtml(ev.message || '')}</div>
-                        <div class="workflow-event-meta">${escapeHtml(workflowTimeText(ev.createdAt))}${ev.detail?.agent ? ' / ' + escapeHtml(ev.detail.agent) : ''}${ev.stage ? ' / ' + escapeHtml(ev.stage) : ''}</div>
+                        <div class="workflow-event-meta">${ev.detail?.agent ? '<span class="workflow-event-agent">' + escapeHtml(ev.detail.agent) + '</span>' : ''}<span>${escapeHtml(workflowTimeText(ev.createdAt))}</span>${ev.stage ? '<span>/ ' + escapeHtml(ev.stage) + '</span>' : ''}</div>
                     </div>
                 </div>
             `).join('');
@@ -4994,7 +5001,7 @@ ${verification.summary}` : '';
         chatHistory.push(sysMsgObj); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsgObj);
         updateWorkflowStep('テーマ取得', '選択されたデザインテーマを読み込んでいます。');
         const themeCSS = await getSelectedThemeCSS();
-        updateWorkflowStep('Skill選定', '管理用・ユーザー用Skillsから必要なものを選定しています。');
+        updateWorkflowStep('Skill選定', 'Skillsから必要なものを選定しています。');
         const skillContext = await buildSkillContextForTask(specListToString() + '\n\n' + currentCode.slice(0, 8000), model, codeTaskType);
         const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
         const adminBuildSystem = [
