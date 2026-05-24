@@ -110,11 +110,13 @@
         .api-key-field.using > label::before { content: "● 使用中 / In use  "; color: var(--success); font-weight: bold; font-size: 10px; letter-spacing: 0.05em; }
         .api-key-field.using { background: rgba(34,197,94,0.04); border-left: 3px solid var(--success); padding-left: 10px; border-radius: 4px; }
 
-        /* 編集ボタン（textareaの代わり） */
-        .edit-prompt-btn { width: 100%; padding: 12px 14px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-primary); cursor: pointer; font-size: 13px; font-family: var(--font-body); display: flex; align-items: center; justify-content: space-between; transition: 0.2s; text-align: left; }
-        .edit-prompt-btn:hover { background: var(--color-border); border-color: var(--primary); }
-        .edit-prompt-btn .edit-icon { font-size: 14px; opacity: 0.7; }
-        .edit-prompt-btn .edit-preview { color: var(--color-text-secondary); font-size: 11px; margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        /* モーダル編集入力欄（通常入力欄の見た目で、クリック/タップ時にモーダルを開く） */
+        .edit-prompt-btn { width: 100%; min-height: 48px; padding: 13px 44px 13px 14px; background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018)), var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 12px; color: var(--color-text-primary); cursor: text; font-size: 14px; font-family: var(--font-body); display: flex; align-items: center; position: relative; transition: border-color 0.18s, box-shadow 0.18s, background 0.18s; text-align: left; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+        .edit-prompt-btn:hover, .edit-prompt-btn:focus-visible { background: var(--color-bg-elevated); border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.16), inset 0 1px 0 rgba(255,255,255,0.05); outline: none; }
+        .edit-prompt-btn .edit-preview { color: var(--color-text-primary); font-size: 13px; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+        .edit-prompt-btn .edit-preview.is-empty { color: var(--color-text-secondary); }
+        .edit-prompt-btn .edit-preview.static-preview { color: var(--color-text-primary); font-weight: 600; }
+        .prompt-open-indicator { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--color-text-secondary); font-size: 14px; pointer-events: none; }
 
         /* プロンプトエディタモーダル */
         #prompt-editor-modal .modal { max-width: 720px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column; }
@@ -279,9 +281,9 @@
         .bg-notify.show { display:flex; align-items:center; gap:8px; }
 
         /* モーダル */
-        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:2000; align-items:center; justify-content:center; }
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.72); z-index:2000; align-items:center; justify-content:center; padding:16px; backdrop-filter: blur(10px); }
         .modal-overlay.show { display:flex; }
-        .modal { background:var(--color-bg-surface); border:1px solid var(--color-border); border-radius:12px; width:90%; max-width:500px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; }
+        .modal { background:linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)), var(--color-bg-surface); border:1px solid var(--color-border); border-radius:18px; width:90%; max-width:500px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,0.55); }
         .modal-header { display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid var(--color-border); }
         .modal-header h3 { margin:0; font-size:15px; color:#fff; font-family: var(--font-display); }
         .modal-close { background:none; border:none; color:var(--color-text-secondary); font-size:20px; cursor:pointer; }
@@ -314,7 +316,7 @@
         @media (max-width: 640px) { .settings-tabbar { padding: 12px 12px 0; gap: 6px; } .settings-tab { min-height: 42px; padding: 9px 11px; font-size: 11px; } .settings-panel { padding: 14px 12px 18px; } }
         .field { margin-bottom: 20px; }
         label { display: block; font-size: 11px; color: var(--color-text-secondary); margin-bottom: 8px; font-weight: bold; letter-spacing: 0.05em; font-family: var(--font-display); }
-        input[type="password"], .api-key-input, textarea.setting-input, select.setting-input { width: 100%; background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 8px; padding: 12px; color: #fff; font-size: 14px; outline: none; transition: border 0.2s; font-family: var(--font-body); }
+        input[type="password"], input.setting-input, .api-key-input, textarea.setting-input, select.setting-input { width: 100%; background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 8px; padding: 12px; color: #fff; font-size: 14px; outline: none; transition: border 0.2s; font-family: var(--font-body); }
         input:focus, textarea:focus, select:focus { border-color: var(--primary); }
         select.setting-input { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C2.185 5.355 2.402 5 2.805 5h9.39c.403 0 .62.355.354.658l-4.796 5.482a.5.5 0 0 1-.748 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
         .field-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -499,9 +501,9 @@
                     <div class="settings-section-body">
                         <div class="field">
                             <label data-label="targetPersonaLabel">ターゲットユーザーペルソナ</label>
-                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('target-persona')">
-                                <span><span class="edit-icon">📝</span> <span data-label="editButton">編集</span></span>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('target-persona')" aria-haspopup="dialog" aria-controls="prompt-editor-modal">
                                 <span class="edit-preview" id="preview-target-persona"></span>
+                                <span class="prompt-open-indicator" aria-hidden="true">↗</span>
                             </button>
                             <textarea id="target-persona" style="display:none;"></textarea>
                             <div class="field-hint" data-label="targetPersonaHint">アプリの想定ユーザー像。AIへの生成指示に使われます。</div>
@@ -509,9 +511,9 @@
 
                         <div class="field">
                             <label data-label="userSystemPromptLabel">ユーザー用システムプロンプト</label>
-                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('user-system-prompt')">
-                                <span><span class="edit-icon">📝</span> <span data-label="editButton">編集</span></span>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('user-system-prompt')" aria-haspopup="dialog" aria-controls="prompt-editor-modal">
                                 <span class="edit-preview" id="preview-user-system-prompt"></span>
+                                <span class="prompt-open-indicator" aria-hidden="true">↗</span>
                             </button>
                             <textarea id="user-system-prompt" style="display:none;"></textarea>
                             <div class="field-hint" data-label="userSystemPromptHint">ユーザーが生成結果に反映したい好み・制約・口調・デザイン方針を入力します。管理用プロンプトとは分離して保存します。</div>
@@ -543,9 +545,9 @@
                     <div class="settings-section-body">
                         <div class="field">
                             <label data-label="userSkillSettingsLabel">ユーザーSkill設定</label>
-                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('user-skill-settings')">
-                                <span><span class="edit-icon">🧩</span> <span data-label="userSkillJsonEditButton">ユーザーSkill JSONを編集</span></span>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('user-skill-settings')" aria-haspopup="dialog" aria-controls="prompt-editor-modal">
                                 <span class="edit-preview" id="preview-user-skill-settings"></span>
+                                <span class="prompt-open-indicator" aria-hidden="true">↗</span>
                             </button>
                             <textarea id="user-skill-settings" style="display:none;"></textarea>
                             <div class="field-hint" data-label="userSkillSettingsHint">ユーザーが追加するSkillです。管理用Skillとは別ロジックで選択し、ファイルやGitHubには保存しません。</div>
@@ -708,9 +710,9 @@
                     <div class="settings-section-body">
                         <div class="field">
                             <label data-label="systemPromptLabel">管理用システムプロンプト</label>
-                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('system-prompt')">
-                                <span><span class="edit-icon">🛡️</span> <span data-label="editButton">編集</span></span>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('system-prompt')" aria-haspopup="dialog" aria-controls="prompt-editor-modal">
                                 <span class="edit-preview" id="preview-system-prompt"></span>
+                                <span class="prompt-open-indicator" aria-hidden="true">↗</span>
                             </button>
                             <textarea id="system-prompt" style="display:none;"></textarea>
                             <div class="field-hint" data-label="adminSystemPromptHint">AIの基本役割・禁止事項・差分実装ルールなど、管理者が固定したい指示を保持します。</div>
@@ -718,9 +720,9 @@
 
                         <div class="field">
                             <label data-label="codePrinciplesLabel">プリンシプル</label>
-                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('code-principles')">
-                                <span><span class="edit-icon">📏</span> <span data-label="editButton">編集</span></span>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('code-principles')" aria-haspopup="dialog" aria-controls="prompt-editor-modal">
                                 <span class="edit-preview" id="preview-code-principles"></span>
+                                <span class="prompt-open-indicator" aria-hidden="true">↗</span>
                             </button>
                             <textarea id="code-principles" style="display:none;"></textarea>
                             <div class="field-hint" data-label="codePrinciplesHint">削除禁止、最小差分、検証必須などの実装原則を指定します。</div>
@@ -728,9 +730,9 @@
 
                         <div class="field">
                             <label data-label="adminSystemRequirementsLabel">システム要件</label>
-                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-system-requirements')">
-                                <span><span class="edit-icon">⚙️</span> <span data-label="editButton">編集</span></span>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-system-requirements')" aria-haspopup="dialog" aria-controls="prompt-editor-modal">
                                 <span class="edit-preview" id="preview-admin-system-requirements"></span>
+                                <span class="prompt-open-indicator" aria-hidden="true">↗</span>
                             </button>
                             <textarea id="admin-system-requirements" style="display:none;"></textarea>
                             <div class="field-hint" data-label="adminSystemRequirementsHint">PWA、Android、IndexedDB、GitHub連携、ファイル構成など維持すべき非機能要件を指定します。</div>
@@ -738,9 +740,9 @@
 
                         <div class="field">
                             <label data-label="adminImplementationVerifyLabel">実装検証用</label>
-                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-implementation-verification')">
-                                <span><span class="edit-icon">✅</span> <span data-label="editButton">編集</span></span>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-implementation-verification')" aria-haspopup="dialog" aria-controls="prompt-editor-modal">
                                 <span class="edit-preview" id="preview-admin-implementation-verification"></span>
+                                <span class="prompt-open-indicator" aria-hidden="true">↗</span>
                             </button>
                             <textarea id="admin-implementation-verification" style="display:none;"></textarea>
                             <div class="field-hint" data-label="adminImplementationVerifyHint">生成前後の確認観点、退行チェック、未検証事項の報告ルールを指定します。</div>
@@ -749,11 +751,11 @@
                         <details class="field prompt-details">
                             <summary data-label="promptTemplatesSummary">プロンプトテンプレート（詳細設定）</summary>
                             <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-plan')"><span><span class="edit-icon">📝</span> <span data-label="planPromptLabel">PLAN（計画）</span></span></button>
-                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-suggest')"><span><span class="edit-icon">📝</span> <span data-label="suggestPromptLabel">要件おまかせ</span></span></button>
-                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-debug')"><span><span class="edit-icon">📝</span> <span data-label="debugPromptLabel">修正依頼</span></span></button>
-                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-extract')"><span><span class="edit-icon">📝</span> <span data-label="extractPromptLabel">仕様抽出</span></span></button>
-                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-verify')"><span><span class="edit-icon">📝</span> <span data-label="verifyPromptLabel">漏れ検証</span></span></button>
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-plan')" aria-haspopup="dialog" aria-controls="prompt-editor-modal"><span class="edit-preview static-preview" data-label="planPromptLabel">PLAN（計画）</span><span class="prompt-open-indicator" aria-hidden="true">↗</span></button>
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-suggest')" aria-haspopup="dialog" aria-controls="prompt-editor-modal"><span class="edit-preview static-preview" data-label="suggestPromptLabel">要件おまかせ</span><span class="prompt-open-indicator" aria-hidden="true">↗</span></button>
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-debug')" aria-haspopup="dialog" aria-controls="prompt-editor-modal"><span class="edit-preview static-preview" data-label="debugPromptLabel">修正依頼</span><span class="prompt-open-indicator" aria-hidden="true">↗</span></button>
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-extract')" aria-haspopup="dialog" aria-controls="prompt-editor-modal"><span class="edit-preview static-preview" data-label="extractPromptLabel">仕様抽出</span><span class="prompt-open-indicator" aria-hidden="true">↗</span></button>
+                                <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('prompt-verify')" aria-haspopup="dialog" aria-controls="prompt-editor-modal"><span class="edit-preview static-preview" data-label="verifyPromptLabel">漏れ検証</span><span class="prompt-open-indicator" aria-hidden="true">↗</span></button>
                             </div>
                             <textarea id="prompt-plan" style="display:none;"></textarea>
                             <textarea id="prompt-suggest" style="display:none;"></textarea>
@@ -769,9 +771,9 @@
                     <div class="settings-section-body">
                         <div class="field">
                             <label data-label="skillSettingsLabel">Skill設定</label>
-                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('skill-settings')">
-                                <span><span class="edit-icon">🧩</span> <span data-label="skillJsonEditButton">Skill JSONを編集</span></span>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('skill-settings')" aria-haspopup="dialog" aria-controls="prompt-editor-modal">
                                 <span class="edit-preview" id="preview-skill-settings"></span>
+                                <span class="prompt-open-indicator" aria-hidden="true">↗</span>
                             </button>
                             <textarea id="skill-settings" style="display:none;"></textarea>
                             <div class="field-hint" data-label="skillSettingsHint">Pattern B用のSkillインデックスと本文をJSONで管理します。AIにはまずインデックスを渡し、必要なSkillだけをオンデマンドで読み込ませる設計です。</div>
@@ -1213,6 +1215,7 @@ profile: frontend
                 codeThemeLabel: "コードテーマ（生成コードに反映）", templatesLabel: "テンプレート",
                 resetDefaultButton: "↺ 初期値",
                 editButton: "編集",
+                promptInputPlaceholder: "タップして入力",
                 saveAndCloseButton: "💾 保存して閉じる",
                 promptEditorHint: "編集後「保存して閉じる」を押してください。空欄にして保存すると初期値に戻ります。",
                 promptEditorModelLabel: "使用モデル：",
@@ -1250,7 +1253,7 @@ profile: frontend
                 // 要件選択モーダル
                 optionsModalTitle: "💡 選択してください",
                 optionsModalHint: "AIが提示した質問を1つずつ表示します。選択すると次の質問へ進みます。「その他」で自由入力できます。",
-                optionsExtractButton: "選択肢を開く",
+                optionsExtractButton: "選択肢",
                 optionOther: "その他（自由入力）",
                 optionOtherPlaceholder: "自由に入力してください...",
                 optionsStepBack: "戻る", optionsStepNext: "次へ", optionsStepApply: "回答を反映", optionsStepQuestionCount: "{current}/{total}",
@@ -1601,6 +1604,7 @@ profile: frontend
             "templatesLabel": "Templates",
             "resetDefaultButton": "Reset default",
             "editButton": "Edit",
+            "promptInputPlaceholder": "Tap to enter",
             "saveAndCloseButton": "Save and close",
             "promptEditorHint": "Edit the text and press Save and close. Saving an empty value resets to default.",
             "promptEditorModelLabel": "Model route:",
@@ -1916,13 +1920,21 @@ profile: frontend
         }
     }
 
-    // 設定画面のプロンプト編集ボタンに、現在の値のプレビューを表示
+    // 設定画面のモーダル編集入力欄に、現在の値のプレビューを表示
     function updatePromptPreviews() {
+        const placeholder = getLabel('promptInputPlaceholder') || 'タップして入力';
         ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings'].forEach(key => {
             const el = document.getElementById('preview-' + key);
             if (el) {
                 const v = document.getElementById(key)?.value || '';
-                el.textContent = v ? v.replace(/\s+/g, ' ').slice(0, 60) + (v.length > 60 ? '…' : '') : '';
+                const oneLine = v.replace(/\s+/g, ' ').trim();
+                if (oneLine) {
+                    el.textContent = oneLine.slice(0, 90) + (oneLine.length > 90 ? '…' : '');
+                    el.classList.remove('is-empty');
+                } else {
+                    el.textContent = placeholder;
+                    el.classList.add('is-empty');
+                }
             }
         });
     }
@@ -3420,8 +3432,8 @@ ${skill.content || ''}`).join('\n\n');
         const c = document.createElement('div'); c.className = 'msg-content'; if (msg.html) c.innerHTML = msg.text; else c.textContent = msg.text; d.appendChild(c);
         if (!msg.role.includes('system-msg') && !msg.html) { const a = document.createElement('div'); a.className = 'msg-actions'; const ed = document.createElement('button'); ed.className = 'msg-action-btn'; ed.innerHTML = getLabel('chatMsgEdit'); ed.onclick = () => { if (c.contentEditable === "true") { c.contentEditable = "false"; c.style.border = "none"; c.style.padding = "0"; ed.innerHTML = getLabel('chatMsgEdit'); const m = chatHistory.find(x => x.id === msg.id); if (m) { m.text = c.textContent; saveToDB('chatHistory', chatHistory); rebuildConversationContext(); showToast(getLabel('toastSettingsSaved')); } } else { c.contentEditable = "true"; c.style.border = "1px solid var(--primary)"; c.style.padding = "4px"; c.focus(); ed.innerHTML = getLabel('chatMsgSave'); } }; const dl = document.createElement('button'); dl.className = 'msg-action-btn'; dl.innerHTML = getLabel('chatMsgDelete'); dl.onclick = () => { chatHistory = chatHistory.filter(x => x.id !== msg.id); d.remove(); saveToDB('chatHistory', chatHistory); rebuildConversationContext(); showToast(getLabel('toastSettingsSaved')); }; a.appendChild(ed); a.appendChild(dl); d.appendChild(a); }
         if (msg.role === 'ai' && !msg.html) { const b = document.createElement('div'); b.className = 'generate-btn-wrapper'; let h = false; if (msg.text.includes(getLabel('generateCodeButton'))) { const gb = document.createElement('button'); gb.className = 'generate-btn'; gb.innerHTML = getLabel('generateCodeButton'); gb.onclick = generateCode; b.appendChild(gb); h = true; } if (msg.text.includes(getLabel('aiQuestionOptionSuggest'))) { const pb = document.createElement('button'); pb.className = 'generate-btn'; pb.style.background = 'var(--accent)'; pb.innerHTML = getLabel('aiQuestionOptionSuggest'); pb.onclick = askForPlan; b.appendChild(pb); h = true; } if (h) d.appendChild(b); }
-        // AI応答から質問グループ・選択肢を抽出して「💡 選択肢として開く」ボタンを表示
-        if (msg.role === 'ai' && !msg.html) {
+        // AI応答内の選択肢はボタンではなく、応答生成直後にモーダルで自動表示する。
+        if (false && msg.role === 'ai' && !msg.html) {
             const groups = parseOptionGroupsFromText(msg.text);
             const flatCount = groups.reduce((sum, g) => sum + (g.options || []).length, 0);
             if (flatCount >= 2) {
@@ -3430,7 +3442,7 @@ ${skill.content || ''}`).join('\n\n');
                 const ob = document.createElement('button');
                 ob.className = 'options-extract-btn';
                 const countLabel = groups.length > 1 ? `${groups.length}問` : `${flatCount}`;
-                ob.textContent = `💡 ${getLabel('optionsExtractButton') || '選択肢を開く'} (${countLabel})`;
+                ob.textContent = `💡 ${getLabel('optionsExtractButton') || '選択肢'} (${countLabel})`;
                 ob.onclick = () => showOptionsModal(groups);
                 wrap.appendChild(ob);
                 d.appendChild(wrap);
@@ -3634,6 +3646,19 @@ ${skill.content || ''}`).join('\n\n');
         document.getElementById('options-modal').classList.add('show');
     }
 
+    function getAutoPopupOptionGroups(text) {
+        return parseOptionGroupsFromText(text)
+            .filter(g => !g.flat && (g.options || []).length >= 2)
+            .slice(0, 3);
+    }
+
+    function autoOpenOptionsModalFromAiText(text) {
+        const groups = getAutoPopupOptionGroups(text);
+        if (!groups.length) return false;
+        window.setTimeout(() => showOptionsModal(groups), 120);
+        return true;
+    }
+
     function renderOptionsModalStep() {
         const group = optionsModalGroups[optionsModalStepIndex];
         const list = document.getElementById('options-list');
@@ -3794,6 +3819,19 @@ ${skill.content || ''}`).join('\n\n');
 
     /* --- チャット・コード生成実行 --- */
     function askForPlan() { document.getElementById('user-prompt').value = getPrompt('suggest'); askAI(); }
+
+    function buildRequirementFlowInstruction(chatTaskType) {
+        if (chatTaskType === 'debugging') return '';
+        const userTurns = chatHistory.filter(m => m.role === 'user').length;
+        const specs = specListToString();
+        const isFirstInput = userTurns <= 1 && specs === '（なし）';
+        if (isFirstInput) {
+            return `【要件確認状態】
+これは最初のユーザー入力です。ここでは実装コードを書かず、1回だけ確認質問をしてください。質問は必須事項に絞って1〜3問までにしてください。選択肢がある質問はモーダル化しやすいように、質問ごとの見出しと箇条書きの選択肢で出してください。`;
+        }
+        return `【要件確認状態】
+初回確認後の入力です。追加質問を繰り返さず、これまでの入力をもとに「システムの機能要件」を実装可能な粒度で出力してください。曖昧で危険な点が残る場合だけ、最大3問までの確認質問を同じ応答内の末尾にまとめてください。コードは書かないでください。`;
+    }
     async function askAI() {
         const targetPersona = document.getElementById('target-persona').value;
         const chatRun = window.AIChatLogic?.prepareRun?.() || {};
@@ -3822,6 +3860,7 @@ ${window.getCode()}
 
 ${attachmentBlock}` : '');
         const skillContext = await buildSkillContextForTask(promptForAI + '\n\n' + codeContext, model, chatTaskType);
+        const requirementFlowInstruction = buildRequirementFlowInstruction(chatTaskType);
         const adminSystem = [
             document.getElementById('system-prompt').value.trim(),
             document.getElementById('admin-system-requirements')?.value.trim(),
@@ -3841,7 +3880,7 @@ ${specListToString()}`,
                 codeContext
             ].filter(Boolean).join('\n\n');
         } else {
-            system = (document.getElementById('prompt-plan').value.trim() || getPrompt('plan')).replace('{targetPersona}', targetPersona).replace('{prof}', targetPersona).replace('{codeContext}', codeContext).replace('{systemPrompt}', adminSystem).replace('{specList}', specListToString()).replace('{recentChat}', recentChatForAI);
+            system = [(document.getElementById('prompt-plan').value.trim() || getPrompt('plan')).replace('{targetPersona}', targetPersona).replace('{prof}', targetPersona).replace('{codeContext}', codeContext).replace('{systemPrompt}', adminSystem).replace('{specList}', specListToString()).replace('{recentChat}', recentChatForAI), requirementFlowInstruction].filter(Boolean).join('\n\n');
         }
         const images = hasAttachments ? currentAttachments.filter(a => (a.mime || '').startsWith('image/') && a.base64).map(a => ({ mime: a.mime, base64: a.base64 })) : [];
         if (!images.length && currentImageBase64 && currentMimeType) images.push({ mime: currentMimeType, base64: currentImageBase64 });
@@ -3859,19 +3898,30 @@ ${specListToString()}`,
             // 選択肢の抽出とモーダル表示
             const optionRegex = /\[OPTIONS:\s*(.*?)\s*\]/;
             const match = aiText.match(optionRegex);
+            let explicitOptionsShown = false;
             if (match) {
                 const options = match[1].split('|').map(s => s.trim()).filter(s => s);
                 aiText = aiText.replace(optionRegex, '').trim();
                 showAIQuestionModal(getLabel('aiQuestionModalTitle'), options);
+                explicitOptionsShown = true;
             }
 
             const aiMsgToUpdate = chatHistory.find(m => m.id === aiMsgId); if(aiMsgToUpdate) { aiMsgToUpdate.text = aiText; aiMsgToUpdate.html = false; saveToDB('chatHistory', chatHistory); aiMsgElement.replaceWith(createMessageElement(aiMsgToUpdate)); log.scrollTop = log.scrollHeight; }
+            if (!explicitOptionsShown) autoOpenOptionsModalFromAiText(aiText);
             if (aiText) { await extractSpecsFromChat(promptForAI || promptText, aiText); }
         } catch (e) { contentDiv.textContent = `${getLabel('aiSystemMsgBuildError')} ${e.message}`; try { addFailureLog('ai-error', `チャット応答失敗: ${e.message || e}`, '直近の入力: ' + (promptText || '').slice(0, 200)); } catch(_) {} } finally { if (window.AIChatLogic?.clearPendingTaskType) window.AIChatLogic.clearPendingTaskType(); clearNewSpecFlags(); }
     }
 
     function extractCodeFromText(text) {
-        return (text || '').replace(/^```html\s*/i, '').replace(/^```[a-zA-Z]*\s*/i, '').replace(/```$/g, '').trim();
+        if (window.AICodeLogic?.extractCodeOnly) return window.AICodeLogic.extractCodeOnly(text);
+        const raw = String(text || '');
+        const fenced = raw.match(/```(?:html|xml)?\s*([\s\S]*?)```/i);
+        let code = (fenced ? fenced[1] : raw).trim();
+        const startMatch = code.search(/<!doctype\s+html|<html[\s>]/i);
+        if (startMatch > 0) code = code.slice(startMatch);
+        const endIndex = code.toLowerCase().lastIndexOf('</html>');
+        if (endIndex >= 0) code = code.slice(0, endIndex + 7);
+        return code.trim();
     }
     async function runAgenticCodeBuild(buildPrompt, model) {
         // 1) 実装 → 2) 要件漏れ検証 → 3) 漏れがあれば1回だけ自己修復、という軽量エージェントループ。
@@ -3884,7 +3934,7 @@ ${specListToString()}`,
                 const verify = await callLLM({ prompt: verifyPrompt, stream: false, model: getModelForPrompt('verify'), taskType: 'verify' });
                 const missing = JSON.parse((verify.text || '').replace(/```json|```/g, '').trim());
                 if (Array.isArray(missing) && missing.length > 0) {
-                    const repairPrompt = `${buildPrompt}\n\n【自己検証で見つかった未実装要件】\n${missing.map((m,i)=>`${i+1}. ${m}`).join('\n')}\n\n【現在の生成コード】\n${code}\n\n未実装要件を必ず反映し、完全なHTMLだけを再出力してください。`;
+                    const repairPrompt = `${buildPrompt}\n\n【自己検証で見つかった未実装要件】\n${missing.map((m,i)=>`${i+1}. ${m}`).join('\n')}\n\n【現在の生成コード】\n${code}\n\n未実装要件を必ず反映し、説明・計画・Markdownを含めず、完全なHTMLコードだけを再出力してください。`;
                     const repaired = await callLLM({ prompt: repairPrompt, stream: false, model, taskType: 'code-repair' });
                     code = extractCodeFromText(repaired.text);
                 }
@@ -3904,7 +3954,9 @@ ${specListToString()}`,
         chatHistory.push(sysMsgObj); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsgObj);
         const themeCSS = await getSelectedThemeCSS();
         const skillContext = await buildSkillContextForTask(specListToString() + '\n\n' + currentCode.slice(0, 8000), model, codeTaskType);
+        const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
         const adminBuildSystem = [
+            codeOnlyInstruction,
             document.getElementById('system-prompt').value.trim(),
             document.getElementById('code-principles').value.trim(),
             document.getElementById('admin-system-requirements')?.value.trim(),
@@ -3913,16 +3965,21 @@ ${specListToString()}`,
             document.getElementById('user-system-prompt')?.value.trim() ? `【ユーザー用システムプロンプト】
 ${document.getElementById('user-system-prompt').value.trim()}` : ''
         ].filter(Boolean).join('\n\n');
-        const system = `Expert Full-stack Web Developerとして完全なHTMLファイルを出力してください。
+        const system = `${codeOnlyInstruction}
+
+Expert Full-stack Web Developerとして完全なHTMLファイルを出力してください。
 ${adminBuildSystem}
 ターゲットペルソナ: ${targetPersona}
-ルール: Markdownのコードブロック不要。
+ルール: 出力はコードだけ。Markdownのコードブロック、説明、計画、Act/Plan、箇条書き、前置き、後書きは不要。
 ${themeCSS ? `【デザイン】以下のCSS変数を使用
 ${themeCSS}` : ''}
 ${currentCode ? `既存コード:
 ${currentCode}` : '新規作成'}
 【実装要件】
-${specListToString()}`;
+${specListToString()}
+
+【最終出力形式】
+${codeOnlyInstruction}`;
         try {
             let code = await runAgenticCodeBuild(system, model);
             window.setCode(code, 'index.html'); updatePreview(); showPage('preview', document.getElementById('tab-preview'));
@@ -4355,7 +4412,7 @@ ${specListToString()}`;
 
             // Service Worker 登録（同一オリジン要件のため、別ファイル sw.js を使う）
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js?v=settings-tabs-skills-models-v6', { scope: './' })
+                navigator.serviceWorker.register('./sw.js?v=settings-tabs-skills-models-v7', { scope: './' })
                     .then(reg => { try { reg.update(); } catch(e) {} })
                     .catch(err => console.warn('SW registration failed:', err));
             }
