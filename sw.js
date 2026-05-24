@@ -5,7 +5,7 @@
  *   - その他: cache-first
  * 注意: 単一ファイル運用なので、ハッシュ付きURLは持たない。バージョンアップ時はCACHE_NAMEを上げる。
  */
-const CACHE_NAME = 'ai-web-studio-v3-3-tabs-skills-models-v23-preview-annotation-image-attach';
+const CACHE_NAME = 'ai-web-studio-v3-3-tabs-skills-models-v24-ui-first-core-split';
 const APP_SHELL = [
     './',
     './index.html',
