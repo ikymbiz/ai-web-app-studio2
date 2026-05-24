@@ -175,8 +175,6 @@
 
         /* プレビュー画面の「」ボタン */
         #p-preview { position: relative; }
-        .preview-feedback-btn { position: absolute; right: 16px; bottom: calc(82px + env(safe-area-inset-bottom, 0px)); background: var(--danger); color: #fff; border: none; border-radius: 999px; padding: 10px 18px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239,68,68,0.4); display: flex; align-items: center; gap: 6px; font-family: var(--font-body); z-index: 95; max-width: calc(100vw - 32px); white-space: nowrap; }
-        .preview-feedback-btn:active { transform: scale(0.97); }
 
         /* PWA インストールバナー */
         .install-banner { position: fixed; bottom: env(safe-area-inset-bottom, 0); left: 0; right: 0; background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 10px; z-index: 2500; box-shadow: 0 -4px 16px rgba(0,0,0,0.5); font-size: 13px; }
@@ -331,7 +329,7 @@
         .debug-panel { background: var(--bg); border-top: 1px solid var(--color-border); padding: 12px 15px max(12px, env(safe-area-inset-bottom, 0px)); display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; position: relative; z-index: 120; }
         #debug-memo { flex: 1; min-height: 40px; max-height: 100px; background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 20px; padding: 10px 15px; color: #fff; font-size: 14px; outline: none; resize: none; font-family: var(--font-body); min-width: 0; }
         .debug-btn { background: #eab308; color: #000; border: none; height: 40px; padding: 0 16px; border-radius: 20px; font-weight: bold; cursor: pointer; flex-shrink: 0; font-size: 13px; font-family: var(--font-body); }
-        @media (max-width: 520px) { .preview-feedback-btn { right: 12px; bottom: calc(74px + env(safe-area-inset-bottom, 0px)); padding: 9px 14px; font-size: 12px; } .debug-panel { padding-left: 12px; padding-right: 12px; } .debug-btn { padding: 0 13px; } }
+        @media (max-width: 520px) { .debug-panel { padding-left: 12px; padding-right: 12px; } .debug-btn { padding: 0 13px; } }
 
         /* 設定 */
         .settings { padding: 0; overflow: hidden; min-height: 0; flex-direction: column; }
@@ -498,7 +496,6 @@
 
     <div id="p-preview" class="page" style="position:relative;">
         <iframe id="preview-frame" sandbox="allow-scripts"></iframe>
-        <button class="preview-feedback-btn" type="button" onclick="reportPreviewIssue()" data-label="previewIssueButton">⚠️ </button>
         <div class="debug-panel">
             <textarea id="debug-memo" rows="1" oninput="autoGrow(this)" onkeydown="return handleDebugMemoKeydown(event)"></textarea>
             <button class="debug-btn" onclick="sendDebugRequest()"></button>
@@ -783,6 +780,16 @@
                             </button>
                             <textarea id="code-principles" style="display:none;"></textarea>
                             <div class="field-hint" data-label="codePrinciplesHint">削除禁止、最小差分、検証必須などの実装原則を指定します。</div>
+                        </div>
+
+                        <div class="field">
+                            <label data-label="adminDevelopmentRulesLabel">開発ルール</label>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('admin-development-rules')" aria-haspopup="dialog" aria-controls="prompt-editor-modal">
+                                <span class="edit-preview" id="preview-admin-development-rules"></span>
+                                <span class="prompt-open-indicator" aria-hidden="true">↗</span>
+                            </button>
+                            <textarea id="admin-development-rules" style="display:none;"></textarea>
+                            <div class="field-hint" data-label="adminDevelopmentRulesHint">AI-Only Operations、齟齬検証、引き継ぎ、標準フォルダ構造、コスト制約などの開発運用ルールを指定します。</div>
                         </div>
 
                         <div class="field">
@@ -1256,9 +1263,10 @@ profile: frontend
             defaults: {
                 'system-prompt': "# Role: Senior Full-Stack & Mobile App Engineer / Strict Change Executor\n\nあなたは AI Web Studio Pro の実装担当です。以下を最優先で守ってください。\n\n## 最重要ルール\n1. **勝手に削除しない**: 既存機能、UI、設定、保存形式、デプロイ処理、言語切替、APIキー管理、GitHub連携、タスク/検証/失敗ログを、明示指示なしに削除・省略・簡略化しない。\n2. **勝手に解釈しない**: ユーザーの指示と既存仕様に書かれていることだけを実装対象にする。曖昧な場合は、既存挙動を保持したまま最小変更で対応する。\n3. **修正したと言う前に検証する**: 変更箇所、未変更箇所、影響範囲、残課題を必ず確認する。確認できていないことを「修正済み」と言わない。\n4. **既存コード優先**: リファクタリング、全面置換、関数名変更、構造変更は、明示指示がある場合だけ行う。既存のID・CSSクラス・localStorage/IndexedDBキー・関数名を維持する。\n5. **差分思考**: 変更は必要最小限にする。追加・修正・削除の理由を明確にできないコードには触らない。\n\n## 作業手順\n- [Analyze] 現在のコード、データ構造、UI、イベント、保存処理を確認する。\n- [Plan] 変更対象と変更しない対象を短く列挙する。\n- [Act] 最小差分で実装する。\n- [Verify] 仕様リストとコードを照合し、漏れ・退行・削除がないか確認する。\n- [Report] 実施内容、検証結果、未確認事項を日本語で報告する。\n\n## 技術前提\n- HTML5 / Tailwind CSS CDN / Vanilla JavaScript を基本とする。\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲット、History API、manifest、Service Workerを維持する。\n- IndexedDB / localStorage の既存データ互換性を壊さない。\n- Gemini / OpenAI / Claude / xAI / Groq / Custom OpenAI互換 / server ルートに対応する。\n- APIキーとGitHub PATはハードコードしない。\n- XSS対策として表示文字列はサニタイズする。\n\n## 出力ルール\n- 返答は日本語。\n- コードコメントは日本語。\n- 生成コードは省略しない。\n- 実装できていない項目は正直に未実装と書く。",
                 'target-persona': "（未設定）開発するアプリのターゲットユーザー像をここに記載してください。例：30代女性、子育て中、スマホでサクッと予約したい。",
-                'code-principles': "日本語で答えること！\n\n1. Analyze First: 既存コード・状態・データ構造を確認してから変更する。\n2. Minimal Intervention: 明示指示なしに既存コード、機能、UI、保存形式を削除・省略・置換しない。\n3. No Assumption Rewrite: ユーザー指示を勝手に拡大解釈・縮小解釈しない。曖昧な場合は既存挙動を保持する。\n4. Preserve Feature Set: APIキー管理、GitHub PAT、デプロイ、言語切替、タスク、検証、失敗ログ、プロンプトJSON管理を維持する。\n5. Plan-Act-Verify: 変更計画 → 実装 → 仕様照合 → 退行確認の順に行う。\n6. Evidence Before Claim: 検証できていないことを「修正済み」と言わない。\n7. JSON Prompt Source: システムプロンプトと各プロンプトは prompts.json を正として扱い、fallback も同内容に同期する。\n8. Multi-file First: 複数ファイル構成を保持し、公開・保存・読み込みでファイルを落とさない。",
+                'code-principles': "日本語で答えること！\n\n1. Analyze First: 既存コード・状態・データ構造を確認してから変更する。\n2. Minimal Intervention: 明示指示なしに既存コード、機能、UI、保存形式を削除・省略・置換しない。\n3. No Assumption Rewrite: ユーザー指示を勝手に拡大解釈・縮小解釈しない。曖昧な場合は既存挙動を保持する。\n4. Preserve Feature Set: APIキー管理、GitHub PAT、デプロイ、言語切替、タスク、検証、失敗ログ、プロンプトJSON管理を維持する。\n5. Plan-Act-Verify: 変更計画 → 実装 → 仕様照合 → 退行確認の順に行う。\n6. Evidence Before Claim: 検証できていないことを「修正済み」と言わない。\n7. JSON Prompt Source: システムプロンプトと各プロンプトは prompts.json を正として扱い、fallback も同内容に同期する。\n8. Multi-file First: 複数ファイル構成を保持し、公開・保存・読み込みでファイルを落とさない。\n9. Generated App Structure: 生成アプリは docs/、src/apps/、src/admin/、config/、.github/ を標準構造とし、docs配下の5ファイルを省略しない。",
                 'user-system-prompt': "（任意）生成したいアプリの雰囲気、制約、優先したい操作感、避けたい表現などを入力してください。",
-                'admin-system-requirements': "## システム要件\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲットを維持する。\n- ZIP/複数ファイル、IndexedDB、GitHubデプロイ、APIキー管理、保存先設定を削除しない。\n- 既存ID・関数名・保存キーを不用意に変更しない。",
+                'admin-system-requirements': "## システム要件\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲットを維持する。\n- ZIP/複数ファイル、IndexedDB、GitHubデプロイ、APIキー管理、保存先設定を削除しない。\n- 既存ID・関数名・保存キーを不用意に変更しない。\n- 生成アプリは docs/、src/apps/、src/admin/、config/、.github/ の標準構造を持ち、docs/PRINCIPLE.md、docs/DEVELOPMENT_RULES.md、docs/SYSTEM_DESIGN.md、docs/FAILURE_LOG.md、docs/HANDOVER.md を含める。",
+                'admin-development-rules': "# DEVELOPMENT RULES: AI-Only Operations\n\n## 1. AIコーディング・操作プロトコル\n- 全アセットの同期: コード変更は必ず定義されたディレクトリ配下に反映し、docs/SYSTEM_DESIGN.md との完全な一致を確認する。\n- 出力形式の統一: すべての成果物は、最終的に一つのZIPファイルとしてパッケージング可能な構造を維持して提示する。\n- 省略禁止: 生成物、設定、docs、src、config、.github の必要ファイルを省略しない。\n- 無断削除禁止: ユーザーが明示しない既存機能・設定・ファイル・保存形式を削除しない。\n\n## 2. 齟齬検証（Alignment Check）ルール\n- 対応表の照合: AIはコード出力時、それが docs/SYSTEM_DESIGN.md のどのセクションに基づいているかを明示できる状態にし、設計上の制約、コスト、閾値、通信プロトコルを遵守しているかセルフチェックする。\n- 乖離時のアクション: 齟齬を発見した場合は docs/FAILURE_LOG.md に記載し、ユーザーに修正方針の承認を求める。\n- タスク消込: タスクは実装だけでは完了にせず、検証AIが実装内容と動作経路を確認し、verified と判定した場合だけ消し込む。\n\n## 3. 引き継ぎファイル（HANDOVER.md）の運用\n- 毎ターンの更新: 現在のステータスと、次に着手すべき具体的作業を docs/HANDOVER.md に詳細に記述する。\n- コンテキストの維持: 前後の文脈を知らないAIが、そのファイルだけで開発を続行できるようにする。\n\n## 4. ディレクトリ構造定義\nAIは生成するアプリでこの構造を逸脱してはならない。\n- /docs: PRINCIPLE.md, DEVELOPMENT_RULES.md, SYSTEM_DESIGN.md, FAILURE_LOG.md, HANDOVER.md\n- /src/apps: メインアプリケーション、コアロジック、バックエンド処理\n- /src/admin: 管理・運用ツール、ダッシュボード、フロントエンド\n- /config: 動作環境や外部連携の設定\n- /.github: CI/CD、テスト、自動検証スケジュール\n\n## 5. コスト削減とリソース制約\n- LLMレイヤリング: チャット、コード生成、デバッグ、検証、原因分析を役割ごとに分離する。\n- 必要最小限のコンテキスト: Skillはインデックスを先に渡し、必要な本文だけをオンデマンドで読み込む。\n- 静的配信戦略: 可能な成果物は静的ファイルとして配信できる構造を維持する。\n\n## 6. 実行強制ワークフロー\n1. PLAN: 最小3ステップの具体的計画、検証方法、予見される失敗への対応策を立てる。\n2. SUBTASKS: 並列実行または分割可能なタスク単位に分解する。\n3. LESSONS: 過去のミス、省略、誤解、バグ、設計乖離のパターンを確認する。\n4. PROGRESS: ステップごとの進捗を可視化する。\n5. EXECUTION: タスクを実行する。\n6. VERIFICATION & ALIGNMENT: 期待結果、タスク、docs/SYSTEM_DESIGN.md、実装の一致を検証する。\n7. ELEGANCE CHECK: より簡潔、高度、低コストな代替案を検討する。\n8. PRINCIPLES CHECK: 根本原因の解決、影響の最小化、一貫性を確認する。\n9. PRINCIPLES EXPANSION CHECK: 目標達成度、観測可能性、仮説検証、安全性、コストを確認する。\n10. FINAL ANSWER: 成果物を完全な構造で提示する。\n",
                 'admin-implementation-verification': "## 実装検証\n- 変更前後で要件とコードを照合する。\n- 修正したと報告する前に構文チェックと主要導線の確認を行う。\n- 未確認事項は未確認として明記する。",
                 'skill-settings': "{\n  \"version\": 3,\n  \"mode\": \"pattern-b-json-bundle\",\n  \"toolName\": \"load_skill_profile\",\n  \"storage\": \"github-json\",\n  \"github\": {\n    \"repo\": \"\",\n    \"branch\": \"main\",\n    \"path\": \"skills/admin-skills.json\"\n  },\n  \"indexPath\": \"skills/admin-skills.index.json\",\n  \"instructions\": \"管理用Skillsは skills/admin-skills.json に集約して管理する。AIには最初にSkillのインデックスだけを渡す。各Skillのstagesで chat / coding / debugging のどの段階で使うかを必ず確認し、現在の段階に一致するSkillだけを候補にする。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけをオンデマンドで読み込む。不要なSkill本文は送らない。ユーザー追加Skillは別ロジックで管理し、この管理用JSONやGitHub保存対象に混ぜない。\",\n  \"skills\": [\n    {\n      \"id\": \"skill-manager\",\n      \"file\": \"skills/admin-skills.json#skills.skill-manager\",\n      \"title\": \"Skill Manager Skill\",\n      \"description\": \"Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。\",\n      \"triggers\": [\n        \"Skill\",\n        \"skills\",\n        \"skill index\",\n        \"Pattern B\",\n        \"stages\",\n        \"管理用Skill\",\n        \"ユーザーSkill\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# Skill Manager Skill\\n\\n## Purpose\\nUse this skill when designing, editing, validating, or debugging Skill definitions.\\n\\n## Rules\\n- Every Skill must explicitly declare `stages` with one or more of: `chat`, `coding`, `debugging`.\\n- Admin Skills may be saved as GitHub JSON files.\\n- User Skills are local app settings only and must not be included in GitHub file saves.\\n- The Skill index must contain metadata only: id, title, description, triggers, stages, file, enabled.\\n- Skill body content is loaded only after the selector chooses the Skill.\\n- Do not mix admin Skill selection logic with user Skill selection logic.\\n\\n## Validation Checklist\\n1. Skill has a stable id.\\n2. Skill has explicit stages.\\n3. Skill has clear triggers.\\n4. Admin/user storage boundaries are preserved.\\n5. Index and content are separated for Pattern B.\",\n      \"source\": \"admin-json-bundle\"\n    },\n    {\n      \"id\": \"frontend\",\n      \"file\": \"skills/admin-skills.json#skills.frontend\",\n      \"title\": \"Frontend Skill Profile\",\n      \"description\": \"UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。\",\n      \"triggers\": [\n        \"UI\",\n        \"React\",\n        \"Next.js\",\n        \"TypeScript\",\n        \"Tailwind\",\n        \"CSS\",\n        \"state management\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# Frontend Skill Profile\\n\\n## Skill Level\\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\\n- State Management: Prefer React Context or Zustand over Redux.\\n- Async Pattern: Use async/await. No `.then()` chains.\",\n      \"source\": \"admin-json-bundle\"\n    },\n    {\n      \"id\": \"backend\",\n      \"file\": \"skills/admin-skills.json#skills.backend\",\n      \"title\": \"Backend Skill Profile\",\n      \"description\": \"Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。\",\n      \"triggers\": [\n        \"Node.js\",\n        \"database\",\n        \"API\",\n        \"Prisma\",\n        \"server\",\n        \"backend\",\n        \"PostgreSQL\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# Backend Skill Profile\\n\\n## Skill Level\\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Provide standard best practices with brief meaningful explanations.\\n- Architecture: Enforce Controllers, Services, Repositories.\\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.\",\n      \"source\": \"admin-json-bundle\"\n    },\n    {\n      \"id\": \"devops\",\n      \"file\": \"skills/admin-skills.json#skills.devops\",\n      \"title\": \"DevOps & Infra Skill Profile\",\n      \"description\": \"Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。\",\n      \"triggers\": [\n        \"Docker\",\n        \"Compose\",\n        \"CI/CD\",\n        \"GitHub Actions\",\n        \"AWS\",\n        \"infra\",\n        \"deployment\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# DevOps & Infra Skill Profile\\n\\n## Skill Level\\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\\n\\n## Rules & Conventions\\n- Language: English for code, Japanese for chat explanations.\\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\\n- Best Practices: Ensure production containers run as non-root users.\",\n      \"source\": \"admin-json-bundle\"\n    }\n  ],\n  \"source\": \"skills/admin-skills.json\"\n}",
                 'user-skill-settings': "{\n  \"version\": 1,\n  \"mode\": \"user-local-skills\",\n  \"storage\": \"local-settings-only\",\n  \"instructions\": \"ユーザー追加Skillはこの端末のアプリ設定だけに保存する。GitHub保存用の管理Skill JSONには含めない。各Skillのstagesで chat / coding / debugging のどの段階で使うかを明示し、現在の段階に一致するSkillだけを候補にする。\",\n  \"skills\": []\n}"
@@ -1322,9 +1330,6 @@ profile: frontend
                 failureEmpty: "失敗ログはありません",
                 verifyClearConfirm: "検証結果をクリアしますか？",
                 failureDeleteConfirm: "この失敗ログを削除しますか？",
-                previewIssueButton: "⚠️ ",
-                previewIssuePrompt: "どう？簡潔に教えてください（例：ボタンが反応しない）",
-                toastFailureLogged: "失敗ログに記録しました",
                 toastPromotedToPlan: "計画に取り込みました（+{count}件）",
                 // Phase 3: 端末フォルダ暗号化
                 folderUnlockButton: "🔓 ロック解除",
@@ -1468,6 +1473,8 @@ profile: frontend
                 "skillTitleLabel": "タイトル",
                 "skillDescriptionLabel": "説明",
                 "skillTriggersLabel": "トリガー語（カンマ区切り）",
+                "adminDevelopmentRulesLabel": "開発ルール",
+                "adminDevelopmentRulesHint": "AI-Only Operations、齟齬検証、引き継ぎ、標準フォルダ構造、コスト制約などの開発運用ルールを指定します。",
                 "skillContentLabel": "Skill本文",
                 "skillEnabledLabel": "有効にする",
                 "skillSaveButton": "保存",
@@ -1628,6 +1635,8 @@ profile: frontend
             "skillTitleLabel": "Title",
             "skillDescriptionLabel": "Description",
             "skillTriggersLabel": "Triggers (comma-separated)",
+            "adminDevelopmentRulesLabel": "Development rules",
+            "adminDevelopmentRulesHint": "Define AI-Only Operations, alignment checks, handover rules, standard folders, and cost constraints.",
             "skillContentLabel": "Skill content",
             "skillEnabledLabel": "Enable",
             "skillSaveButton": "Save",
@@ -1788,9 +1797,6 @@ profile: frontend
             "failureEmpty": "No failure logs",
             "verifyClearConfirm": "Clear verification results?",
             "failureDeleteConfirm": "Delete this failure log?",
-            "previewIssueButton": "Not working",
-            "previewIssuePrompt": "What is not working? Briefly describe it.",
-            "toastFailureLogged": "Logged to failure log",
             "toastPromotedToPlan": "Moved to plan (+{count})",
             "installPrompt": "Add to Home screen and use as an app",
             "installButton": "Install",
@@ -1988,6 +1994,7 @@ profile: frontend
         'system-prompt':   { titleKey: 'systemPromptLabel',    showModel: false },
         'code-principles': { titleKey: 'codePrinciplesLabel',  showModel: false },
         'admin-system-requirements': { titleKey: 'adminSystemRequirementsLabel', showModel: false },
+        'admin-development-rules': { titleKey: 'adminDevelopmentRulesLabel', showModel: false },
         'admin-implementation-verification': { titleKey: 'adminImplementationVerifyLabel', showModel: false },
         'skill-settings': { titleKey: 'skillSettingsLabel', showModel: false },
         'user-skill-settings': { titleKey: 'userSkillSettingsLabel', showModel: false },
@@ -2055,7 +2062,7 @@ profile: frontend
     // 設定画面のモーダル編集入力欄に、現在の値のプレビューを表示
     function updatePromptPreviews() {
         const placeholder = getLabel('promptInputPlaceholder') || 'タップして入力';
-        ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings'].forEach(key => {
+        ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-development-rules','admin-implementation-verification','skill-settings','user-skill-settings'].forEach(key => {
             const el = document.getElementById('preview-' + key);
             if (el) {
                 const v = document.getElementById(key)?.value || '';
@@ -2925,7 +2932,7 @@ ${skill.content || ''}`).join('\n\n');
         if (meta && meta.showModel) populatePromptModelSelect(currentEditingKey);
     }
 
-    function getFieldDefaults() { return { 'system-prompt': getDefault('system-prompt'), 'target-persona': getDefault('target-persona'), 'user-system-prompt': getDefault('user-system-prompt'), 'code-principles': getDefault('code-principles'), 'admin-system-requirements': getDefault('admin-system-requirements'), 'admin-implementation-verification': getDefault('admin-implementation-verification'), 'skill-settings': getDefault('skill-settings'), 'user-skill-settings': getDefault('user-skill-settings'), 'prompt-plan': getPrompt('plan'), 'prompt-suggest': getPrompt('suggest'), 'prompt-debug': getPrompt('debug'), 'prompt-extract': getPrompt('extract'), 'prompt-verify': getPrompt('verify') }; }
+    function getFieldDefaults() { return { 'system-prompt': getDefault('system-prompt'), 'target-persona': getDefault('target-persona'), 'user-system-prompt': getDefault('user-system-prompt'), 'code-principles': getDefault('code-principles'), 'admin-system-requirements': getDefault('admin-system-requirements'), 'admin-development-rules': getDefault('admin-development-rules'), 'admin-implementation-verification': getDefault('admin-implementation-verification'), 'skill-settings': getDefault('skill-settings'), 'user-skill-settings': getDefault('user-skill-settings'), 'prompt-plan': getPrompt('plan'), 'prompt-suggest': getPrompt('suggest'), 'prompt-debug': getPrompt('debug'), 'prompt-extract': getPrompt('extract'), 'prompt-verify': getPrompt('verify') }; }
     function resetFieldDefault(fieldId) { const def = getFieldDefaults()[fieldId]; if (def !== undefined) { document.getElementById(fieldId).value = def; autoSaveSettings(); showToast(getLabel('toastDefaultRestored')); } }
 
     /* === フィードバック内容 / 修正承認モード === */
@@ -3144,16 +3151,6 @@ ${lines.join('\n')}`;
         await resolveFailureLog(id);
     }
 
-    // プレビュー画面：「」ボタンが呼ぶ
-    async function reportPreviewIssue() {
-        const text = prompt(getLabel('previewIssuePrompt') || 'どう？簡潔に教えてください（例：ボタンが反応しない）');
-        if (!text || !text.trim()) return;
-        const code = (window.getCode && window.getCode()) || '';
-        const codeSnippet = code ? code.slice(0, 800) : '';
-        await addFailureLog('preview-issue', text.trim(), codeSnippet ? '関連コード抜粋（先頭800文字）:\n' + codeSnippet : '');
-        showToast(getLabel('toastFailureLogged') || '失敗ログに記録しました');
-        await refreshAllTaskCounts();
-    }
 
     function updateSpecBadge() {
         const list = getSpecList();
@@ -3727,7 +3724,7 @@ ${getFeedbackInstruction()}
             updateKeyExpiryStatus(hasAnyKey ? apiKeys : null);
             const settings = {
                 aiProvider: document.getElementById('ai-provider')?.value || 'gemini', chatModel: document.getElementById('chat-model').value, codeModel: document.getElementById('code-model').value, debugModel: document.getElementById('debug-model')?.value || document.getElementById('chat-model').value, serverEndpoint: document.getElementById('server-endpoint')?.value || '', customBaseUrl: document.getElementById('api-base-custom')?.value || '', templateCatalogUrl: document.getElementById('template-catalog-url')?.value || '',
-                targetPersona: document.getElementById('target-persona').value, userSystemPrompt: document.getElementById('user-system-prompt').value, systemPrompt: document.getElementById('system-prompt').value, codePrinciples: document.getElementById('code-principles').value, adminSystemRequirements: document.getElementById('admin-system-requirements').value, adminImplementationVerification: document.getElementById('admin-implementation-verification').value, skillSettings: document.getElementById('skill-settings').value, userSkillSettings: document.getElementById('user-skill-settings').value,
+                targetPersona: document.getElementById('target-persona').value, userSystemPrompt: document.getElementById('user-system-prompt').value, systemPrompt: document.getElementById('system-prompt').value, codePrinciples: document.getElementById('code-principles').value, adminSystemRequirements: document.getElementById('admin-system-requirements').value, adminDevelopmentRules: document.getElementById('admin-development-rules').value, adminImplementationVerification: document.getElementById('admin-implementation-verification').value, skillSettings: document.getElementById('skill-settings').value, userSkillSettings: document.getElementById('user-skill-settings').value,
                 promptPlan: document.getElementById('prompt-plan').value, promptSuggest: document.getElementById('prompt-suggest').value, promptDebug: document.getElementById('prompt-debug').value,
                 promptExtract: document.getElementById('prompt-extract').value, promptVerify: document.getElementById('prompt-verify').value,
                 modelOverrides: { ...modelOverrides },
@@ -4574,6 +4571,7 @@ ${attachmentBlock}` : '');
         const adminSystem = [
             document.getElementById('system-prompt').value.trim(),
             document.getElementById('admin-system-requirements')?.value.trim(),
+            document.getElementById('admin-development-rules')?.value.trim(),
             document.getElementById('admin-implementation-verification')?.value.trim(),
             skillContext,
             document.getElementById('user-system-prompt')?.value.trim() ? `【ユーザー用システムプロンプト】
@@ -4672,7 +4670,7 @@ ${missing.map((m,i)=>`${i+1}. ${m}`).join('\n')}
 【現在の生成ファイル】
 ${verificationText}
 
-未実装要件を必ず反映し、説明・計画・Markdownを含めず、単一HTMLの場合は完全なHTMLだけを、複数ファイルの場合は entryFile と files を含むJSONだけを再出力してください。`;
+未実装要件を必ず反映し、説明・計画・Markdownを含めず、entryFile と files を含むJSONだけを再出力してください。docs/、src/、config/、.github/ の標準構造と docs の5ファイルは省略しないでください。管理画面の開発ルールにも従ってください。`;
                     const repaired = await callLLM({ prompt: repairPrompt, stream: false, model, taskType: 'code-repair' });
                     project = parseGeneratedProject(repaired.text);
                     verificationText = projectToVerificationText(project);
@@ -4683,8 +4681,12 @@ ${verificationText}
     }
 
     function normalizeGeneratedProject(project) {
-        const files = project?.files && Object.keys(project.files).length ? project.files : { 'index.html': String(project || '') };
-        const entryFile = normalizeFilePath(project?.entryFile || (files['index.html'] !== undefined ? 'index.html' : Object.keys(files)[0]));
+        let files = project?.files && Object.keys(project.files).length ? project.files : { 'index.html': String(project || '') };
+        if (window.AICodeLogic?.ensureRequiredProjectStructure) {
+            files = window.AICodeLogic.ensureRequiredProjectStructure(files);
+        }
+        const entryCandidate = project?.entryFile || currentFilePath || (files['src/admin/index.html'] !== undefined ? 'src/admin/index.html' : (files['index.html'] !== undefined ? 'index.html' : Object.keys(files).find(p => /\.html?$/i.test(p)) || Object.keys(files)[0]));
+        const entryFile = normalizeFilePath(entryCandidate);
         return { files, entryFile };
     }
 
@@ -4758,7 +4760,7 @@ ${verificationText}
     }
     async function runFixProposalOnce(analysis, project, selectedTaskIds, statusMsg, workflowRun) {
         const currentProjectText = projectToVerificationText(project); const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
-        const prompt = `${document.getElementById('system-prompt').value.trim()}\n\n${document.getElementById('code-principles').value.trim()}\n\n${document.getElementById('admin-implementation-verification')?.value.trim() || ''}\n\n${getFeedbackInstruction()}\n\n【承認済み修正案】\n${JSON.stringify(analysis, null, 2)}\n\n【選定タスク】\n${specListToVerificationJson({ selectedTaskIds })}\n\n【現在の全ファイル】\n${currentProjectText}\n\n【出力ルール】\n${codeOnlyInstruction}\n現在の全ファイルを修正後の完全な内容として、entryFile と files を含むJSONだけで出力してください。差分、省略、説明は禁止です。`;
+        const prompt = `${document.getElementById('system-prompt').value.trim()}\n\n${document.getElementById('code-principles').value.trim()}\n\n${document.getElementById('admin-development-rules')?.value.trim() || ''}\n\n${document.getElementById('admin-implementation-verification')?.value.trim() || ''}\n\n${getFeedbackInstruction()}\n\n【承認済み修正案】\n${JSON.stringify(analysis, null, 2)}\n\n【選定タスク】\n${specListToVerificationJson({ selectedTaskIds })}\n\n【現在の全ファイル】\n${currentProjectText}\n\n【出力ルール】\n${codeOnlyInstruction}\n現在の全ファイルを修正後の完全な内容として、entryFile と files を含むJSONだけで出力してください。差分、省略、説明は禁止です。`;
         try { updateWorkflowStep('自動修正', '承認済み修正案をAIに適用させています。'); markSelectedTasksStatus('auto_fixing', '承認済み修正案を適用中です。'); const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('debug'), taskType: 'auto-fix' }); const repaired = parseGeneratedProject(result.text); const normalized = normalizeGeneratedProject(repaired); setProjectFiles(normalized.files, normalized.entryFile, { refreshPreview: false }); markSelectedTasksStatus('implemented', '修正コードを反映しました。再検証前です。'); const verification = await verifySpecCoverage(projectToVerificationText(normalized), { selectedTaskIds }); if (verification.ok) { updateWorkflowStep('プレビュー更新', '検証と消込が完了したためプレビューを更新しています。'); updatePreview(); showPage('preview', document.getElementById('tab-preview')); completeWorkflowRun('承認済み修正、検証AI、タスク消込が完了しました。プレビューを確認できます。'); updateChatProgressMessage(statusMsg, '承認済み修正、検証AI、タスク消込が完了しました。プレビューを確認できます。'); } else { const analysis2 = await analyzeImplementationBugs(projectToVerificationText(normalized), verification, selectedTaskIds); await addFailureLog('ai-error', analysis2.bugSummary || '再検証で問題が残りました。', formatFixApprovalText(analysis2)); if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis2)) { updateChatProgressMessage(statusMsg, '再検証で問題が残ったため、自動修正を継続します。'); await runFixProposalOnce(analysis2, normalized, selectedTaskIds, statusMsg, workflowRun); } else { updateChatProgressMessage(statusMsg, '再検証で問題が残りました。修正案を確認してください。'); markWorkflowAwaitingApproval('再検証で問題が残ったため、修正前の確認待ちです。'); showFixApprovalModal(analysis2, workflowRun); } } } catch(e) { updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">修正適用に失敗しました: ${escapeHtml(e.message || String(e))}</span>`, true); try { await addFailureLog('build-error', `修正適用失敗: ${e.message || e}`, JSON.stringify(analysis, null, 2)); } catch(_) {} }
     }
     async function handleFailedVerificationFlow(project, verification, selectedTaskIds, progressMessage, workflowRun) {
@@ -4820,6 +4822,7 @@ ${verification.summary}` : '';
             codeOnlyInstruction,
             document.getElementById('system-prompt').value.trim(),
             document.getElementById('code-principles').value.trim(),
+            document.getElementById('admin-development-rules')?.value.trim(),
             document.getElementById('admin-system-requirements')?.value.trim(),
             document.getElementById('admin-implementation-verification')?.value.trim(),
             skillContext,
@@ -4828,10 +4831,10 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
         ].filter(Boolean).join('\n\n');
         const system = `${codeOnlyInstruction}
 
-Expert Full-stack Web Developerとして、要件に最適な単一HTMLまたは複数ファイル構成のWebアプリを出力してください。
+Expert Full-stack Web Developerとして、要件に最適な複数ファイル構成のWebアプリを出力してください。生成するアプリはRoot直下に docs/、src/apps/、src/admin/、config/、.github/ を持つ構成を標準とし、docs/PRINCIPLE.md、docs/DEVELOPMENT_RULES.md、docs/SYSTEM_DESIGN.md、docs/FAILURE_LOG.md、docs/HANDOVER.md を必ず含めてください。プレビュー用の入口は原則 src/admin/index.html としてください。
 ${adminBuildSystem}
 ターゲットペルソナ: ${targetPersona}
-ルール: 出力はコードだけ。Markdownのコードブロック、説明、計画、Act/Plan、箇条書き、前置き、後書きは不要。複数ファイルが必要な場合は files JSON だけを出力してください。
+ルール: 出力はコードだけ。Markdownのコードブロック、説明、計画、Act/Plan、箇条書き、前置き、後書きは不要。複数ファイルJSONだけを出力し、docs/ と src/ と config/ と .github/ を省略せず、管理画面の開発ルールにも従ってください。
 ${themeCSS ? `【デザイン】以下のCSS変数を使用
 ${themeCSS}` : ''}
 ${currentCode ? `既存コード:
@@ -4920,6 +4923,7 @@ ${codeOnlyInstruction}`;
             codeOnlyInstruction,
             document.getElementById('system-prompt').value.trim(),
             document.getElementById('code-principles').value.trim(),
+            document.getElementById('admin-development-rules')?.value.trim(),
             document.getElementById('admin-system-requirements')?.value.trim(),
             document.getElementById('admin-implementation-verification')?.value.trim(),
             skillContext,
@@ -4947,7 +4951,7 @@ ${specListToVerificationJson({ selectedTaskIds })}`,
 ${verifyMissingText}`,
             `【出力ルール】
 ${codeOnlyInstruction}
-現在の全ファイルを修正後の完全な内容として出力してください。複数ファイルの場合は entryFile と files を含むJSONだけを出力してください。差分、省略、説明は禁止です。`
+現在の全ファイルを修正後の完全な内容として出力してください。entryFile と files を含むJSONだけを出力し、docs/ と src/ と config/ と .github/ を省略せず、管理画面の開発ルールにも従ってください。差分、省略、説明は禁止です。`
         ].filter(Boolean).join('\n\n');
 
         try {
@@ -5483,7 +5487,7 @@ ${codeOnlyInstruction}
                 if (decryptedKeys) { ['gemini','openai','claude','xai','groq','custom'].forEach(k => { const el = document.getElementById('api-key-'+k); if (el) el.value = decryptedKeys[k] || ''; }); updateKeyExpiryStatus(decryptedKeys); }
                 else if (settings.apiKeys) { ['gemini','openai','claude','xai','groq','custom'].forEach(k => { const el = document.getElementById('api-key-'+k); if (el) el.value = settings.apiKeys[k] || ''; }); await saveEncryptedKeys(settings.apiKeys); updateKeyExpiryStatus(settings.apiKeys); }
                 else updateKeyExpiryStatus(null);
-                ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => {
+                ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-development-rules','admin-implementation-verification','skill-settings','user-skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => {
                     const camel = k.replace(/-([a-z])/g, g => g[1].toUpperCase());
                     const savedValue = settings[camel];
                     document.getElementById(k).value = (savedValue !== undefined && savedValue !== "") ? savedValue : getFieldDefaults()[k];
@@ -5506,7 +5510,7 @@ ${codeOnlyInstruction}
                 if (settings.debugModel) { ensureModelOption(document.getElementById('debug-model'), settings.debugModel, 'debugging'); document.getElementById('debug-model').value = settings.debugModel; }
                 updatePromptModelOptions();
             } else {
-                setSelectedFeedbackSections(['summary','functional']); setFixApprovalMode('manual'); onProviderChange(); ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => document.getElementById(k).value = getFieldDefaults()[k]); updateKeyExpiryStatus(null);
+                setSelectedFeedbackSections(['summary','functional']); setFixApprovalMode('manual'); onProviderChange(); ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-development-rules','admin-implementation-verification','skill-settings','user-skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => document.getElementById(k).value = getFieldDefaults()[k]); updateKeyExpiryStatus(null);
             }
             toggleModelSelects(); const ghToken = await getFromDB('gh_token'); if (ghToken) { const sgt = document.getElementById('setting-gh-token'); const dti = document.getElementById('deploy-token-input'); const gpm = document.getElementById('github-pat-modal-input'); if (sgt) sgt.value = ghToken; if (dti) dti.value = ghToken; if (gpm) gpm.value = ghToken; }
             try { renderSkillManager(); } catch(e) { console.warn('renderSkillManager error:', e); }
@@ -5835,9 +5839,18 @@ ${String(a.textContent).slice(0, 24000)}`);
         return [
             '# AI Web Studio App',
             '',
-            'AI Web Studioで生成・編集したWebアプリです。',
+            'AI Web Studioで生成・編集したWebアプリです。標準構造として docs / src / config / .github を含みます。',
             '',
             '## 構成',
+            '',
+            '標準構造:',
+            '- `docs/` AIの外部記憶・憲法',
+            '- `src/apps/` メインアプリケーション',
+            '- `src/admin/` 管理・運用ツール',
+            '- `config/` 設定',
+            '- `.github/` 自動化設定',
+            '',
+            '## ファイル',
             fileList,
             '',
             '## 実装要件',
