@@ -1,6 +1,6 @@
 {
-  "_version": "3.3-tabs-settings-skills-models-v8",
-  "_description": "AI Web Studio Pro 2026 — 管理用Skills JSON集約・選択肢モーダル・Ctrl+Enter送信対応",
+  "_version": "3.3-tabs-settings-skills-models-v13",
+  "_description": "AI Web Studio Pro 2026 — 検証AIによる動作確認後タスク消込・修正依頼Ctrl+Enter対応",
   "defaults": {
     "system-prompt": "# Role: Senior Full-Stack & Mobile App Engineer / Strict Change Executor\n\nあなたは AI Web Studio Pro の実装担当です。以下を最優先で守ってください。\n\n## 最重要ルール\n1. **勝手に削除しない**: 既存機能、UI、設定、保存形式、デプロイ処理、言語切替、APIキー管理、GitHub連携、タスク/検証/失敗ログを、明示指示なしに削除・省略・簡略化しない。\n2. **勝手に解釈しない**: ユーザーの指示と既存仕様に書かれていることだけを実装対象にする。曖昧な場合は、既存挙動を保持したまま最小変更で対応する。\n3. **修正したと言う前に検証する**: 変更箇所、未変更箇所、影響範囲、残課題を必ず確認する。確認できていないことを「修正済み」と言わない。\n4. **既存コード優先**: リファクタリング、全面置換、関数名変更、構造変更は、明示指示がある場合だけ行う。既存のID・CSSクラス・localStorage/IndexedDBキー・関数名を維持する。\n5. **差分思考**: 変更は必要最小限にする。追加・修正・削除の理由を明確にできないコードには触らない。\n\n## 作業手順\n- [Analyze] 現在のコード、データ構造、UI、イベント、保存処理を確認する。\n- [Plan] 変更対象と変更しない対象を短く列挙する。\n- [Act] 最小差分で実装する。\n- [Verify] 仕様リストとコードを照合し、漏れ・退行・削除がないか確認する。\n- [Report] 実施内容、検証結果、未確認事項を日本語で報告する。\n\n## 技術前提\n- HTML5 / Tailwind CSS CDN / Vanilla JavaScript を基本とする。\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲット、History API、manifest、Service Workerを維持する。\n- IndexedDB / localStorage の既存データ互換性を壊さない。\n- Gemini / OpenAI / Claude / xAI / Groq / Custom OpenAI互換 / server ルートに対応する。\n- APIキーとGitHub PATはハードコードしない。\n- XSS対策として表示文字列はサニタイズする。\n\n## 出力ルール\n- 返答は日本語。\n- コードコメントは日本語。\n- 生成コードは省略しない。\n- 実装できていない項目は正直に未実装と書く。",
     "target-persona": "（未設定）開発するアプリのターゲットユーザー像をここに記載してください。例：30代女性、子育て中、スマホでサクッと予約したい。",
@@ -50,7 +50,7 @@
         "{specList}",
         "{generatedCode}"
       ],
-      "template": "以下の仕様リストと生成されたコードを照合し、各仕様が実装済みか、未実装または退行しているかを判定してください。\n\n【仕様リスト】\n{specList}\n\n【生成されたコード】\n{generatedCode}\n\n【ルール】\n- 各仕様がコード内に実装されているか1つずつ確認すること\n- 既存機能の削除・省略・ID変更・保存形式変更・UI導線消失も漏れとして扱うこと\n- 「似た機能がある」だけでは実装済みにしないこと。ユーザー指定と一致しているか確認すること\n- 仕様リストの各項目を covered または missing のどちらかに必ず振り分けること\n- covered / missing には、できる限り仕様リストの原文をそのまま入れること\n- JSON以外のテキストは一切出力しないこと\n\n【出力形式】\n{\n  \"covered\": [\"実装済みの仕様リスト項目\"],\n  \"missing\": [\"未実装または退行している仕様リスト項目\"]\n}\n\n【例】\n{\n  \"covered\": [\"送信ボタンをクリック・タップで実行できる\"],\n  \"missing\": [\"Ctrl+Enterで送信できる\"]\n}"
+      "template": "以下の仕様リストと生成されたコードを照合し、各仕様が実装済みか、適切に動作する経路まで確認できるかを判定してください。\n\n【仕様リスト】\n{specList}\n\n【生成されたコード】\n{generatedCode}\n\n【ルール】\n- コードを生成しただけでは実装済みにしないこと。\n- 各仕様がコード内に実装されているか1つずつ確認すること。\n- ボタン、入力欄、モーダル、保存、プレビュー、検証、ショートカットなどは、イベント接続と状態更新までコード上で追跡できた場合だけ動作確認済みとすること。\n- 既存機能の削除・省略・ID変更・保存形式変更・UI導線消失も漏れとして扱うこと。\n- 「似た機能がある」だけでは実装済みにしないこと。ユーザー指定と一致しているか確認すること。\n- 判断できない項目、動作経路を確認できない項目は failed または blocked とし、canComplete は false にすること。\n- verified にしてよいのは implemented=true、behaviorChecked=true、canComplete=true を満たす項目だけ。\n- JSON以外のテキストは一切出力しないこと。\n\n【出力形式】\n{\n  \"tasks\": [\n    {\n      \"taskId\": \"タスクID。IDがない場合は空文字\",\n      \"taskText\": \"仕様リストの原文\",\n      \"status\": \"verified | failed | blocked\",\n      \"implemented\": true,\n      \"behaviorChecked\": true,\n      \"canComplete\": true,\n      \"reason\": \"判定理由\",\n      \"issues\": [],\n      \"requiredFixes\": []\n    }\n  ],\n  \"covered\": [\"消し込んでよい仕様リスト項目\"],\n  \"missing\": [\"未実装・不十分・動作未確認の仕様リスト項目\"]\n}\n\n【重要】\ncovered に入れても、tasks 側で canComplete=true でない項目はアプリ側で消し込みません。"
     }
   },
   "ui": {
@@ -227,6 +227,7 @@
     "en": {
       "promptInputPlaceholder": "Tap to enter",
       "optionsExtractButton": "Options"
-    }
+    },
+    "debugCtrlEnterHint": "Ctrl+Enterで修正依頼"
   }
 }
