@@ -245,6 +245,15 @@
         .model-stage-row { display:flex; gap:8px; flex-wrap:wrap; padding:8px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-bg-elevated); }
         .model-stage-row label { display:inline-flex; align-items:center; gap:6px; color:var(--color-text-secondary); font-size:12px; margin:0; }
         .model-stage-row input { width:16px; height:16px; accent-color:var(--primary); }
+        .feedback-section-row, .approval-mode-row { display:flex; gap:8px; flex-wrap:wrap; padding:8px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-bg-elevated); }
+        .feedback-section-row label, .approval-mode-row label { display:inline-flex; align-items:center; gap:6px; color:var(--color-text-secondary); font-size:12px; margin:0; padding:7px 10px; border:1px solid var(--color-border); border-radius:999px; background:var(--color-bg-surface); cursor:pointer; user-select:none; }
+        .feedback-section-row label:has(input:checked), .approval-mode-row label:has(input:checked) { border-color:var(--primary); color:var(--color-text-primary); box-shadow:0 0 0 1px rgba(59,130,246,0.24); }
+        .feedback-section-row input, .approval-mode-row input { width:16px; height:16px; accent-color:var(--primary); }
+        .spec-card-meta-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:5px; font-size:10px; color:var(--color-text-muted); }
+        .spec-card-pill { border:1px solid var(--color-border); border-radius:999px; padding:1px 6px; background:var(--color-bg-elevated); }
+        .spec-card-pill.status-verified { color:var(--success); border-color:rgba(16,185,129,0.45); }
+        .spec-card-pill.status-failed, .spec-card-pill.status-blocked, .spec-card-pill.status-bug_found { color:var(--danger); border-color:rgba(239,68,68,0.45); }
+        .fix-approval-summary { white-space:pre-wrap; font-size:12px; line-height:1.6; color:var(--color-text-primary); background:var(--color-bg-elevated); border:1px solid var(--color-border); border-radius:10px; padding:12px; max-height:48vh; overflow:auto; }
         .model-list { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
         .model-card { border:1px solid var(--color-border); background:var(--color-bg-elevated); border-radius:10px; padding:12px; }
         .model-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
@@ -706,6 +715,32 @@
                     </div>
                 </details>
 
+                <!-- ⚙️ AI実行制御設定 -->
+                <details class="settings-section" id="section-agent-execution" open>
+                    <summary><span class="settings-section-icon">⚙️</span><span data-label="sectionAgentExecutionTitle">AI実行制御</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="feedbackSectionsLabel">フィードバック内容</label>
+                            <div class="feedback-section-row" id="feedback-section-row">
+                                <label><input type="checkbox" id="feedback-section-summary" value="summary" checked onchange="onFeedbackSectionsChanged(); autoSaveSettings();"> <span data-label="feedbackSummaryLabel">要約</span></label>
+                                <label><input type="checkbox" id="feedback-section-functional" value="functional" checked onchange="onFeedbackSectionsChanged(); autoSaveSettings();"> <span data-label="feedbackFunctionalLabel">機能説明</span></label>
+                                <label><input type="checkbox" id="feedback-section-implementation" value="implementation" onchange="onFeedbackSectionsChanged(); autoSaveSettings();"> <span data-label="feedbackImplementationLabel">実装概要</span></label>
+                                <label><input type="checkbox" id="feedback-section-technical" value="technical" onchange="onFeedbackSectionsChanged(); autoSaveSettings();"> <span data-label="feedbackTechnicalLabel">技術詳細</span></label>
+                                <label><input type="checkbox" id="feedback-section-design" value="design" onchange="onFeedbackSectionsChanged(); autoSaveSettings();"> <span data-label="feedbackDesignLabel">設計評価</span></label>
+                            </div>
+                            <div class="field-hint" data-label="feedbackSectionsHint">検証結果・修正案・影響範囲の出力に含める内容を複数選択します。</div>
+                        </div>
+                        <div class="field">
+                            <label data-label="fixApprovalModeLabel">修正承認モード</label>
+                            <div class="approval-mode-row">
+                                <label><input type="radio" name="fix-approval-mode" id="fix-approval-mode-manual" value="manual" checked onchange="autoSaveSettings();"> <span data-label="fixApprovalManualLabel">毎回確認する</span></label>
+                                <label><input type="radio" name="fix-approval-mode" id="fix-approval-mode-auto" value="auto" onchange="autoSaveSettings();"> <span data-label="fixApprovalAutoLabel">確認不要で自動修正する</span></label>
+                            </div>
+                            <div class="field-hint" data-label="fixApprovalModeHint">バグ発見時に、原因・修正案・影響範囲を作成したあと、人に確認するか自動修正するかを選びます。危険度が高い変更は自動修正モードでも確認対象にします。</div>
+                        </div>
+                    </div>
+                </details>
+
                 <!-- 🧠 管理用システムプロンプト画面 -->
                 <details class="settings-section" id="section-admin-prompts">
                     <summary><span class="settings-section-icon">🧠</span><span data-label="sectionAdminPromptsTitle">管理用システムプロンプト</span></summary>
@@ -909,6 +944,24 @@
         <div class="modal-body" style="display:flex; flex-direction:column; gap:16px;">
             <p id="ai-question-text" style="font-size:13px; color:var(--color-text-primary); margin:0; line-height:1.5;"></p>
             <div id="ai-question-options" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- バグ修正承認モーダル -->
+<div id="fix-approval-modal" class="modal-overlay" onclick="if(event.target===this)closeFixApprovalModal()">
+    <div class="modal" style="max-width:760px; width:95vw;">
+        <div class="modal-header">
+            <h3 data-label="fixApprovalModalTitle">修正確認</h3>
+            <button class="modal-close" onclick="closeFixApprovalModal()">✕</button>
+        </div>
+        <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div id="fix-approval-summary" class="fix-approval-summary"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="modal-btn" type="button" style="flex:1 1 150px; background:var(--success);" onclick="approvePendingFixProposal()" data-label="fixApprovalRunButton">修正する</button>
+                <button class="modal-btn" type="button" style="flex:1 1 150px; background:var(--color-bg-elevated);" onclick="rejectPendingFixProposal()" data-label="fixApprovalRejectButton">修正しない</button>
+                <button class="modal-btn" type="button" style="flex:1 1 150px; background:var(--accent);" onclick="requestAlternativeFixProposal()" data-label="fixApprovalAlternativeButton">別案を出す</button>
+            </div>
         </div>
     </div>
 </div>
@@ -2842,6 +2895,50 @@ ${skill.content || ''}`).join('\n\n');
     function getFieldDefaults() { return { 'system-prompt': getDefault('system-prompt'), 'target-persona': getDefault('target-persona'), 'user-system-prompt': getDefault('user-system-prompt'), 'code-principles': getDefault('code-principles'), 'admin-system-requirements': getDefault('admin-system-requirements'), 'admin-implementation-verification': getDefault('admin-implementation-verification'), 'skill-settings': getDefault('skill-settings'), 'user-skill-settings': getDefault('user-skill-settings'), 'prompt-plan': getPrompt('plan'), 'prompt-suggest': getPrompt('suggest'), 'prompt-debug': getPrompt('debug'), 'prompt-extract': getPrompt('extract'), 'prompt-verify': getPrompt('verify') }; }
     function resetFieldDefault(fieldId) { const def = getFieldDefaults()[fieldId]; if (def !== undefined) { document.getElementById(fieldId).value = def; autoSaveSettings(); showToast(getLabel('toastDefaultRestored')); } }
 
+    /* === フィードバック内容 / 修正承認モード === */
+    const FEEDBACK_SECTION_DEFINITIONS = [
+        { key: 'summary', label: '要約', instruction: '結論、結果、次に必要な操作だけを短く含める。' },
+        { key: 'functional', label: '機能説明', instruction: '画面、ボタン、ユーザー操作、業務上の影響を含める。' },
+        { key: 'implementation', label: '実装概要', instruction: '変更ファイル、処理の流れ、主要な実装内容を含める。' },
+        { key: 'technical', label: '技術詳細', instruction: '関数、状態管理、イベント、API、データ構造を含める。' },
+        { key: 'design', label: '設計評価', instruction: '設計意図、リスク、影響範囲、代替案、保守性を含める。' }
+    ];
+    function getSelectedFeedbackSections() {
+        const selected = FEEDBACK_SECTION_DEFINITIONS.filter(def => document.getElementById('feedback-section-' + def.key)?.checked).map(def => def.key);
+        return selected.length ? selected : ['summary', 'functional'];
+    }
+    function setSelectedFeedbackSections(values) {
+        const selected = Array.isArray(values) && values.length ? values : ['summary', 'functional'];
+        FEEDBACK_SECTION_DEFINITIONS.forEach(def => {
+            const el = document.getElementById('feedback-section-' + def.key);
+            if (el) el.checked = selected.includes(def.key);
+        });
+    }
+    function onFeedbackSectionsChanged() {
+        if (getSelectedFeedbackSections().length === 0) {
+            const el = document.getElementById('feedback-section-summary');
+            if (el) el.checked = true;
+        }
+    }
+    function getFeedbackInstruction() {
+        const selected = getSelectedFeedbackSections();
+        const lines = FEEDBACK_SECTION_DEFINITIONS.filter(def => selected.includes(def.key)).map(def => `- ${def.label}: ${def.instruction}`);
+        return `【フィードバック内容】
+ユーザーへ返す検証結果、修正案、影響範囲は、選択された次の内容だけを中心に構成してください。
+${lines.join('\n')}`;
+    }
+    function getFixApprovalMode() { return document.querySelector('input[name="fix-approval-mode"]:checked')?.value || 'manual'; }
+    function setFixApprovalMode(value) {
+        const mode = value === 'auto' ? 'auto' : 'manual';
+        const el = document.getElementById('fix-approval-mode-' + mode);
+        if (el) el.checked = true;
+    }
+    function isHighRiskFix(analysis) {
+        const risk = String(analysis?.riskLevel || analysis?.risk || '').toLowerCase();
+        const text = JSON.stringify(analysis || {}).toLowerCase();
+        return risk === 'high' || risk === 'critical' || /delete|remove|api key|token|github|deploy|storage|credential|secret|削除|apiキー|トークン|github|デプロイ|保存先|認証/.test(text);
+    }
+
     /* === タスク管理（Phase 2: 計画 / 検証 / 失敗ログ の3カテゴリ） === */
     let currentTaskTab = 'plan';
 
@@ -2851,8 +2948,22 @@ ${skill.content || ''}`).join('\n\n');
         refreshAllTaskCounts();
     }
     function closeSpecModal() { document.getElementById('spec-modal').classList.remove('show'); }
-    function getSpecList() { try { return JSON.parse(localStorage.getItem('specList') || '[]'); } catch(e) { return []; } }
-    function saveSpecList(list) { localStorage.setItem('specList', JSON.stringify(list)); updateSpecBadge(); }
+    function normalizeSpecTask(item, index = 0) {
+        const normalized = { ...(item || {}) };
+        normalized.id = normalized.id || (Date.now().toString() + Math.random().toString(36).slice(2, 6));
+        normalized.text = String(normalized.text || '').trim();
+        normalized.source = normalized.source || 'user';
+        normalized.priority = Number.isFinite(Number(normalized.priority)) ? Number(normalized.priority) : (index + 1) * 10;
+        normalized.risk = normalized.risk || 'medium';
+        normalized.dependsOn = Array.isArray(normalized.dependsOn) ? normalized.dependsOn : [];
+        normalized.selected = normalized.selected === true;
+        normalized.status = normalized.status || (normalized.done ? 'verified' : 'pending');
+        normalized.bugReports = Array.isArray(normalized.bugReports) ? normalized.bugReports : [];
+        return normalized;
+    }
+    function normalizeSpecList(list) { return (Array.isArray(list) ? list : []).map((item, index) => normalizeSpecTask(item, index)).filter(item => item.text); }
+    function getSpecList() { try { return normalizeSpecList(JSON.parse(localStorage.getItem('specList') || '[]')); } catch(e) { return []; } }
+    function saveSpecList(list) { localStorage.setItem('specList', JSON.stringify(normalizeSpecList(list))); updateSpecBadge(); }
     function getSpecBackup() { try { return JSON.parse(localStorage.getItem('specListBackup') || '[]'); } catch(e) { return []; } }
     function saveSpecBackup(list) { localStorage.setItem('specListBackup', JSON.stringify(list)); }
 
@@ -3039,9 +3150,17 @@ ${skill.content || ''}`).join('\n\n');
                         <button class="swipe-btn delete" onclick="deleteSpecItem('${item.id}')">${getLabel('chatMsgDelete')}</button>
                     </div>
                     <div class="swipe-content" ontouchstart="handleTouchStart(event, this)" ontouchmove="handleTouchMove(event, this)" ontouchend="handleTouchEnd(event, this)">
-                        <input type="checkbox" class="spec-checkbox" ${item.done ? 'checked' : ''} onchange="toggleSpecDone('${item.id}', this.checked)">
+                        <input type="checkbox" class="spec-checkbox" ${item.done ? 'checked' : ''} onchange="toggleSpecDone('${item.id}', this.checked)" title="検証AIがverifiedにしたタスクだけ完了にできます">
                         <span class="spec-card-source ${item.source}">${item.source === 'auto' ? 'AI' : 'USER'}</span>
-                        <div id="spec-text-${item.id}" class="spec-card-text ${item.done ? 'done' : ''}" contenteditable="true" onblur="updateSpecText('${item.id}', this.innerText)">${escapeHtml(item.text)}</div>
+                        <div style="flex:1; min-width:0;">
+                            <div id="spec-text-${item.id}" class="spec-card-text ${item.done ? 'done' : ''}" contenteditable="true" onblur="updateSpecText('${item.id}', this.innerText)">${escapeHtml(item.text)}</div>
+                            <div class="spec-card-meta-row">
+                                <span class="spec-card-pill">P:${escapeHtml(String(item.priority || ''))}</span>
+                                <span class="spec-card-pill status-${escapeHtml(item.status || 'pending')}">${escapeHtml(item.status || 'pending')}</span>
+                                ${item.selected ? '<span class="spec-card-pill">SELECTED</span>' : ''}
+                                ${item.verifyReason ? `<span class="spec-card-pill" title="${escapeHtml(item.verifyReason)}">検証理由あり</span>` : ''}
+                            </div>
+                        </div>
                     </div>
                 </div>
             `).join('\n\n');
@@ -3049,14 +3168,31 @@ ${skill.content || ''}`).join('\n\n');
         updateSpecBadge();
     }
     function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
-    function toggleSpecDone(id, checked) { const list = getSpecList(); const item = list.find(i => i.id === id); if (item) { item.done = checked; saveSpecList(list); renderSpecCards(); } }
-    function addSpecManual() { const input = document.getElementById('spec-add-input'); const text = input.value.trim(); if (!text) return; const list = getSpecList(); if (list.some(item => item.text === text)) { showToast(getLabel('toastSpecExists')); return; } list.push({ id: Date.now().toString(), text, source: 'user', isNew: true, done: false }); saveSpecList(list); input.value = ''; renderSpecCards(); showToast(getLabel('toastSpecAdded')); }
+    function toggleSpecDone(id, checked) {
+        const list = getSpecList();
+        const item = list.find(i => i.id === id);
+        if (item) {
+            if (checked && item.status !== 'verified') {
+                item.done = false;
+                saveSpecList(list);
+                renderSpecCards();
+                showToast('検証AIが verified にしたタスクだけ消し込めます');
+                return;
+            }
+            item.done = checked;
+            if (!checked) item.status = 'pending';
+            saveSpecList(list);
+            renderSpecCards();
+        }
+    }
+    function addSpecManual() { const input = document.getElementById('spec-add-input'); const text = input.value.trim(); if (!text) return; const list = getSpecList(); if (list.some(item => item.text === text)) { showToast(getLabel('toastSpecExists')); return; } list.push({ id: Date.now().toString(), text, source: 'user', isNew: true, done: false, status: 'pending', selected: false, priority: (list.length + 1) * 10, risk: 'medium', dependsOn: [] }); saveSpecList(list); input.value = ''; renderSpecCards(); showToast(getLabel('toastSpecAdded')); }
     function deleteSpecItem(id) { if (!confirm(getLabel('specDeleteConfirm'))) return; const list = getSpecList().filter(item => item.id !== id); saveSpecList(list); renderSpecCards(); }
     function editSpecText(id) { const el = document.getElementById('spec-text-' + id); if (el) { if (activeSwipeElement) { activeSwipeElement.style.transform = 'translateX(0)'; activeSwipeElement = null; } el.focus(); } }
     function updateSpecText(id, newText) { const text = newText.trim(); if (!text) { deleteSpecItem(id); return; } const list = getSpecList(); const item = list.find(i => i.id === id); if (item && item.text !== text) { item.text = text; saveSpecList(list); showToast(getLabel('toastSpecUpdated')); } }
     function clearSpecList() { const list = getSpecList(); if (list.length === 0) return showToast(getLabel('toastEmptySpecs')); if (!confirm(getLabel('specClearConfirm'))) return; saveSpecBackup(list); saveSpecList([]); renderSpecCards(); document.getElementById('spec-restore-btn').style.display = ''; showToast(getLabel('toastSpecCleared')); }
     function restoreSpecList() { const backup = getSpecBackup(); if (backup.length === 0) return; saveSpecList(backup); renderSpecCards(); document.getElementById('spec-restore-btn').style.display = 'none'; showToast(getLabel('toastSpecRestored')); }
-    function specListToString() { const list = getSpecList(); return list.length === 0 ? '（なし）' : list.map((item, i) => `${i + 1}. ${item.text}`).join('\n'); }
+    function specListToString() { const list = getSpecList(); return list.length === 0 ? '（なし）' : list.map((item, i) => `${i + 1}. [${item.status || 'pending'} / P:${item.priority || ''}] ${item.text}`).join('\n'); }
+    function selectedSpecListToString() { const list = getSpecList().filter(item => item.selected && !(item.status === 'verified' && item.done === true)); return list.length === 0 ? specListToString() : list.map((item, i) => `${i + 1}. [${item.status || 'selected'} / P:${item.priority || ''}] ${item.text}`).join('\n'); }
 
     /* === AI機能 / ペルソナ抽出 === */
     function getRecentChat(n = 3) { return chatHistory.filter(m => m.role === 'user' || m.role === 'ai').slice(-(n * 2)).map(m => `${m.role === 'user' ? 'ユーザー' : 'AI'}: ${m.text}`).join('\n'); }
@@ -3144,17 +3280,21 @@ ${skill.content || ''}`).join('\n\n');
         return a === b || a.includes(b) || b.includes(a);
     }
 
-    function getVerificationTaskSnapshot() {
-        return getSpecList().map((item, index) => ({
+    function getVerificationTaskSnapshot(options = {}) {
+        const selectedIds = Array.isArray(options.selectedTaskIds) ? options.selectedTaskIds : null;
+        return getSpecList().filter(item => !selectedIds || selectedIds.includes(item.id)).map((item, index) => ({
             id: item.id,
             index: index + 1,
             text: item.text,
+            priority: item.priority || ((index + 1) * 10),
+            risk: item.risk || 'medium',
+            selected: item.selected === true,
             status: item.status || (item.done ? 'verified' : 'pending')
         }));
     }
 
-    function specListToVerificationJson() {
-        return JSON.stringify(getVerificationTaskSnapshot(), null, 2);
+    function specListToVerificationJson(options = {}) {
+        return JSON.stringify(getVerificationTaskSnapshot(options), null, 2);
     }
 
     function normalizeVerificationTaskResult(item) {
@@ -3187,13 +3327,14 @@ ${skill.content || ''}`).join('\n\n');
         if (parsed && typeof parsed === 'object') {
             const rawTasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
             const tasks = rawTasks.map(normalizeVerificationTaskResult).filter(Boolean);
-            const explicitCovered = Array.isArray(parsed.covered) ? parsed.covered.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()) : [];
             const explicitMissing = Array.isArray(parsed.missing) ? parsed.missing.filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()) : [];
             const coveredFromTasks = tasks.filter(t => t.canComplete).map(t => t.taskId || t.text).filter(Boolean);
             const missingFromTasks = tasks.filter(t => !t.canComplete).map(t => t.text || t.taskId || t.reason).filter(Boolean);
             return {
                 tasks,
-                covered: coveredFromTasks.length ? coveredFromTasks : explicitCovered,
+                // covered だけの旧/簡易応答では、動作確認済みと判断しない。
+                // verified + implemented + behaviorChecked + canComplete を満たした tasks のみ消込候補にする。
+                covered: coveredFromTasks,
                 missing: missingFromTasks.length ? missingFromTasks : explicitMissing,
                 raw: parsed,
                 legacy: false
@@ -3202,8 +3343,8 @@ ${skill.content || ''}`).join('\n\n');
         throw new Error('検証AIの結果形式が不正です');
     }
 
-    function buildStructuredVerificationPrompt(code) {
-        const taskJson = specListToVerificationJson();
+    function buildStructuredVerificationPrompt(code, options = {}) {
+        const taskJson = specListToVerificationJson(options);
         const base = (document.getElementById('prompt-verify').value.trim() || getPrompt('verify'))
             .replace('{specList}', specListToString())
             .replace('{generatedCode}', String(code || '').slice(0, 30000));
@@ -3211,6 +3352,8 @@ ${skill.content || ''}`).join('\n\n');
 
 【検証対象タスクJSON】
 ${taskJson}
+
+${getFeedbackInstruction()}
 
 【このアプリ側での必須検証ルール】
 - コードを生成しただけではタスクを完了扱いにしない。
@@ -3255,8 +3398,9 @@ ${taskJson}
         return list;
     }
 
-    function applyVerificationResultToSpecList(coverage) {
+    function applyVerificationResultToSpecList(coverage, options = {}) {
         const list = getSpecList();
+        const selectedIds = Array.isArray(options.selectedTaskIds) ? options.selectedTaskIds : null;
         if (list.length === 0) return { doneCount: 0, total: 0, verifiedCount: 0, failedCount: 0, blockedCount: 0 };
         const taskResults = Array.isArray(coverage.tasks) ? coverage.tasks : [];
         const coveredTexts = Array.isArray(coverage.covered) ? coverage.covered : [];
@@ -3265,11 +3409,11 @@ ${taskJson}
         let failedCount = 0;
         let blockedCount = 0;
         list.forEach(item => {
+            if (selectedIds && !selectedIds.includes(item.id)) return;
             const result = taskResults.find(t =>
                 (t.taskId && t.taskId === item.id) ||
                 (t.text && requirementMatches(t.text, item.text))
             );
-            const explicitlyCovered = coveredTexts.some(c => c === item.id || requirementMatches(c, item.text));
             const explicitlyMissing = missingTexts.some(m => m === item.id || requirementMatches(m, item.text));
             if (result) {
                 if (result.canComplete) {
@@ -3283,13 +3427,6 @@ ${taskJson}
                 item.status = result.status === 'blocked' ? 'blocked' : 'failed';
                 item.verifyReason = result.reason || result.issues.join(' / ') || '検証AIが完了条件を満たさないと判定しました。';
                 if (item.status === 'blocked') blockedCount++; else failedCount++;
-                return;
-            }
-            if (!coverage.legacy && explicitlyCovered && !explicitlyMissing) {
-                item.status = 'verified';
-                item.done = true;
-                item.verifyReason = '検証AIが covered として返しました。';
-                verifiedCount++;
                 return;
             }
             if (explicitlyMissing) {
@@ -3309,10 +3446,11 @@ ${taskJson}
                 verifiedCount++;
             }
         });
-        const doneCount = list.filter(i => i.status === 'verified' && i.done === true).length;
+        const targetList = selectedIds ? list.filter(i => selectedIds.includes(i.id)) : list;
+        const doneCount = targetList.filter(i => i.status === 'verified' && i.done === true).length;
         saveSpecList(list);
         renderSpecCards();
-        return { doneCount, total: list.length, verifiedCount: doneCount, failedCount, blockedCount };
+        return { doneCount, total: targetList.length, verifiedCount: doneCount, failedCount, blockedCount };
     }
 
     async function verifySpecCoverage(code, options = {}) {
@@ -3321,16 +3459,18 @@ ${taskJson}
         const announce = !options.silent;
         let runningMsg = null;
         try {
-            markSpecListStatus('verifying', '検証AIが実装と動作経路を確認中です。');
+            if (Array.isArray(options.selectedTaskIds)) markSelectedTasksStatus('verifying', '検証AIが実装と動作経路を確認中です。');
+            else markSpecListStatus('verifying', '検証AIが実装と動作経路を確認中です。');
             if (announce) {
                 runningMsg = { id: Date.now().toString() + '-verify-running', role: 'ai system-msg', text: '✅ 検証AIを実行しています。実装有無と動作経路を確認してからタスクを消し込みます。', html: false };
                 chatHistory.push(runningMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(runningMsg);
             }
-            const prompt = buildStructuredVerificationPrompt(code);
+            const prompt = buildStructuredVerificationPrompt(code, options);
             const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('verify'), taskType: 'verify' });
             const coverage = parseVerificationPayload(result.text);
-            const applied = applyVerificationResultToSpecList(coverage);
-            const unresolvedTexts = getSpecList().filter(i => !(i.status === 'verified' && i.done === true)).map(i => i.text);
+            const applied = applyVerificationResultToSpecList(coverage, options);
+            const selectedIds = Array.isArray(options.selectedTaskIds) ? options.selectedTaskIds : null;
+            const unresolvedTexts = getSpecList().filter(i => (!selectedIds || selectedIds.includes(i.id)) && !(i.status === 'verified' && i.done === true)).map(i => i.text);
             let sysMsg;
             if (unresolvedTexts.length > 0) {
                 const verifyItems = unresolvedTexts.map(m => ({ id: Date.now().toString() + Math.random().toString(36).slice(2, 6), text: m, source: 'verify', timestamp: Date.now() }));
@@ -3347,7 +3487,8 @@ ${taskJson}
             chatHistory.push(sysMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsg);
             return { ok: unresolvedTexts.length === 0, coverage, summary: sysMsg.text };
         } catch(e) {
-            markSpecListStatus('blocked', `検証AIを実行できませんでした: ${e.message || e}`);
+            if (Array.isArray(options.selectedTaskIds)) markSelectedTasksStatus('blocked', `検証AIを実行できませんでした: ${e.message || e}`);
+            else markSpecListStatus('blocked', `検証AIを実行できませんでした: ${e.message || e}`);
             const msg = { id: Date.now().toString(), role: 'ai system-msg', text: `⚠️ 検証AIを実行できませんでした。タスクは消し込みません: ${e.message || e}`, html: false };
             chatHistory.push(msg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(msg);
             try { await addFailureLog('ai-error', `検証AI失敗: ${e.message || e}`, '検証対象タスク:\n' + specListToString()); } catch(_) {}
@@ -3437,7 +3578,9 @@ ${taskJson}
                 targetPersona: document.getElementById('target-persona').value, userSystemPrompt: document.getElementById('user-system-prompt').value, systemPrompt: document.getElementById('system-prompt').value, codePrinciples: document.getElementById('code-principles').value, adminSystemRequirements: document.getElementById('admin-system-requirements').value, adminImplementationVerification: document.getElementById('admin-implementation-verification').value, skillSettings: document.getElementById('skill-settings').value, userSkillSettings: document.getElementById('user-skill-settings').value,
                 promptPlan: document.getElementById('prompt-plan').value, promptSuggest: document.getElementById('prompt-suggest').value, promptDebug: document.getElementById('prompt-debug').value,
                 promptExtract: document.getElementById('prompt-extract').value, promptVerify: document.getElementById('prompt-verify').value,
-                modelOverrides: { ...modelOverrides }
+                modelOverrides: { ...modelOverrides },
+                feedbackSections: getSelectedFeedbackSections(),
+                fixApprovalMode: getFixApprovalMode()
             };
             await saveToDB('settings', settings);
             syncGitHubPatInputs('settings');
@@ -3559,7 +3702,8 @@ ${taskJson}
         projectFiles[path] = '';
         openProjectFile(path);
     }
-    function setProjectFiles(files, activePath) {
+    function setProjectFiles(files, activePath, options = {}) {
+        const refreshPreview = options.refreshPreview !== false;
         projectFiles = files && Object.keys(files).length ? files : { 'index.html': '' };
         currentFilePath = normalizeFilePath(activePath || (projectFiles['index.html'] !== undefined ? 'index.html' : Object.keys(projectFiles)[0]));
         if (cmView) {
@@ -3568,7 +3712,7 @@ ${taskJson}
             isSwitchingEditorFile = false;
         }
         renderProjectFileTabs();
-        updatePreview();
+        if (refreshPreview) updatePreview();
         saveProjectState();
     }
     function getDeployFiles(defaultPath, fallbackCode) {
@@ -4363,8 +4507,116 @@ ${verificationText}
         return project;
     }
 
+    function normalizeGeneratedProject(project) {
+        const files = project?.files && Object.keys(project.files).length ? project.files : { 'index.html': String(project || '') };
+        const entryFile = normalizeFilePath(project?.entryFile || (files['index.html'] !== undefined ? 'index.html' : Object.keys(files)[0]));
+        return { files, entryFile };
+    }
+
+    function getCurrentProjectSnapshot() {
+        syncCurrentEditorFile();
+        const files = { ...projectFiles };
+        const entryFile = normalizeFilePath(currentFilePath || (files['index.html'] !== undefined ? 'index.html' : Object.keys(files)[0] || 'index.html'));
+        return { files, entryFile };
+    }
+
+    function updateChatProgressMessage(messageObj, text, html = false) {
+        if (!messageObj) return;
+        messageObj.text = text;
+        messageObj.html = html;
+        const node = document.querySelector(`[data-id="${messageObj.id}"] .msg-content`);
+        if (node) {
+            if (html) node.innerHTML = text;
+            else node.textContent = text;
+        }
+        saveToDB('chatHistory', chatHistory);
+    }
+
+    function prioritizeAndSelectTasks(reason = '') {
+        let list = getSpecList();
+        if (window.AITaskPriorityLogic?.prioritizeAndSelect) list = window.AITaskPriorityLogic.prioritizeAndSelect(list, { reason });
+        else list = list.map((item, index) => ({ ...item, priority: item.priority || (index + 1) * 10, selected: !(item.status === 'verified' && item.done === true), status: (item.status === 'verified' && item.done === true) ? 'verified' : 'selected' }));
+        saveSpecList(list); renderSpecCards();
+        return list.filter(item => item.selected && !(item.status === 'verified' && item.done === true));
+    }
+    function markSelectedTasksStatus(status, reason = '') {
+        const list = getSpecList();
+        list.forEach(item => { if (item.selected && item.status !== 'verified') { item.status = status; item.done = false; if (reason) item.verifyReason = reason; if (status === 'in_progress' && !item.startedAt) item.startedAt = new Date().toISOString(); } });
+        saveSpecList(list); renderSpecCards(); return list;
+    }
+    function getSelectedTaskIds() { return getSpecList().filter(item => item.selected && !(item.status === 'verified' && item.done === true)).map(item => item.id); }
+    let pendingFixProposal = null;
+    function normalizeBugAnalysisPayload(text, fallbackSummary = '') {
+        let parsed = null; try { parsed = extractJsonFromLLMText(text); } catch(_) {}
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) parsed = { bugSummary: fallbackSummary || String(text || '').slice(0, 500), rootCause: '', fixProposal: String(text || ''), impactAnalysis: '', riskLevel: 'medium', affectedFiles: [], affectedFeatures: [], needsApproval: true };
+        return { bugSummary: String(parsed.bugSummary || parsed.summary || fallbackSummary || '').trim(), rootCause: String(parsed.rootCause || parsed.cause || '').trim(), fixProposal: String(parsed.fixProposal || parsed.proposal || '').trim(), impactAnalysis: String(parsed.impactAnalysis || parsed.impact || '').trim(), riskLevel: String(parsed.riskLevel || parsed.risk || 'medium').trim(), needsApproval: parsed.needsApproval !== false, affectedFiles: Array.isArray(parsed.affectedFiles) ? parsed.affectedFiles.map(String) : [], affectedFeatures: Array.isArray(parsed.affectedFeatures) ? parsed.affectedFeatures.map(String) : [], raw: parsed };
+    }
+    function formatFixApprovalText(analysis) {
+        const selected = getSelectedFeedbackSections(); const parts = [];
+        if (selected.includes('summary')) parts.push(`【要約】\n${analysis.bugSummary || '検証AIが未完了またはバグの可能性を検出しました。'}`);
+        if (selected.includes('functional')) parts.push(`【機能説明】\n影響機能: ${(analysis.affectedFeatures || []).join(', ') || '未特定'}\nこのままでは選定タスクを完了扱いにしません。`);
+        if (selected.includes('implementation')) parts.push(`【実装概要】\n影響ファイル: ${(analysis.affectedFiles || []).join(', ') || '未特定'}\n修正案: ${analysis.fixProposal || '未作成'}`);
+        if (selected.includes('technical')) parts.push(`【技術詳細】\n原因: ${analysis.rootCause || '原因の特定が必要です。'}`);
+        if (selected.includes('design')) parts.push(`【設計評価】\nリスク: ${analysis.riskLevel || 'medium'}\n影響範囲: ${analysis.impactAnalysis || '未特定'}`);
+        return parts.join('\n\n');
+    }
+    async function analyzeImplementationBugs(projectText, verification, selectedTaskIds) {
+        const prompt = `あなたは実装検証後のバグ原因分析AIです。\n\n${getFeedbackInstruction()}\n\n【目的】\n検証AIが未完了・失敗・blockedにしたタスクについて、原因、修正案、修正時の影響範囲を作成してください。\n\n【選定タスク】\n${specListToVerificationJson({ selectedTaskIds })}\n\n【検証結果】\n${verification?.summary || ''}\n\n【現在の全ファイル】\n${String(projectText || '').slice(0, 30000)}\n\n【出力形式】\nJSONだけを返してください。Markdownは禁止です。\n{ "bugSummary":"概要", "rootCause":"原因", "affectedFiles":["path"], "affectedFeatures":["feature"], "fixProposal":"修正案", "impactAnalysis":"修正時の影響", "riskLevel":"low | medium | high | critical", "needsApproval":true }`;
+        const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('debug'), taskType: 'bug-analysis' });
+        return normalizeBugAnalysisPayload(result.text, verification?.summary || '検証AIが未完了タスクを検出しました。');
+    }
+    function showFixApprovalModal(analysis) { pendingFixProposal = analysis; const el = document.getElementById('fix-approval-summary'); if (el) el.textContent = formatFixApprovalText(analysis); document.getElementById('fix-approval-modal')?.classList.add('show'); }
+    function closeFixApprovalModal() { document.getElementById('fix-approval-modal')?.classList.remove('show'); }
+    function rejectPendingFixProposal() { const summary = pendingFixProposal ? formatFixApprovalText(pendingFixProposal) : ''; closeFixApprovalModal(); try { addFailureLog('manual', '修正案はユーザーにより保留されました。', summary); } catch(_) {} pendingFixProposal = null; showToast('修正を保留しました'); }
+    async function requestAlternativeFixProposal() {
+        if (!pendingFixProposal) return; closeFixApprovalModal();
+        const statusMsg = { id: Date.now().toString(), role: 'ai system-msg', text: '<div style="display:flex;align-items:center;"><div class="spinner"></div><span>別の修正案を作成しています。</span></div>', html: true };
+        chatHistory.push(statusMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(statusMsg);
+        try { const result = await callLLM({ prompt: `次の修正案とは別案を作成してください。${getFeedbackInstruction()}\n\n【現在の修正案】\n${JSON.stringify(pendingFixProposal, null, 2)}\n\nJSONだけで返してください。`, stream: false, model: getModelForPrompt('debug'), taskType: 'bug-analysis' }); pendingFixProposal = normalizeBugAnalysisPayload(result.text, pendingFixProposal.bugSummary); updateChatProgressMessage(statusMsg, '別案を作成しました。確認してください。'); showFixApprovalModal(pendingFixProposal); } catch(e) { updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">別案作成に失敗しました: ${escapeHtml(e.message || String(e))}</span>`, true); }
+    }
+    async function approvePendingFixProposal() {
+        if (!pendingFixProposal) return; const proposal = pendingFixProposal; closeFixApprovalModal(); pendingFixProposal = null;
+        const statusMsg = { id: Date.now().toString(), role: 'ai system-msg', text: '<div style="display:flex;align-items:center;"><div class="spinner"></div><span>承認された修正案を適用しています。</span></div>', html: true };
+        chatHistory.push(statusMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(statusMsg);
+        await runFixProposalOnce(proposal, getCurrentProjectSnapshot(), getSelectedTaskIds(), statusMsg);
+    }
+    async function runFixProposalOnce(analysis, project, selectedTaskIds, statusMsg) {
+        const currentProjectText = projectToVerificationText(project); const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
+        const prompt = `${document.getElementById('system-prompt').value.trim()}\n\n${document.getElementById('code-principles').value.trim()}\n\n${document.getElementById('admin-implementation-verification')?.value.trim() || ''}\n\n${getFeedbackInstruction()}\n\n【承認済み修正案】\n${JSON.stringify(analysis, null, 2)}\n\n【選定タスク】\n${specListToVerificationJson({ selectedTaskIds })}\n\n【現在の全ファイル】\n${currentProjectText}\n\n【出力ルール】\n${codeOnlyInstruction}\n現在の全ファイルを修正後の完全な内容として、entryFile と files を含むJSONだけで出力してください。差分、省略、説明は禁止です。`;
+        try { markSelectedTasksStatus('auto_fixing', '承認済み修正案を適用中です。'); const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('debug'), taskType: 'auto-fix' }); const repaired = parseGeneratedProject(result.text); const normalized = normalizeGeneratedProject(repaired); setProjectFiles(normalized.files, normalized.entryFile, { refreshPreview: false }); markSelectedTasksStatus('implemented', '修正コードを反映しました。再検証前です。'); const verification = await verifySpecCoverage(projectToVerificationText(normalized), { selectedTaskIds }); if (verification.ok) { updatePreview(); showPage('preview', document.getElementById('tab-preview')); updateChatProgressMessage(statusMsg, '承認済み修正、検証AI、タスク消込が完了しました。プレビューを確認できます。'); } else { const analysis2 = await analyzeImplementationBugs(projectToVerificationText(normalized), verification, selectedTaskIds); await addFailureLog('ai-error', analysis2.bugSummary || '再検証で問題が残りました。', formatFixApprovalText(analysis2)); if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis2)) { updateChatProgressMessage(statusMsg, '再検証で問題が残ったため、自動修正を継続します。'); await runFixProposalOnce(analysis2, normalized, selectedTaskIds, statusMsg); } else { updateChatProgressMessage(statusMsg, '再検証で問題が残りました。修正案を確認してください。'); showFixApprovalModal(analysis2); } } } catch(e) { updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">修正適用に失敗しました: ${escapeHtml(e.message || String(e))}</span>`, true); try { await addFailureLog('build-error', `修正適用失敗: ${e.message || e}`, JSON.stringify(analysis, null, 2)); } catch(_) {} }
+    }
+    async function handleFailedVerificationFlow(project, verification, selectedTaskIds, progressMessage) {
+        const projectText = projectToVerificationText(project); let analysis;
+        try { analysis = await analyzeImplementationBugs(projectText, verification, selectedTaskIds); } catch(e) { analysis = normalizeBugAnalysisPayload('', `原因分析AIを実行できませんでした: ${e.message || e}`); }
+        await addFailureLog('ai-error', analysis.bugSummary || '検証で未完了タスクを検出しました。', formatFixApprovalText(analysis));
+        if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis)) { updateChatProgressMessage(progressMessage, '検証AIが問題を検出しました。確認不要モードのため、自動修正を開始します。'); await runFixProposalOnce(analysis, project, selectedTaskIds, progressMessage); }
+        else { updateChatProgressMessage(progressMessage, '検証AIが問題を検出しました。原因・修正案・影響範囲を確認してください。'); showFixApprovalModal(analysis); }
+    }
+
+    async function commitProjectVerifyThenPreview(project, progressMessage, completeText, options = {}) {
+        const normalized = normalizeGeneratedProject(project);
+        const projectForVerification = { files: normalized.files, entryFile: normalized.entryFile };
+        const selectedTaskIds = options.selectedTaskIds || getSelectedTaskIds();
+        setProjectFiles(normalized.files, normalized.entryFile, { refreshPreview: false });
+        markSelectedTasksStatus('implemented', 'コード生成AIが実装を出力しました。まだ検証AIによる動作確認前です。');
+        updateChatProgressMessage(progressMessage, 'コードを反映しました。検証AIを実行しています。検証とタスク消込が終わるまでプレビューは表示しません。');
+        const verification = await verifySpecCoverage(projectToVerificationText(projectForVerification), { selectedTaskIds });
+        if (verification?.ok) {
+            updatePreview();
+            showPage('preview', document.getElementById('tab-preview'));
+            const suffix = verification?.summary ? `\n\n${verification.summary}` : '';
+            updateChatProgressMessage(progressMessage, `${completeText || getLabel('aiSystemMsgBuildComplete')}${suffix}`.trim());
+            return verification;
+        }
+        await handleFailedVerificationFlow(projectForVerification, verification, selectedTaskIds, progressMessage);
+        return verification;
+    }
+
     async function generateCode() {
         clearNewSpecFlags();
+        const selectedTasks = prioritizeAndSelectTasks('code-generation');
+        markSelectedTasksStatus('in_progress', '優先順位に基づいて実行対象に選定しました。');
+        const selectedTaskIds = selectedTasks.map(item => item.id);
         const targetPersona = document.getElementById('target-persona').value;
         const codeRun = window.AICodeLogic?.prepareRun?.() || {};
         const model = codeRun.model || getModelForPrompt('code');
@@ -4396,21 +4648,22 @@ ${themeCSS}` : ''}
 ${currentCode ? `既存コード:
 ${currentCode}` : '新規作成'}
 【実装要件】
+${selectedSpecListToString()}
+
+【全タスク一覧】
 ${specListToString()}
+
+【タスク実行ルール】
+- 優先順位が付いた選定済みタスクだけを今回の実装対象にしてください。
+- 選定済みタスクが verified になるまで、検証AI・原因究明・修正案作成・承認または自動修正の流れを前提にしてください。
+- 未選定タスクや既存機能を勝手に削除・省略しないでください。
 
 【最終出力形式】
 ${codeOnlyInstruction}`;
         try {
             const project = await runAgenticCodeBuild(system, model);
-            const files = project?.files && Object.keys(project.files).length ? project.files : { 'index.html': '' };
-            const entryFile = project?.entryFile || (files['index.html'] !== undefined ? 'index.html' : Object.keys(files)[0]);
-            setProjectFiles(files, entryFile);
-            markSpecListStatus('implemented', 'コード生成AIが実装を出力しました。まだ検証AIによる動作確認前です。');
-            updatePreview(); showPage('preview', document.getElementById('tab-preview'));
-            sysMsgObj.text = 'コード構築完了。検証AIを実行しています...'; sysMsgObj.html = false; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).textContent = sysMsgObj.text; await saveToDB('chatHistory', chatHistory);
-            await verifySpecCoverage(projectToVerificationText(project));
-            sysMsgObj.text = getLabel('aiSystemMsgBuildComplete'); sysMsgObj.html = false; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).textContent = sysMsgObj.text; await saveToDB('chatHistory', chatHistory);
-        } catch (e) { sysMsgObj.text = `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${e.message}</span>`; document.querySelector(`[data-id="${sysMsgObj.id}"] .msg-content`).innerHTML = sysMsgObj.text; saveToDB('chatHistory', chatHistory); try { addFailureLog('build-error', `コード生成失敗: ${e.message || e}`, '実装要件:\n' + specListToString()); } catch(_) {} }
+            await commitProjectVerifyThenPreview(project, sysMsgObj, getLabel('aiSystemMsgBuildComplete'), { selectedTaskIds });
+        } catch (e) { updateChatProgressMessage(sysMsgObj, `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${e.message}</span>`, true); try { addFailureLog('build-error', `コード生成失敗: ${e.message || e}`, '実装要件:\n' + specListToString()); } catch(_) {} }
     }
 
     function submitDebugRequestByShortcut() {
@@ -4448,18 +4701,77 @@ ${codeOnlyInstruction}`;
         }
     }
 
+    async function runPreviewDebugRequest(text) {
+        const preparedText = window.AIDebugLogic?.prepareUserInput ? window.AIDebugLogic.prepareUserInput(text) : text;
+        showPage('chat', document.getElementById('tab-chat'));
+        const userMsgObj = { id: Date.now().toString(), role: 'user', text: preparedText, html: false };
+        chatHistory.push(userMsgObj); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(userMsgObj);
+        const statusMsg = { id: (Date.now() + 1).toString(), role: 'ai system-msg', text: '<div style="display:flex;align-items:center;"><div class="spinner"></div><span>デバッグAIが修正コードを作成しています。</span></div>', html: true };
+        chatHistory.push(statusMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(statusMsg);
+
+        const debugRun = window.AIDebugLogic?.prepareRun?.() || {};
+        const model = debugRun.model || getModelForPrompt('debug');
+        const debugTaskType = debugRun.taskType || 'debugging';
+        const targetPersona = document.getElementById('target-persona').value;
+        const currentProject = getCurrentProjectSnapshot();
+        const currentProjectText = projectToVerificationText(currentProject);
+        const selectedTasks = prioritizeAndSelectTasks('debugging');
+        markSelectedTasksStatus('in_progress', 'デバッグ修正の実行対象に選定しました。');
+        const selectedTaskIds = selectedTasks.map(item => item.id);
+        const verifyMissing = await getVerifyMissing();
+        const verifyMissingText = verifyMissing.length ? verifyMissing.map((item, i) => `${i + 1}. ${item.text || item}`).join('\n') : '（なし）';
+        const skillContext = await buildSkillContextForTask(preparedText + '\n\n' + currentProjectText, model, debugTaskType);
+        const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
+        const adminSystem = [
+            codeOnlyInstruction,
+            document.getElementById('system-prompt').value.trim(),
+            document.getElementById('code-principles').value.trim(),
+            document.getElementById('admin-system-requirements')?.value.trim(),
+            document.getElementById('admin-implementation-verification')?.value.trim(),
+            skillContext,
+            document.getElementById('user-system-prompt')?.value.trim() ? `【ユーザー用システムプロンプト】
+${document.getElementById('user-system-prompt').value.trim()}` : ''
+        ].filter(Boolean).join('\n\n');
+        const debugTemplate = document.getElementById('prompt-debug').value.trim() || getPrompt('debug');
+        const prompt = [
+            adminSystem,
+            debugTemplate
+                .replace('{memoText}', preparedText)
+                .replace('{targetPersona}', targetPersona)
+                .replace('{prof}', targetPersona)
+                .replace('{codeContext}', currentProjectText)
+                .replace('{systemPrompt}', adminSystem)
+                .replace('{specList}', specListToString())
+                .replace('{recentChat}', getRecentChat(3)),
+            `【プレビュー画面からの修正依頼】
+${preparedText}`,
+            `【現在の全ファイル】
+${currentProjectText}`,
+            `【現在のタスクリスト】
+${specListToVerificationJson({ selectedTaskIds })}`,
+            `【検証AIの未完了・失敗結果】
+${verifyMissingText}`,
+            `【出力ルール】
+${codeOnlyInstruction}
+現在の全ファイルを修正後の完全な内容として出力してください。複数ファイルの場合は entryFile と files を含むJSONだけを出力してください。差分、省略、説明は禁止です。`
+        ].filter(Boolean).join('\n\n');
+
+        try {
+            const result = await callLLM({ prompt, stream: false, model, taskType: debugTaskType });
+            const project = parseGeneratedProject(result.text);
+            await commitProjectVerifyThenPreview(project, statusMsg, 'デバッグ修正と検証が完了しました。', { selectedTaskIds });
+        } catch (e) {
+            updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${e.message}</span>`, true);
+            try { addFailureLog('debug-error', `デバッグ修正失敗: ${e.message || e}`, '修正依頼:\n' + preparedText); } catch(_) {}
+        }
+    }
+
     function sendDebugRequest() { 
         const memoEl = document.getElementById('debug-memo');
         const text = memoEl.value.trim(); 
         if (!text) return; 
-        showPage('chat', document.getElementById('tab-chat')); 
-        const input = document.getElementById('user-prompt'); 
-        input.value = window.AIDebugLogic?.prepareUserInput ? window.AIDebugLogic.prepareUserInput(text) : text; 
-        if (window.AIChatLogic?.setPendingTaskType) window.AIChatLogic.setPendingTaskType('debugging');
-        else window.__pendingChatTaskType = 'debugging';
-        autoGrow(input); 
-        memoEl.value = ''; 
-        askAI(); 
+        memoEl.value = '';
+        runPreviewDebugRequest(text);
     }
 
     /* --- UIテキストの適用 --- */
@@ -4881,7 +5193,7 @@ ${codeOnlyInstruction}`;
 
             // Service Worker 登録（同一オリジン要件のため、別ファイル sw.js を使う）
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js?v=settings-tabs-skills-models-v7', { scope: './' })
+                navigator.serviceWorker.register('./sw.js?v=settings-tabs-skills-models-v15', { scope: './' })
                     .then(reg => { try { reg.update(); } catch(e) {} })
                     .catch(err => console.warn('SW registration failed:', err));
             }
@@ -4985,6 +5297,8 @@ ${codeOnlyInstruction}`;
                 if (settings.serverEndpoint && document.getElementById('server-endpoint')) document.getElementById('server-endpoint').value = settings.serverEndpoint;
                 if (settings.customBaseUrl && document.getElementById('api-base-custom')) document.getElementById('api-base-custom').value = settings.customBaseUrl;
                 if (settings.templateCatalogUrl && document.getElementById('template-catalog-url')) document.getElementById('template-catalog-url').value = settings.templateCatalogUrl;
+                setSelectedFeedbackSections(settings.feedbackSections);
+                setFixApprovalMode(settings.fixApprovalMode);
                 // プロンプト別モデル選択を復元
                 if (settings.modelOverrides && typeof settings.modelOverrides === 'object') {
                     modelOverrides = { ...settings.modelOverrides };
@@ -4995,7 +5309,7 @@ ${codeOnlyInstruction}`;
                 if (settings.debugModel) { ensureModelOption(document.getElementById('debug-model'), settings.debugModel, 'debugging'); document.getElementById('debug-model').value = settings.debugModel; }
                 updatePromptModelOptions();
             } else {
-                onProviderChange(); ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => document.getElementById(k).value = getFieldDefaults()[k]); updateKeyExpiryStatus(null);
+                setSelectedFeedbackSections(['summary','functional']); setFixApprovalMode('manual'); onProviderChange(); ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => document.getElementById(k).value = getFieldDefaults()[k]); updateKeyExpiryStatus(null);
             }
             toggleModelSelects(); const ghToken = await getFromDB('gh_token'); if (ghToken) { const sgt = document.getElementById('setting-gh-token'); const dti = document.getElementById('deploy-token-input'); const gpm = document.getElementById('github-pat-modal-input'); if (sgt) sgt.value = ghToken; if (dti) dti.value = ghToken; if (gpm) gpm.value = ghToken; }
             try { renderSkillManager(); } catch(e) { console.warn('renderSkillManager error:', e); }
@@ -5498,6 +5812,11 @@ ${String(a.textContent).slice(0, 24000)}`);
         updatePreview(); if (currentThemeId !== 'none') await injectThemeToCode(true); resetChatForNewCode(getLabel('templatesLabel') + '「' + (t.name || id) + '」'); showPage('preview', document.getElementById('tab-preview'));
     }
 </script>
+<script src="./js/ai-feedback-view-logic.js"></script>
+<script src="./js/ai-task-priority-logic.js"></script>
+<script src="./js/ai-verify-logic.js"></script>
+<script src="./js/ai-bug-analysis-logic.js"></script>
+<script src="./js/ai-task-runner.js"></script>
 <script src="./js/ai-chat-logic.js"></script>
 <script src="./js/ai-code-logic.js"></script>
 <script src="./js/ai-debug-logic.js"></script>
