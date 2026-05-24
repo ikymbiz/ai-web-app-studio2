@@ -67,10 +67,13 @@
         /* チャット */
         .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--sidebar); border-bottom: 1px solid var(--color-border); }
         .header-title { font-size: 12px; font-weight: bold; color: var(--color-text-secondary); font-family: var(--font-display); letter-spacing: 0.05em; }
-        .header-actions { display: flex; gap: 8px; align-items: center; }
-        .reset-btn, .spec-btn { background: var(--color-bg-elevated); color: var(--color-text-primary); border: 1px solid var(--color-border); padding: 4px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s; }
+        .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+        .reset-btn, .spec-btn, .progress-btn { background: var(--color-bg-elevated); color: var(--color-text-primary); border: 1px solid var(--color-border); padding: 4px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
         .reset-btn:hover { background: var(--danger); border-color: var(--danger); }
-        .spec-btn:hover { background: var(--color-border-focus); }
+        .spec-btn:hover, .progress-btn:hover { background: var(--color-border-focus); }
+        .progress-btn.is-running { border-color: rgba(59,130,246,0.7); box-shadow: 0 0 0 1px rgba(59,130,246,0.18) inset; }
+        .progress-btn.is-warn { border-color: rgba(245,158,11,0.8); box-shadow: 0 0 0 1px rgba(245,158,11,0.14) inset; }
+        .progress-btn.is-error { border-color: rgba(239,68,68,0.85); box-shadow: 0 0 0 1px rgba(239,68,68,0.14) inset; }
         
         #chat-log { flex: 1 1 auto; min-height: 0; padding: 15px; padding-bottom: 12px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 20px; background: var(--bg); }
         .msg { position: relative; max-width: 95%; padding: 12px 16px; border-radius: 18px; font-size: 15px; line-height: 1.6; word-wrap: break-word; white-space: pre-wrap; }
@@ -329,11 +332,27 @@
         .repo-list li:hover, .file-list li:hover { background:var(--color-bg-elevated); }
 
         /* プレビュー */
+        .preview-stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #fff; }
         #preview-frame { flex: 1 1 auto; min-height: 0; border: none; background: #fff; width: 100%; height: 100%; }
+        .preview-annotation-toolbar { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 135; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; pointer-events: none; }
+        .preview-annotation-toolbar .preview-tool-btn, .preview-annotation-toolbar .preview-tool-hint { pointer-events: auto; }
+        .preview-tool-btn { border: 1px solid rgba(42,45,54,0.88); background: rgba(13,15,20,0.78); color: #fff; border-radius: 999px; min-height: 36px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-size: 12px; font-family: var(--font-body); backdrop-filter: blur(8px); transition: 0.2s; }
+        .preview-tool-btn.active { background: rgba(59,130,246,0.92); border-color: rgba(147,197,253,0.92); }
+        .preview-tool-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+        .preview-tool-btn.preview-tool-accent.active { background: rgba(234,179,8,0.94); border-color: rgba(253,224,71,0.92); color: #111827; }
+        .preview-tool-hint { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: rgba(13,15,20,0.72); color: var(--color-text-primary); border: 1px solid rgba(42,45,54,0.88); font-size: 11px; line-height: 1.45; backdrop-filter: blur(8px); }
+        .preview-annotation-layer { position: absolute; inset: 0; z-index: 132; pointer-events: none; touch-action: none; }
+        .preview-annotation-layer.active { pointer-events: auto; }
+        .preview-annotation-canvas { width: 100%; height: 100%; display: block; }
         .debug-panel { background: var(--bg); border-top: 1px solid var(--color-border); padding: 12px 15px max(12px, env(safe-area-inset-bottom, 0px)); display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; position: relative; z-index: 120; }
         #debug-memo { flex: 1; min-height: 40px; max-height: 100px; background: var(--color-bg-elevated); border: 1px solid var(--color-border-focus); border-radius: 20px; padding: 10px 15px; color: #fff; font-size: 14px; outline: none; resize: none; font-family: var(--font-body); min-width: 0; }
         .debug-btn { background: #eab308; color: #000; border: none; height: 40px; padding: 0 16px; border-radius: 20px; font-weight: bold; cursor: pointer; flex-shrink: 0; font-size: 13px; font-family: var(--font-body); }
-        @media (max-width: 520px) { .debug-panel { padding-left: 12px; padding-right: 12px; } .debug-btn { padding: 0 13px; } }
+        @media (max-width: 520px) {
+            .debug-panel { padding-left: 12px; padding-right: 12px; }
+            .debug-btn { padding: 0 13px; }
+            .preview-annotation-toolbar { top: 8px; left: 8px; right: 8px; gap: 6px; }
+            .preview-tool-btn, .preview-tool-hint { min-height: 34px; font-size: 11px; }
+        }
 
         /* 設定 */
         .settings { padding: 0; overflow: hidden; min-height: 0; flex-direction: column; }
@@ -456,6 +475,7 @@
             <span class="header-title"></span>
             <div class="header-actions">
                 <button class="spec-btn" onclick="openSpecModal()"></button>
+                <button class="progress-btn" id="progress-open-btn" onclick="openSpecModal('progress')"></button>
                 <button class="reset-btn" onclick="confirmReset()"></button>
             </div>
         </div>
@@ -505,7 +525,20 @@
     </div>
 
     <div id="p-preview" class="page" style="position:relative;">
-        <iframe id="preview-frame" sandbox="allow-scripts"></iframe>
+        <div class="preview-stage" id="preview-stage">
+            <iframe id="preview-frame" sandbox="allow-scripts"></iframe>
+            <div class="preview-annotation-toolbar" id="preview-annotation-toolbar">
+                <button type="button" class="preview-tool-btn" id="preview-annotation-toggle" onclick="togglePreviewAnnotationMode()"></button>
+                <button type="button" class="preview-tool-btn active" id="preview-tool-pen" onclick="setPreviewAnnotationTool('pen')"></button>
+                <button type="button" class="preview-tool-btn preview-tool-accent" id="preview-tool-highlighter" onclick="setPreviewAnnotationTool('highlighter')"></button>
+                <button type="button" class="preview-tool-btn" id="preview-tool-undo" onclick="undoPreviewAnnotation()"></button>
+                <button type="button" class="preview-tool-btn" id="preview-tool-clear" onclick="clearPreviewAnnotations()"></button>
+                <div class="preview-tool-hint" id="preview-annotation-hint"></div>
+            </div>
+            <div class="preview-annotation-layer" id="preview-annotation-layer" aria-hidden="true">
+                <canvas id="preview-annotation-canvas" class="preview-annotation-canvas"></canvas>
+            </div>
+        </div>
         <div class="debug-panel">
             <textarea id="debug-memo" rows="1" oninput="autoGrow(this)" onkeydown="return handleDebugMemoKeydown(event)"></textarea>
             <button class="debug-btn" onclick="sendDebugRequest()"></button>
@@ -1313,7 +1346,8 @@ profile: frontend
                 // タブ
                 tabChat: "チャット", tabCode: "コード", tabPreview: "プレビュー", tabSettings: "設定",
                 // チャット画面
-                headerConversation: "会話", specButton: "📋 タスク", newButton: "＋ 新規",
+                headerConversation: "会話", specButton: "📋 タスク", progressButton: "⏳ 進行中", newButton: "＋ 新規",
+                progressButtonIdle: "履歴", progressButtonRunning: "実行", progressButtonAwaiting: "待ち", progressButtonError: "!",
                 generateCodeButton: "⚡️ コードを作成",
                 cameraOption: "📸 カメラ", galleryOption: "🖼️ ギャラリー", filesOption: "📁 ファイル",
                 userPromptPlaceholder: "例：ダークモードのTodoアプリを作りたい...", sendButton: "↑",
@@ -1321,6 +1355,8 @@ profile: frontend
                 importButton: "📥 取込", uploadButton: "📤 読込", searchButton: "🔍 検索",
                 downloadButton: "💾 保存", deployButton: "🚀 公開",
                 debugMemoPlaceholder: "修正したい点を入力...", debugRequestButton: "修正を依頼", debugCtrlEnterHint: "Ctrl+Enterで修正依頼",
+                previewAnnotateToggle: "✍️ 手書き", previewAnnotateOff: "表示のみ", previewPenTool: "ペン", previewHighlighterTool: "蛍光ペン", previewUndoButton: "↶ 戻す", previewClearButton: "🧹 クリア",
+                previewAnnotateHint: "手書きモードをONにすると、プレビュー上に直接書き込めます。書き込み後に修正依頼を送ると画像付きで添付します。", previewAnnotateHintActive: "手書きモード中です。指やペンで位置をなぞってください。修正依頼に画像付きで添付します。",
                 // 設定セクション見出し
                 sectionAiTitle: "AI接続", sectionDevTitle: "開発設定", sectionSecurityTitle: "セキュリティ",
                 settingsTabBasic: "基本設定", settingsTabConnection: "API・保存設定", settingsTabAdmin: "管理設定", sectionServerEndpointTitle: "API接続エンドポイント",
@@ -1700,6 +1736,11 @@ profile: frontend
             "tabSettings": "Settings",
             "headerConversation": "Conversation",
             "specButton": "Tasks",
+            "progressButton": "In progress",
+            "progressButtonIdle": "Log",
+            "progressButtonRunning": "Run",
+            "progressButtonAwaiting": "Wait",
+            "progressButtonError": "!",
             "newButton": "+ New",
             "generateCodeButton": "Generate code",
             "cameraOption": "Camera",
@@ -1715,6 +1756,14 @@ profile: frontend
             "debugMemoPlaceholder": "Describe what you want fixed...",
             "debugRequestButton": "Request fix",
             "debugCtrlEnterHint": "Ctrl+Enter to request fix",
+            "previewAnnotateToggle": "Draw",
+            "previewAnnotateOff": "View only",
+            "previewPenTool": "Pen",
+            "previewHighlighterTool": "Highlighter",
+            "previewUndoButton": "Undo",
+            "previewClearButton": "Clear",
+            "previewAnnotateHint": "Turn draw mode on to write directly on the preview. When you request a fix, the drawing is attached as an image.",
+            "previewAnnotateHintActive": "Draw mode is on. Mark the location with your finger or pen. The drawing will be attached to the fix request.",
             "sectionAiTitle": "AI connection",
             "apiKeyManageLabel": "API keys",
             "apiKeyManageButton": "Register / manage API keys",
@@ -3071,6 +3120,7 @@ ${lines.join('\n')}`;
             const active = state && ['running','awaiting_approval','interrupted','error'].includes(state.status);
             setTabBadge('badge-progress', active ? '!' : String(events.length), !active && events.length === 0);
         } catch(e) { setTabBadge('badge-progress', '0', true); }
+        try { updateProgressHeaderButton(); } catch(e) {}
     }
     function setTabBadge(id, txt, empty) {
         const el = document.getElementById(id);
@@ -3195,6 +3245,35 @@ ${lines.join('\n')}`;
         try { refreshAllTaskCounts(); } catch(e) {}
     }
     function updateFloatingGenerateBtn() { /* 常時表示のため何もしない（互換のため残置） */ }
+    function updateProgressHeaderButton() {
+        const btn = document.getElementById('progress-open-btn');
+        const badge = document.getElementById('progress-header-badge');
+        if (!btn || !badge) return;
+        const state = getWorkflowState();
+        const events = getWorkflowEvents();
+        btn.classList.remove('is-running', 'is-warn', 'is-error');
+        let badgeText = events.length ? String(events.length) : '0';
+        let empty = events.length === 0;
+        if (state?.status === 'running') {
+            btn.classList.add('is-running');
+            badgeText = getLabel('progressButtonRunning') || 'Run';
+            empty = false;
+        } else if (state?.status === 'awaiting_approval') {
+            btn.classList.add('is-warn');
+            badgeText = getLabel('progressButtonAwaiting') || 'Wait';
+            empty = false;
+        } else if (state?.status === 'interrupted' || state?.status === 'error') {
+            btn.classList.add('is-error');
+            badgeText = getLabel('progressButtonError') || '!';
+            empty = false;
+        } else if (events.length > 0) {
+            badgeText = getLabel('progressButtonIdle') || 'Log';
+        }
+        badge.textContent = badgeText;
+        badge.className = 'tab-badge' + (empty ? ' empty' : '');
+        btn.title = state?.lastMessage || getLabel('progressButton') || 'Progress';
+        btn.setAttribute('aria-label', `${getLabel('progressButton') || 'Progress'} ${badgeText}`.trim());
+    }
 
     /* === 実行中ワークフローの保存・可視化 === */
     const WORKFLOW_STATE_KEY = 'aiWorkflowState';
@@ -3372,6 +3451,7 @@ ${files.length ? files.map(f => `- ${f}`).join('\n') : '- ファイルなし'}
                 </div>
             `).join('');
         }
+        try { updateProgressHeaderButton(); } catch(e) {}
     }
     function clearWorkflowProgress() { localStorage.removeItem(WORKFLOW_STATE_KEY); localStorage.removeItem(WORKFLOW_EVENTS_KEY); activeWorkflowRunId = null; renderWorkflowProgress(); try { refreshAllTaskCounts(); } catch(e) {} showToast('進行履歴をクリアしました'); }
     function restoreInterruptedWorkflow() {
@@ -5080,11 +5160,14 @@ ${codeOnlyInstruction}`;
         }
     }
 
-    async function runPreviewDebugRequest(text) {
+    async function runPreviewDebugRequest(text, annotationImages = []) {
         const preparedText = window.AIDebugLogic?.prepareUserInput ? window.AIDebugLogic.prepareUserInput(text) : text;
-        const workflowRun = startWorkflowRun('debug', 'デバッグ修正・検証', [], { reason: 'previewDebug', input: preparedText });
+        const debugImages = (Array.isArray(annotationImages) ? annotationImages : []).filter(img => img && img.mime && img.base64);
+        const workflowRun = startWorkflowRun('debug', 'デバッグ修正・検証', [], { reason: 'previewDebug', input: preparedText, annotationImageCount: debugImages.length });
         showPage('chat', document.getElementById('tab-chat'));
-        const userMsgObj = { id: Date.now().toString(), role: 'user', text: preparedText, html: false };
+        const userMsgObj = debugImages.length
+            ? { id: Date.now().toString(), role: 'user', html: true, text: buildDebugRequestMessageHtml(preparedText, debugImages) }
+            : { id: Date.now().toString(), role: 'user', text: preparedText, html: false };
         chatHistory.push(userMsgObj); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(userMsgObj);
         const statusMsg = { id: (Date.now() + 1).toString(), role: 'ai system-msg', text: '<div style="display:flex;align-items:center;"><div class="spinner"></div><span>デバッグAIが修正コードを作成しています。</span></div>', html: true };
         chatHistory.push(statusMsg); await saveToDB('chatHistory', chatHistory); renderMessageFromHistory(statusMsg);
@@ -5099,7 +5182,7 @@ ${codeOnlyInstruction}`;
         const selectedTasks = prioritizeAndSelectTasks('debugging');
         markSelectedTasksStatus('in_progress', 'デバッグ修正の実行対象に選定しました。');
         const selectedTaskIds = selectedTasks.map(item => item.id);
-        updateWorkflowState({ selectedTaskIds, meta: { reason: 'previewDebug', input: preparedText, selectedTaskCount: selectedTaskIds.length } });
+        updateWorkflowState({ selectedTaskIds, meta: { reason: 'previewDebug', input: preparedText, selectedTaskCount: selectedTaskIds.length, annotationImageCount: debugImages.length } });
         const verifyMissing = await getVerifyMissing();
         const verifyMissingText = verifyMissing.length ? verifyMissing.map((item, i) => `${i + 1}. ${item.text || item}`).join('\n') : '（なし）';
         updateWorkflowStep('Skill選定', 'デバッグ修正に必要なSkillsを選定しています。');
@@ -5129,6 +5212,10 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
                 .replace('{recentChat}', getRecentChat(3)),
             `【プレビュー画面からの修正依頼】
 ${preparedText}`,
+            debugImages.length ? `【添付画像】
+プレビュー画面でユーザーが手書き・蛍光ペンで指示した注釈画像を添付しています。
+画像はプレビュー表示領域と同じ縦横比の注釈レイヤーです。赤い線・黄色い蛍光ペンの位置を、修正対象箇所の指示として扱ってください。
+添付数: ${debugImages.length}件` : '',
             `【現在の全ファイル】
 ${currentProjectText}`,
             `【現在のタスクリスト】
@@ -5142,7 +5229,7 @@ ${codeOnlyInstruction}
 
         try {
             updateWorkflowStep('デバッグAI', 'デバッグAIが修正コードを作成しています。');
-            const result = await callLLM({ prompt, stream: false, model, taskType: debugTaskType });
+            const result = await callLLM({ prompt, stream: false, model, images: debugImages, taskType: debugTaskType });
             addWorkflowEvent('completed', 'デバッグAIの出力を受け取りました。検証AIに進みます。', { stage: 'デバッグAI' });
             const project = parseGeneratedProject(result.text);
             await commitProjectVerifyThenPreview(project, statusMsg, 'デバッグ修正と検証が完了しました。', { selectedTaskIds, workflowRun });
@@ -5153,12 +5240,22 @@ ${codeOnlyInstruction}
         }
     }
 
+    function buildDebugRequestMessageHtml(text, images = []) {
+        const first = images[0];
+        const imageHtml = first ? `<div style="margin-top:10px;border:1px solid var(--color-border);border-radius:12px;overflow:hidden;background:#fff;max-width:280px;"><img src="data:${escapeHtml(first.mime)};base64,${first.base64}" alt="プレビュー注釈画像" style="display:block;width:100%;height:auto;"></div>` : '';
+        const meta = images.length ? `<div style="margin-top:8px;font-size:12px;color:var(--color-text-secondary);">📎 プレビュー注釈画像つき（${images.length}件）</div>` : '';
+        return `<div>${escapeHtml(text)}</div>${meta}${imageHtml}`;
+    }
+
     function sendDebugRequest() { 
         const memoEl = document.getElementById('debug-memo');
         const text = memoEl.value.trim(); 
         if (!text) return; 
+        const annotationImage = exportPreviewAnnotationImage();
+        const images = annotationImage ? [annotationImage] : [];
         memoEl.value = '';
-        runPreviewDebugRequest(text);
+        if (images.length) showToast('プレビュー注釈画像を添付しました');
+        runPreviewDebugRequest(text, images);
     }
 
     /* --- UIテキストの適用 --- */
@@ -5185,6 +5282,8 @@ ${codeOnlyInstruction}
         // チャットヘッダー
         document.querySelector('.chat-header .header-title').textContent = getLabel('headerConversation');
         document.querySelector('.chat-header .spec-btn').innerHTML = `${getLabel('specButton')} <span id="spec-badge" class="tab-badge empty">0</span>`;
+        const progressBtn = document.getElementById('progress-open-btn');
+        if (progressBtn) progressBtn.innerHTML = `${getLabel('progressButton')} <span id="progress-header-badge" class="tab-badge empty">0</span>`;
         document.querySelector('.chat-header .reset-btn').textContent = getLabel('newButton');
 
         // フローティング生成ボタン
@@ -5215,6 +5314,19 @@ ${codeOnlyInstruction}
             debugRequestBtn.setAttribute('aria-label', getLabel('debugRequestButton') || '修正を依頼');
         }
         try { initDebugInputShortcuts(); } catch(e) {}
+
+        const annotateToggle = document.getElementById('preview-annotation-toggle');
+        if (annotateToggle) annotateToggle.textContent = getLabel('previewAnnotateToggle');
+        const penBtn = document.getElementById('preview-tool-pen');
+        if (penBtn) penBtn.textContent = getLabel('previewPenTool');
+        const highlighterBtn = document.getElementById('preview-tool-highlighter');
+        if (highlighterBtn) highlighterBtn.textContent = getLabel('previewHighlighterTool');
+        const undoBtn = document.getElementById('preview-tool-undo');
+        if (undoBtn) undoBtn.textContent = getLabel('previewUndoButton');
+        const clearBtn = document.getElementById('preview-tool-clear');
+        if (clearBtn) clearBtn.textContent = getLabel('previewClearButton');
+        updatePreviewAnnotationUi();
+        updateProgressHeaderButton();
 
         // 仕様モーダル
         document.querySelector('#spec-modal .modal-header h3').textContent = getLabel('specModalTitle');
@@ -5707,8 +5819,10 @@ ${codeOnlyInstruction}
         
         await initCodeMirror(await getFromDB('currentCode'));
         await loadChatHistory(); loadThemeManager(); loadTemplateList();
+        try { initPreviewAnnotation(); } catch(e) { console.warn('preview annotation init failed:', e); }
         try { restoreInterruptedWorkflow(); } catch(e) { console.warn('restoreInterruptedWorkflow error:', e); }
         updateSpecBadge();
+        updateProgressHeaderButton();
         if (getSpecBackup().length > 0) document.getElementById('spec-restore-btn').style.display = '';
         try { await initStorageMode(); } catch(e) { /* silent */ }
         try { await initPWA(); } catch(e) { /* silent */ }
@@ -5998,10 +6112,182 @@ ${String(a.textContent).slice(0, 24000)}`);
         const sourceHtml = /\.html?$/i.test(entryPath) && files[entryPath] !== undefined ? files[entryPath] : buildFallbackPreviewHtml(files, entryPath);
         return rewriteHtmlForVirtualPreview(sourceHtml, entryPath, urlMap);
     }
+    const previewAnnotationState = { active: false, tool: 'pen', strokes: [], currentStroke: null, dpr: 1 };
+    function getPreviewAnnotationCanvas() { return document.getElementById('preview-annotation-canvas'); }
+    function getPreviewAnnotationLayer() { return document.getElementById('preview-annotation-layer'); }
+    function resizePreviewAnnotationCanvas() {
+        const canvas = getPreviewAnnotationCanvas();
+        const layer = getPreviewAnnotationLayer();
+        if (!canvas || !layer) return;
+        const rect = layer.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width));
+        const height = Math.max(1, Math.round(rect.height));
+        const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+        previewAnnotationState.dpr = dpr;
+        if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+            canvas.width = Math.round(width * dpr);
+            canvas.height = Math.round(height * dpr);
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+        }
+        redrawPreviewAnnotations();
+    }
+    function previewAnnotationStrokeStyle(tool) {
+        return tool === 'highlighter'
+            ? { color: 'rgba(250, 204, 21, 0.34)', width: 20, alpha: 1, composite: 'multiply' }
+            : { color: 'rgba(239, 68, 68, 0.95)', width: 4, alpha: 1, composite: 'source-over' };
+    }
+    function drawPreviewStroke(ctx, stroke) {
+        if (!stroke || !Array.isArray(stroke.points) || !stroke.points.length) return;
+        const style = previewAnnotationStrokeStyle(stroke.tool || 'pen');
+        ctx.save();
+        ctx.globalCompositeOperation = style.composite;
+        ctx.strokeStyle = style.color;
+        ctx.lineWidth = style.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        stroke.points.forEach((point, index) => {
+            if (index === 0) ctx.moveTo(point.x, point.y);
+            else ctx.lineTo(point.x, point.y);
+        });
+        if (stroke.points.length === 1) {
+            const p = stroke.points[0];
+            ctx.arc(p.x, p.y, Math.max(2, style.width / 2.5), 0, Math.PI * 2);
+            ctx.fillStyle = style.color;
+            ctx.fill();
+        } else {
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+    function redrawPreviewAnnotations() {
+        const canvas = getPreviewAnnotationCanvas();
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const dpr = previewAnnotationState.dpr || 1;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        previewAnnotationState.strokes.forEach(stroke => drawPreviewStroke(ctx, stroke));
+        if (previewAnnotationState.currentStroke) drawPreviewStroke(ctx, previewAnnotationState.currentStroke);
+    }
+    function updatePreviewAnnotationUi() {
+        const active = previewAnnotationState.active;
+        const layer = getPreviewAnnotationLayer();
+        if (layer) layer.classList.toggle('active', active);
+        const toggleBtn = document.getElementById('preview-annotation-toggle');
+        if (toggleBtn) {
+            toggleBtn.classList.toggle('active', active);
+            toggleBtn.textContent = active ? (getLabel('previewAnnotateOff') || 'View only') : (getLabel('previewAnnotateToggle') || 'Draw');
+            toggleBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        }
+        const penBtn = document.getElementById('preview-tool-pen');
+        const highlighterBtn = document.getElementById('preview-tool-highlighter');
+        const undoBtn = document.getElementById('preview-tool-undo');
+        const clearBtn = document.getElementById('preview-tool-clear');
+        [penBtn, highlighterBtn, undoBtn, clearBtn].forEach(btn => { if (btn) btn.disabled = !active; });
+        if (penBtn) penBtn.classList.toggle('active', active && previewAnnotationState.tool === 'pen');
+        if (highlighterBtn) highlighterBtn.classList.toggle('active', active && previewAnnotationState.tool === 'highlighter');
+        const hint = document.getElementById('preview-annotation-hint');
+        if (hint) hint.textContent = active ? (getLabel('previewAnnotateHintActive') || 'Draw mode is on.') : (getLabel('previewAnnotateHint') || 'Turn draw mode on to annotate the preview.');
+    }
+    function togglePreviewAnnotationMode(force) {
+        previewAnnotationState.active = typeof force === 'boolean' ? force : !previewAnnotationState.active;
+        updatePreviewAnnotationUi();
+        resizePreviewAnnotationCanvas();
+    }
+    function setPreviewAnnotationTool(tool) {
+        previewAnnotationState.tool = tool === 'highlighter' ? 'highlighter' : 'pen';
+        updatePreviewAnnotationUi();
+    }
+    function previewAnnotationPointFromEvent(event) {
+        const layer = getPreviewAnnotationLayer();
+        if (!layer) return null;
+        const rect = layer.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+    function startPreviewAnnotationStroke(event) {
+        if (!previewAnnotationState.active) return;
+        const point = previewAnnotationPointFromEvent(event);
+        if (!point) return;
+        previewAnnotationState.currentStroke = { tool: previewAnnotationState.tool, points: [point] };
+        redrawPreviewAnnotations();
+        const layer = getPreviewAnnotationLayer();
+        if (layer && layer.setPointerCapture) {
+            try { layer.setPointerCapture(event.pointerId); } catch(e) {}
+        }
+        event.preventDefault();
+    }
+    function movePreviewAnnotationStroke(event) {
+        if (!previewAnnotationState.active || !previewAnnotationState.currentStroke) return;
+        const point = previewAnnotationPointFromEvent(event);
+        if (!point) return;
+        previewAnnotationState.currentStroke.points.push(point);
+        redrawPreviewAnnotations();
+        event.preventDefault();
+    }
+    function endPreviewAnnotationStroke(event) {
+        if (!previewAnnotationState.currentStroke) return;
+        previewAnnotationState.strokes.push(previewAnnotationState.currentStroke);
+        previewAnnotationState.currentStroke = null;
+        redrawPreviewAnnotations();
+        const layer = getPreviewAnnotationLayer();
+        if (layer && layer.releasePointerCapture) {
+            try { layer.releasePointerCapture(event.pointerId); } catch(e) {}
+        }
+        event.preventDefault();
+    }
+    function undoPreviewAnnotation() {
+        if (!previewAnnotationState.strokes.length) return;
+        previewAnnotationState.strokes.pop();
+        redrawPreviewAnnotations();
+    }
+    function hasPreviewAnnotationDrawing() {
+        return previewAnnotationState.strokes.length > 0 || !!previewAnnotationState.currentStroke;
+    }
+    function exportPreviewAnnotationImage() {
+        if (!hasPreviewAnnotationDrawing()) return null;
+        resizePreviewAnnotationCanvas();
+        const canvas = getPreviewAnnotationCanvas();
+        if (!canvas || !canvas.width || !canvas.height) return null;
+        const output = document.createElement('canvas');
+        output.width = canvas.width;
+        output.height = canvas.height;
+        const ctx = output.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, output.width, output.height);
+        ctx.drawImage(canvas, 0, 0);
+        const dataUrl = output.toDataURL('image/png');
+        const base64 = dataUrl.split(',')[1] || '';
+        if (!base64) return null;
+        const dpr = previewAnnotationState.dpr || 1;
+        return { mime: 'image/png', base64, dataUrl, width: Math.round(canvas.width / dpr), height: Math.round(canvas.height / dpr), source: 'preview-annotation' };
+    }
+    function clearPreviewAnnotations() {
+        previewAnnotationState.strokes = [];
+        previewAnnotationState.currentStroke = null;
+        redrawPreviewAnnotations();
+    }
+    function initPreviewAnnotation() {
+        const layer = getPreviewAnnotationLayer();
+        const frame = document.getElementById('preview-frame');
+        if (!layer || layer.dataset.bound === '1') { updatePreviewAnnotationUi(); resizePreviewAnnotationCanvas(); return; }
+        layer.dataset.bound = '1';
+        layer.addEventListener('pointerdown', startPreviewAnnotationStroke);
+        layer.addEventListener('pointermove', movePreviewAnnotationStroke);
+        layer.addEventListener('pointerup', endPreviewAnnotationStroke);
+        layer.addEventListener('pointercancel', endPreviewAnnotationStroke);
+        window.addEventListener('resize', resizePreviewAnnotationCanvas, { passive: true });
+        if (frame) frame.addEventListener('load', resizePreviewAnnotationCanvas);
+        updatePreviewAnnotationUi();
+        resizePreviewAnnotationCanvas();
+    }
     function updatePreview() {
         const frame = document.getElementById('preview-frame');
         if (!frame) return;
         frame.srcdoc = buildVirtualPreviewDocument();
+        setTimeout(resizePreviewAnnotationCanvas, 30);
     }
     function downloadCode() { const code = window.getCode(); if (!code) return showToast(getLabel('toastCodeMissing')); const blob = new Blob([code], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = currentFilePath || 'index.html'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 10000); showToast(getLabel('toastDownloadStarted')); }
 
