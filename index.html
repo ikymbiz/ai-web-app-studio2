@@ -240,6 +240,9 @@
         .skill-modal-grid { display:grid; grid-template-columns:1fr; gap:10px; }
         .skill-modal-grid .setting-input, .skill-modal-grid textarea { width:100%; }
         .skill-modal-grid textarea { min-height:140px; resize:vertical; font-family:var(--font-mono); }
+        .skill-stage-row { display:flex; gap:8px; flex-wrap:wrap; padding:8px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-bg-elevated); }
+        .skill-stage-row label { display:inline-flex; align-items:center; gap:6px; color:var(--color-text-secondary); font-size:12px; margin:0; }
+        .skill-stage-row input { width:16px; height:16px; accent-color:var(--primary); }
         @media (max-width:640px) { .skill-github-grid { grid-template-columns:1fr; } .skill-manager-toolbar .modal-btn { flex-basis:100%; } }
 
         .cm-editor { height: 100%; outline: none !important; }
@@ -512,6 +515,30 @@
                             <input id="code-model" class="setting-input" value="gemini:gemini-2.5-flash" placeholder="provider:model-id" onchange="autoSaveSettings()">
                             <div class="field-hint" data-label="modelRouteHintCode">BUILD / VERIFY の既定モデルルート。ベンダーをまたいで指定できます。</div>
                         </div>
+                    </div>
+                </details>
+
+
+                <!-- 🧩 ユーザーSkill設定画面：管理用Skillとは別管理 / ファイル保存なし -->
+                <details class="settings-section" id="section-user-skills">
+                    <summary><span class="settings-section-icon">🧩</span><span data-label="sectionUserSkillsTitle">ユーザーSkill設定</span></summary>
+                    <div class="settings-section-body">
+                        <div class="field">
+                            <label data-label="userSkillSettingsLabel">ユーザーSkill設定</label>
+                            <button class="edit-prompt-btn" type="button" onclick="openPromptEditor('user-skill-settings')">
+                                <span><span class="edit-icon">🧩</span> <span data-label="userSkillJsonEditButton">ユーザーSkill JSONを編集</span></span>
+                                <span class="edit-preview" id="preview-user-skill-settings"></span>
+                            </button>
+                            <textarea id="user-skill-settings" style="display:none;"></textarea>
+                            <div class="field-hint" data-label="userSkillSettingsHint">ユーザーが追加するSkillです。管理用Skillとは別ロジックで選択し、ファイルやGitHubには保存しません。</div>
+                        </div>
+
+                        <div class="skill-manager-toolbar">
+                            <button type="button" class="modal-btn" onclick="openUserSkillEditor()" data-label="userSkillAddButton">＋ ユーザーSkill追加</button>
+                            <button type="button" class="modal-btn" style="background:var(--color-bg-elevated);" onclick="renderUserSkillManager(); showToast(getLabel('toastSettingsSaved'))" data-label="userSkillReloadButton">ユーザーSkill JSONを再読込</button>
+                        </div>
+                        <div class="field-hint" data-label="userSkillNoFileHint">ユーザーSkillはIndexedDBの設定値としてのみ保存されます。管理用Skill JSONやGitHub保存対象には含めません。</div>
+                        <div id="user-skill-list" class="skill-list"></div>
                     </div>
                 </details>
 
@@ -859,11 +886,19 @@
         <div class="modal-body skill-modal-grid" style="overflow-y:auto;">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div class="field" style="margin-bottom:0;"><label data-label="skillIdLabel">Skill ID</label><input id="skill-editor-id" class="setting-input" placeholder="frontend"></div>
-                <div class="field" style="margin-bottom:0;"><label data-label="skillFileLabel">保存ファイル名</label><input id="skill-editor-file" class="setting-input" placeholder="skills/frontend.md"></div>
+                <div class="field" id="skill-editor-file-field" style="margin-bottom:0;"><label data-label="skillFileLabel">保存ファイル名</label><input id="skill-editor-file" class="setting-input" placeholder="skills/frontend.md"></div>
             </div>
             <div class="field" style="margin-bottom:0;"><label data-label="skillTitleLabel">タイトル</label><input id="skill-editor-title-input" class="setting-input" placeholder="Frontend Skill Profile"></div>
             <div class="field" style="margin-bottom:0;"><label data-label="skillDescriptionLabel">説明</label><textarea id="skill-editor-description" class="setting-input" rows="3" placeholder="UI / React / Next.js / Tailwind が必要な時に使う"></textarea></div>
             <div class="field" style="margin-bottom:0;"><label data-label="skillTriggersLabel">トリガー語（カンマ区切り）</label><input id="skill-editor-triggers" class="setting-input" placeholder="UI, React, Next.js, TypeScript, Tailwind"></div>
+            <div class="field" style="margin-bottom:0;">
+                <label data-label="skillStagesLabel">利用段階</label>
+                <div class="skill-stage-row">
+                    <label><input type="checkbox" id="skill-editor-stage-chat" checked> <span data-label="stageChatLabel">チャット</span></label>
+                    <label><input type="checkbox" id="skill-editor-stage-coding" checked> <span data-label="stageCodingLabel">コーディング</span></label>
+                    <label><input type="checkbox" id="skill-editor-stage-debugging" checked> <span data-label="stageDebuggingLabel">デバッグ</span></label>
+                </div>
+            </div>
             <div class="field" style="margin-bottom:0;"><label data-label="skillContentLabel">Skill本文</label><textarea id="skill-editor-content" class="setting-input" placeholder="---
 profile: frontend
 ---
@@ -1060,7 +1095,8 @@ profile: frontend
                 'user-system-prompt': "（任意）生成したいアプリの雰囲気、制約、優先したい操作感、避けたい表現などを入力してください。",
                 'admin-system-requirements': "## システム要件\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲットを維持する。\n- ZIP/複数ファイル、IndexedDB、GitHubデプロイ、APIキー管理、保存先設定を削除しない。\n- 既存ID・関数名・保存キーを不用意に変更しない。",
                 'admin-implementation-verification': "## 実装検証\n- 変更前後で要件とコードを照合する。\n- 修正したと報告する前に構文チェックと主要導線の確認を行う。\n- 未確認事項は未確認として明記する。",
-                'skill-settings': "{\n  \"version\": 1,\n  \"mode\": \"pattern-b-on-demand\",\n  \"toolName\": \"load_skill_profile\",\n  \"storage\": \"github-json\",\n  \"github\": {\n    \"repo\": \"\",\n    \"branch\": \"main\",\n    \"path\": \"skills/skills.json\"\n  },\n  \"instructions\": \"AIには最初にSkillのインデックスだけを渡す。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけを追加で渡す。不要なSkill本文は送らない。\",\n  \"skills\": [\n    {\n      \"id\": \"frontend\",\n      \"file\": \"skills/frontend.md\",\n      \"title\": \"Frontend Skill Profile\",\n      \"description\": \"UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。\",\n      \"triggers\": [\n        \"UI\",\n        \"React\",\n        \"Next.js\",\n        \"TypeScript\",\n        \"Tailwind\",\n        \"CSS\",\n        \"state management\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: frontend\\ntarget: UI, React, Next.js, CSS, State Management\\n---\\n\\n# Frontend Skill Profile\\n\\n## Skill Level\\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\\n- State Management: Prefer React Context or Zustand over Redux.\\n- Async Pattern: Use async/await. No `.then()` chains.\"\n    },\n    {\n      \"id\": \"backend\",\n      \"file\": \"skills/backend.md\",\n      \"title\": \"Backend Skill Profile\",\n      \"description\": \"Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。\",\n      \"triggers\": [\n        \"Node.js\",\n        \"database\",\n        \"API\",\n        \"Prisma\",\n        \"server\",\n        \"backend\",\n        \"PostgreSQL\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: backend\\ntarget: Node.js, Database, API, Prisma\\n---\\n\\n# Backend Skill Profile\\n\\n## Skill Level\\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Provide standard best practices with brief meaningful explanations.\\n- Architecture: Enforce Controllers, Services, Repositories.\\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.\"\n    },\n    {\n      \"id\": \"devops\",\n      \"file\": \"skills/devops.md\",\n      \"title\": \"DevOps & Infra Skill Profile\",\n      \"description\": \"Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。\",\n      \"triggers\": [\n        \"Docker\",\n        \"Compose\",\n        \"CI/CD\",\n        \"GitHub Actions\",\n        \"AWS\",\n        \"infra\",\n        \"deployment\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: devops\\ntarget: Docker, CI/CD, AWS, Infrastructure\\n---\\n\\n# DevOps & Infra Skill Profile\\n\\n## Skill Level\\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\\n\\n## Rules & Conventions\\n- Language: English for code, Japanese for chat explanations.\\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\\n- Best Practices: Ensure production containers run as non-root users.\"\n    }\n  ]\n}"
+                'skill-settings': "{\n  \"version\": 2,\n  \"mode\": \"pattern-b-on-demand\",\n  \"toolName\": \"load_skill_profile\",\n  \"storage\": \"github-json\",\n  \"github\": {\n    \"repo\": \"\",\n    \"branch\": \"main\",\n    \"path\": \"skills/skills.json\"\n  },\n  \"indexPath\": \"skills/skills.index.json\",\n  \"instructions\": \"AIには最初にSkillのインデックスだけを渡す。各Skillのstagesで chat / coding / debugging のどの段階で使うかを必ず確認し、現在の段階に一致するSkillだけを候補にする。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけをオンデマンドで読み込む。不要なSkill本文は送らない。\",\n  \"skills\": [\n    {\n      \"id\": \"skill-manager\",\n      \"file\": \"skills/skill-manager.md\",\n      \"title\": \"Skill Manager Skill\",\n      \"description\": \"Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。\",\n      \"triggers\": [\n        \"Skill\",\n        \"skills\",\n        \"skill index\",\n        \"Pattern B\",\n        \"stages\",\n        \"管理用Skill\",\n        \"ユーザーSkill\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: skill-manager\\ntarget: Skill definitions, Skill index, Pattern B, user/admin skill separation\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Skill Manager Skill\\n\\n## Purpose\\nUse this skill when designing, editing, validating, or debugging Skill definitions.\\n\\n## Rules\\n- Every Skill must explicitly declare `stages` with one or more of: `chat`, `coding`, `debugging`.\\n- Admin Skills may be saved as GitHub JSON files.\\n- User Skills are local app settings only and must not be included in GitHub file saves.\\n- The Skill index must contain metadata only: id, title, description, triggers, stages, file, enabled.\\n- Skill body content is loaded only after the selector chooses the Skill.\\n- Do not mix admin Skill selection logic with user Skill selection logic.\\n\\n## Validation Checklist\\n1. Skill has a stable id.\\n2. Skill has explicit stages.\\n3. Skill has clear triggers.\\n4. Admin/user storage boundaries are preserved.\\n5. Index and content are separated for Pattern B.\"\n    },\n    {\n      \"id\": \"frontend\",\n      \"file\": \"skills/frontend.md\",\n      \"title\": \"Frontend Skill Profile\",\n      \"description\": \"UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。\",\n      \"triggers\": [\n        \"UI\",\n        \"React\",\n        \"Next.js\",\n        \"TypeScript\",\n        \"Tailwind\",\n        \"CSS\",\n        \"state management\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: frontend\\ntarget: UI, React, Next.js, CSS, State Management\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Frontend Skill Profile\\n\\n## Skill Level\\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\\n- State Management: Prefer React Context or Zustand over Redux.\\n- Async Pattern: Use async/await. No `.then()` chains.\"\n    },\n    {\n      \"id\": \"backend\",\n      \"file\": \"skills/backend.md\",\n      \"title\": \"Backend Skill Profile\",\n      \"description\": \"Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。\",\n      \"triggers\": [\n        \"Node.js\",\n        \"database\",\n        \"API\",\n        \"Prisma\",\n        \"server\",\n        \"backend\",\n        \"PostgreSQL\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: backend\\ntarget: Node.js, Database, API, Prisma\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Backend Skill Profile\\n\\n## Skill Level\\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Provide standard best practices with brief meaningful explanations.\\n- Architecture: Enforce Controllers, Services, Repositories.\\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.\"\n    },\n    {\n      \"id\": \"devops\",\n      \"file\": \"skills/devops.md\",\n      \"title\": \"DevOps & Infra Skill Profile\",\n      \"description\": \"Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。\",\n      \"triggers\": [\n        \"Docker\",\n        \"Compose\",\n        \"CI/CD\",\n        \"GitHub Actions\",\n        \"AWS\",\n        \"infra\",\n        \"deployment\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: devops\\ntarget: Docker, CI/CD, AWS, Infrastructure\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# DevOps & Infra Skill Profile\\n\\n## Skill Level\\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\\n\\n## Rules & Conventions\\n- Language: English for code, Japanese for chat explanations.\\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\\n- Best Practices: Ensure production containers run as non-root users.\"\n    }\n  ]\n}",
+                'user-skill-settings': "{\n  \"version\": 1,\n  \"mode\": \"user-local-skills\",\n  \"storage\": \"local-settings-only\",\n  \"instructions\": \"ユーザー追加Skillはこの端末のアプリ設定だけに保存する。GitHub保存用の管理Skill JSONには含めない。各Skillのstagesで chat / coding / debugging のどの段階で使うかを明示し、現在の段階に一致するSkillだけを候補にする。\",\n  \"skills\": []\n}"
             },
             prompts: {
                 plan: "あなたはプロのWeb開発ディレクターです。ユーザーのアイディアを具体化し、実装（BUILD）に向けた設計図を作成します。\n{systemPrompt}\n\nターゲットペルソナは参考情報です。要件そのものとして固定しないでください: {targetPersona}\n\n## 応答ルール\n1. ユーザーの発言、現在の仕様リスト、直近の会話だけを根拠にする。\n2. 勝手に機能を削除・省略・置換しない。\n3. 不足情報がある場合は、質問を1テーマずつ分ける。複数の質問と選択肢を出す場合は、質問ごとに見出しと選択肢を分ける。\n4. 選択肢を提示する場合は、質問ごとに次の形を守る。\n   1. **質問名：** 質問文\n      * 選択肢A\n      * 選択肢B\n      * その他\n5. コードは書かず、仕様合意に徹する。\n6. 仕様が固まったら「素晴らしいプランです。⚡️コードを作成 ボタンから実装を開始しましょう」と促す。\n7. 次のステップ提案が必要な場合は「次に進むための要件を提案しましょうか？✨ 要件をおまかせ ボタンから次のステップを提案できます。」と応答する。\n\n【現在の仕様リスト】\n{specList}\n\n【直近の会話】\n{recentChat}\n{codeContext}",
@@ -1274,6 +1310,21 @@ profile: frontend
                 "skillGithubRepoRequired": "owner/repository を入力してください",
                 "skillGithubSaving": "GitHubへ保存中...",
                 "skillGithubSaved": "Skill JSONをGitHubへ保存しました",
+                "sectionUserSkillsTitle": "ユーザーSkill設定",
+                "userSkillSettingsLabel": "ユーザーSkill設定",
+                "userSkillSettingsHint": "ユーザーが追加するSkillです。管理用Skillとは別ロジックで選択し、ファイルやGitHubには保存しません。",
+                "userSkillJsonEditButton": "ユーザーSkill JSONを編集",
+                "userSkillAddButton": "＋ ユーザーSkill追加",
+                "userSkillReloadButton": "ユーザーSkill JSONを再読込",
+                "userSkillNoFileHint": "ユーザーSkillはIndexedDBの設定値としてのみ保存されます。管理用Skill JSONやGitHub保存対象には含めません。",
+                "userSkillEditorAddTitle": "ユーザーSkill追加",
+                "userSkillEditorEditTitle": "ユーザーSkill編集",
+                "skillStagesLabel": "利用段階",
+                "skillStagesMetaLabel": "利用段階",
+                "stageChatLabel": "チャット",
+                "stageCodingLabel": "コーディング",
+                "stageDebuggingLabel": "デバッグ",
+                "skillStageRequired": "利用段階を1つ以上選択してください",
                 "apiKeyManageLabel": "APIキー登録",
                 "apiKeyManageButton": "🔑 APIキーを登録 / 管理",
                 "aiKeyManageHint": "プルダウンではなく、各ベンダーのキーとモデルルートを入力します。例: gemini:gemini-2.5-flash / openai:gpt-4o / claude:claude-sonnet-4-20250514 / xai:grok-3 / groq:llama-3.3-70b-versatile / custom:your-model",
@@ -1382,6 +1433,21 @@ profile: frontend
             "skillGithubRepoRequired": "Enter owner/repository",
             "skillGithubSaving": "Saving to GitHub...",
             "skillGithubSaved": "Skill JSON saved to GitHub",
+            "sectionUserSkillsTitle": "User skills",
+            "userSkillSettingsLabel": "User skill settings",
+            "userSkillSettingsHint": "User-added skills are selected with separate logic from admin skills and are not saved to files or GitHub.",
+            "userSkillJsonEditButton": "Edit user skill JSON",
+            "userSkillAddButton": "+ Add user skill",
+            "userSkillReloadButton": "Reload user skill JSON",
+            "userSkillNoFileHint": "User skills are stored only as IndexedDB settings. They are not included in admin Skill JSON or GitHub saves.",
+            "userSkillEditorAddTitle": "Add user skill",
+            "userSkillEditorEditTitle": "Edit user skill",
+            "skillStagesLabel": "Stages",
+            "skillStagesMetaLabel": "Stages",
+            "stageChatLabel": "Chat",
+            "stageCodingLabel": "Coding",
+            "stageDebuggingLabel": "Debugging",
+            "skillStageRequired": "Select at least one stage",
             "languageSelectLabel": "Display language",
             "languageSelectHint": "Choose the UI language. Add translation resources/language packs and they appear here automatically.",
             "tabChat": "Chat",
@@ -1695,6 +1761,7 @@ profile: frontend
         'admin-system-requirements': { titleKey: 'adminSystemRequirementsLabel', showModel: false },
         'admin-implementation-verification': { titleKey: 'adminImplementationVerifyLabel', showModel: false },
         'skill-settings': { titleKey: 'skillSettingsLabel', showModel: false },
+        'user-skill-settings': { titleKey: 'userSkillSettingsLabel', showModel: false },
         'prompt-plan':     { titleKey: 'planPromptLabel',      showModel: true,  modelKind: 'chat' },
         'prompt-suggest':  { titleKey: 'suggestPromptLabel',   showModel: true,  modelKind: 'chat' },
         'prompt-debug':    { titleKey: 'debugPromptLabel',     showModel: true,  modelKind: 'chat' },
@@ -1736,6 +1803,7 @@ profile: frontend
             }
             updatePromptPreviews();
             if (currentEditingKey === 'skill-settings') renderSkillManager();
+            if (currentEditingKey === 'user-skill-settings') renderUserSkillManager();
             autoSaveSettings();
         }
         document.getElementById('prompt-editor-modal').classList.remove('show');
@@ -1757,7 +1825,7 @@ profile: frontend
 
     // 設定画面のプロンプト編集ボタンに、現在の値のプレビューを表示
     function updatePromptPreviews() {
-        ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings'].forEach(key => {
+        ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings'].forEach(key => {
             const el = document.getElementById('preview-' + key);
             if (el) {
                 const v = document.getElementById(key)?.value || '';
@@ -1767,49 +1835,45 @@ profile: frontend
     }
 
 
-    /* === 管理用Skill JSON / Pattern Bオンデマンド読込 === */
+    /* === Skill JSON / Pattern Bオンデマンド読込 === */
+    const SKILL_STAGE_VALUES = ['chat', 'coding', 'debugging'];
+    const SKILL_STAGE_LABEL_KEYS = { chat: 'stageChatLabel', coding: 'stageCodingLabel', debugging: 'stageDebuggingLabel' };
+
+    function cloneDefaultAdminSkillRegistry() { return JSON.parse("{\"version\": 2, \"mode\": \"pattern-b-on-demand\", \"toolName\": \"load_skill_profile\", \"storage\": \"github-json\", \"github\": {\"repo\": \"\", \"branch\": \"main\", \"path\": \"skills/skills.json\"}, \"indexPath\": \"skills/skills.index.json\", \"instructions\": \"AIには最初にSkillのインデックスだけを渡す。各Skillのstagesで chat / coding / debugging のどの段階で使うかを必ず確認し、現在の段階に一致するSkillだけを候補にする。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけをオンデマンドで読み込む。不要なSkill本文は送らない。\", \"skills\": [{\"id\": \"skill-manager\", \"file\": \"skills/skill-manager.md\", \"title\": \"Skill Manager Skill\", \"description\": \"Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。\", \"triggers\": [\"Skill\", \"skills\", \"skill index\", \"Pattern B\", \"stages\", \"管理用Skill\", \"ユーザーSkill\"], \"stages\": [\"chat\", \"coding\", \"debugging\"], \"enabled\": true, \"content\": \"---\\nprofile: skill-manager\\ntarget: Skill definitions, Skill index, Pattern B, user/admin skill separation\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Skill Manager Skill\\n\\n## Purpose\\nUse this skill when designing, editing, validating, or debugging Skill definitions.\\n\\n## Rules\\n- Every Skill must explicitly declare `stages` with one or more of: `chat`, `coding`, `debugging`.\\n- Admin Skills may be saved as GitHub JSON files.\\n- User Skills are local app settings only and must not be included in GitHub file saves.\\n- The Skill index must contain metadata only: id, title, description, triggers, stages, file, enabled.\\n- Skill body content is loaded only after the selector chooses the Skill.\\n- Do not mix admin Skill selection logic with user Skill selection logic.\\n\\n## Validation Checklist\\n1. Skill has a stable id.\\n2. Skill has explicit stages.\\n3. Skill has clear triggers.\\n4. Admin/user storage boundaries are preserved.\\n5. Index and content are separated for Pattern B.\"}, {\"id\": \"frontend\", \"file\": \"skills/frontend.md\", \"title\": \"Frontend Skill Profile\", \"description\": \"UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。\", \"triggers\": [\"UI\", \"React\", \"Next.js\", \"TypeScript\", \"Tailwind\", \"CSS\", \"state management\"], \"stages\": [\"chat\", \"coding\", \"debugging\"], \"enabled\": true, \"content\": \"---\\nprofile: frontend\\ntarget: UI, React, Next.js, CSS, State Management\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Frontend Skill Profile\\n\\n## Skill Level\\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\\n- State Management: Prefer React Context or Zustand over Redux.\\n- Async Pattern: Use async/await. No `.then()` chains.\"}, {\"id\": \"backend\", \"file\": \"skills/backend.md\", \"title\": \"Backend Skill Profile\", \"description\": \"Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。\", \"triggers\": [\"Node.js\", \"database\", \"API\", \"Prisma\", \"server\", \"backend\", \"PostgreSQL\"], \"stages\": [\"chat\", \"coding\", \"debugging\"], \"enabled\": true, \"content\": \"---\\nprofile: backend\\ntarget: Node.js, Database, API, Prisma\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Backend Skill Profile\\n\\n## Skill Level\\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Provide standard best practices with brief meaningful explanations.\\n- Architecture: Enforce Controllers, Services, Repositories.\\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.\"}, {\"id\": \"devops\", \"file\": \"skills/devops.md\", \"title\": \"DevOps & Infra Skill Profile\", \"description\": \"Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。\", \"triggers\": [\"Docker\", \"Compose\", \"CI/CD\", \"GitHub Actions\", \"AWS\", \"infra\", \"deployment\"], \"stages\": [\"chat\", \"coding\", \"debugging\"], \"enabled\": true, \"content\": \"---\\nprofile: devops\\ntarget: Docker, CI/CD, AWS, Infrastructure\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# DevOps & Infra Skill Profile\\n\\n## Skill Level\\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\\n\\n## Rules & Conventions\\n- Language: English for code, Japanese for chat explanations.\\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\\n- Best Practices: Ensure production containers run as non-root users.\"}]}"); }
+    function cloneDefaultUserSkillRegistry() { return JSON.parse("{\"version\": 1, \"mode\": \"user-local-skills\", \"storage\": \"local-settings-only\", \"instructions\": \"ユーザー追加Skillはこの端末のアプリ設定だけに保存する。GitHub保存用の管理Skill JSONには含めない。各Skillのstagesで chat / coding / debugging のどの段階で使うかを明示し、現在の段階に一致するSkillだけを候補にする。\", \"skills\": []}"); }
+
+    function normalizeSkillStagesFromValue(value, fallback = ['chat', 'coding', 'debugging']) {
+        let raw = value;
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) raw = raw.stages || raw.useStages || raw.phases || raw.phase;
+        let stages = [];
+        if (Array.isArray(raw)) stages = raw;
+        else if (typeof raw === 'string') stages = raw.split(',');
+        stages = stages.map(v => String(v).trim().toLowerCase()).map(v => v === 'code' ? 'coding' : v === 'debug' ? 'debugging' : v).filter(v => SKILL_STAGE_VALUES.includes(v));
+        if (!stages.length) stages = fallback;
+        return [...new Set(stages)];
+    }
+
+    function skillStageFromTaskType(taskType = 'chat') {
+        const t = String(taskType || 'chat').toLowerCase();
+        if (t.includes('debug')) return 'debugging';
+        if (t.includes('code') || t.includes('build') || t.includes('verify') || t.includes('repair')) return 'coding';
+        return 'chat';
+    }
+
+    function getSkillStageLabel(stage) {
+        return getLabel(SKILL_STAGE_LABEL_KEYS[stage]) || stage;
+    }
+
+    function formatSkillStageLabels(stages) {
+        return normalizeSkillStagesFromValue(stages).map(getSkillStageLabel).join(', ');
+    }
+
     function getDefaultSkillRegistry() {
-        return {
-            version: 1,
-            mode: 'pattern-b-on-demand',
-            toolName: 'load_skill_profile',
-            storage: 'github-json',
-            github: { repo: '', branch: 'main', path: 'skills/skills.json' },
-            instructions: 'AIには最初にSkillのインデックスだけを渡す。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけを追加で渡す。不要なSkill本文は送らない。',
-            skills: [
-                {
-                    id: 'frontend',
-                    file: 'skills/frontend.md',
-                    title: 'Frontend Skill Profile',
-                    description: 'UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。',
-                    triggers: ['UI', 'React', 'Next.js', 'TypeScript', 'Tailwind', 'CSS', 'state management'],
-                    enabled: true,
-                    content: '---\nprofile: frontend\ntarget: UI, React, Next.js, CSS, State Management\n---\n\n# Frontend Skill Profile\n\n## Skill Level\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\n- State Management: Prefer React Context or Zustand over Redux.\n- Async Pattern: Use async/await. No `.then()` chains.'
-                },
-                {
-                    id: 'backend',
-                    file: 'skills/backend.md',
-                    title: 'Backend Skill Profile',
-                    description: 'Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。',
-                    triggers: ['Node.js', 'database', 'API', 'Prisma', 'server', 'backend', 'PostgreSQL'],
-                    enabled: true,
-                    content: '---\nprofile: backend\ntarget: Node.js, Database, API, Prisma\n---\n\n# Backend Skill Profile\n\n## Skill Level\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\n\n## Rules & Conventions\n- Language: English for code/comments, Japanese for chat explanations.\n- Output Style: Provide standard best practices with brief meaningful explanations.\n- Architecture: Enforce Controllers, Services, Repositories.\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.'
-                },
-                {
-                    id: 'devops',
-                    file: 'skills/devops.md',
-                    title: 'DevOps & Infra Skill Profile',
-                    description: 'Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。',
-                    triggers: ['Docker', 'Compose', 'CI/CD', 'GitHub Actions', 'AWS', 'infra', 'deployment'],
-                    enabled: true,
-                    content: '---\nprofile: devops\ntarget: Docker, CI/CD, AWS, Infrastructure\n---\n\n# DevOps & Infra Skill Profile\n\n## Skill Level\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\n\n## Rules & Conventions\n- Language: English for code, Japanese for chat explanations.\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\n- Best Practices: Ensure production containers run as non-root users.'
-                }
-            ]
-        };
+        return cloneDefaultAdminSkillRegistry();
     }
 
     function normalizeSkillRegistry(raw) {
-        let base = getDefaultSkillRegistry();
+        let base = cloneDefaultAdminSkillRegistry();
         let obj = raw;
         if (typeof raw === 'string') {
             const trimmed = raw.trim();
@@ -1824,15 +1888,20 @@ profile: frontend
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return base;
         const merged = { ...base, ...obj };
         merged.github = { ...base.github, ...(obj.github && typeof obj.github === 'object' ? obj.github : {}) };
-        merged.skills = Array.isArray(obj.skills) ? obj.skills.map((skill, idx) => ({
-            id: String(skill.id || `skill-${idx + 1}`).trim(),
-            file: String(skill.file || `skills/${String(skill.id || `skill-${idx + 1}`).trim() || `skill-${idx + 1}`}.md`).trim(),
-            title: String(skill.title || skill.name || skill.id || `Skill ${idx + 1}`).trim(),
-            description: String(skill.description || '').trim(),
-            triggers: Array.isArray(skill.triggers) ? skill.triggers.map(v => String(v).trim()).filter(Boolean) : String(skill.triggers || '').split(',').map(v => v.trim()).filter(Boolean),
-            enabled: skill.enabled !== false,
-            content: String(skill.content || '').trim()
-        })).filter(skill => skill.id) : base.skills;
+        merged.indexPath = String(obj.indexPath || base.indexPath || 'skills/skills.index.json').trim();
+        merged.skills = Array.isArray(obj.skills) ? obj.skills.map((skill, idx) => {
+            const id = String(skill.id || `skill-${idx + 1}`).trim();
+            return {
+                id,
+                file: String(skill.file || `skills/${id || `skill-${idx + 1}`}.md`).trim(),
+                title: String(skill.title || skill.name || id || `Skill ${idx + 1}`).trim(),
+                description: String(skill.description || '').trim(),
+                triggers: Array.isArray(skill.triggers) ? skill.triggers.map(v => String(v).trim()).filter(Boolean) : String(skill.triggers || '').split(',').map(v => v.trim()).filter(Boolean),
+                stages: normalizeSkillStagesFromValue(skill, ['chat', 'coding', 'debugging']),
+                enabled: skill.enabled !== false,
+                content: String(skill.content || '').trim()
+            };
+        }).filter(skill => skill.id) : base.skills;
         return merged;
     }
 
@@ -1874,6 +1943,7 @@ profile: frontend
         }
         list.innerHTML = skills.map((skill, index) => {
             const triggers = (skill.triggers || []).join(', ');
+            const stages = formatSkillStageLabels(skill.stages);
             return `<div class="skill-card">
                 <div class="skill-card-head">
                     <div>
@@ -1883,6 +1953,7 @@ profile: frontend
                     <span class="skill-badge ${skill.enabled === false ? 'off' : ''}">${skill.enabled === false ? escapeHtml(getLabel('skillDisabled') || '無効') : escapeHtml(getLabel('skillEnabled') || '有効')}</span>
                 </div>
                 ${skill.description ? `<div class="skill-card-desc">${escapeHtml(skill.description)}</div>` : ''}
+                <div class="skill-card-meta">${escapeHtml(getLabel('skillStagesMetaLabel') || '利用段階')}: ${escapeHtml(stages)}</div>
                 ${triggers ? `<div class="skill-card-meta">Trigger: ${escapeHtml(triggers)}</div>` : ''}
                 <div class="skill-card-actions">
                     <button type="button" class="skill-mini-btn" onclick="openSkillEditor(${index})">${escapeHtml(getLabel('editButton') || '編集')}</button>
@@ -1903,10 +1974,38 @@ profile: frontend
         updatePromptPreviews();
     }
 
+    function getSkillEditorStages() {
+        const stages = [];
+        if (document.getElementById('skill-editor-stage-chat')?.checked) stages.push('chat');
+        if (document.getElementById('skill-editor-stage-coding')?.checked) stages.push('coding');
+        if (document.getElementById('skill-editor-stage-debugging')?.checked) stages.push('debugging');
+        return stages;
+    }
+
+    function setSkillEditorStages(stages) {
+        const normalized = normalizeSkillStagesFromValue(stages);
+        const map = { chat: 'skill-editor-stage-chat', coding: 'skill-editor-stage-coding', debugging: 'skill-editor-stage-debugging' };
+        Object.entries(map).forEach(([stage, id]) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = normalized.includes(stage);
+        });
+    }
+
+    function setSkillEditorFileVisible(visible) {
+        const field = document.getElementById('skill-editor-file-field');
+        const input = document.getElementById('skill-editor-file');
+        if (field) field.style.display = visible ? '' : 'none';
+        if (input) input.disabled = !visible;
+    }
+
+    let currentSkillEditorScope = 'admin';
+
     function openSkillEditor(index = null) {
+        currentSkillEditorScope = 'admin';
+        setSkillEditorFileVisible(true);
         const registry = parseSkillRegistryFromTextarea();
         currentEditingSkillIndex = Number.isInteger(index) ? index : null;
-        const skill = currentEditingSkillIndex !== null ? registry.skills[currentEditingSkillIndex] : { id: '', file: '', title: '', description: '', triggers: [], enabled: true, content: '' };
+        const skill = currentEditingSkillIndex !== null ? registry.skills[currentEditingSkillIndex] : { id: '', file: '', title: '', description: '', triggers: [], stages: ['chat','coding','debugging'], enabled: true, content: '' };
         const title = document.getElementById('skill-editor-title');
         if (title) title.textContent = currentEditingSkillIndex !== null ? (getLabel('skillEditorEditTitle') || 'Skill編集') : (getLabel('skillEditorAddTitle') || 'Skill追加');
         document.getElementById('skill-editor-id').value = skill?.id || '';
@@ -1914,6 +2013,7 @@ profile: frontend
         document.getElementById('skill-editor-title-input').value = skill?.title || '';
         document.getElementById('skill-editor-description').value = skill?.description || '';
         document.getElementById('skill-editor-triggers').value = Array.isArray(skill?.triggers) ? skill.triggers.join(', ') : (skill?.triggers || '');
+        setSkillEditorStages(skill?.stages || ['chat','coding','debugging']);
         document.getElementById('skill-editor-content').value = skill?.content || '';
         document.getElementById('skill-editor-enabled').checked = skill?.enabled !== false;
         document.getElementById('skill-editor-modal')?.classList.add('show');
@@ -1923,12 +2023,21 @@ profile: frontend
     function closeSkillEditor() {
         document.getElementById('skill-editor-modal')?.classList.remove('show');
         currentEditingSkillIndex = null;
+        currentSkillEditorScope = 'admin';
+        setSkillEditorFileVisible(true);
     }
 
     function saveSkillEditor() {
+        if (currentSkillEditorScope === 'user') return saveUserSkillEditor();
+        return saveAdminSkillEditor();
+    }
+
+    function saveAdminSkillEditor() {
         const registry = parseSkillRegistryFromTextarea();
         const id = (document.getElementById('skill-editor-id')?.value || '').trim();
         if (!id) return showToast(getLabel('skillIdRequired') || 'Skill IDを入力してください');
+        const stages = getSkillEditorStages();
+        if (!stages.length) return showToast(getLabel('skillStageRequired') || '利用段階を1つ以上選択してください');
         const fileInput = (document.getElementById('skill-editor-file')?.value || '').trim();
         const skill = {
             id,
@@ -1936,6 +2045,7 @@ profile: frontend
             title: (document.getElementById('skill-editor-title-input')?.value || id).trim(),
             description: (document.getElementById('skill-editor-description')?.value || '').trim(),
             triggers: (document.getElementById('skill-editor-triggers')?.value || '').split(',').map(v => v.trim()).filter(Boolean),
+            stages,
             enabled: !!document.getElementById('skill-editor-enabled')?.checked,
             content: (document.getElementById('skill-editor-content')?.value || '').trim()
         };
@@ -1953,17 +2063,33 @@ profile: frontend
         writeSkillRegistry(registry, true);
     }
 
-    function buildSkillIndexPrompt(registry = parseSkillRegistryFromTextarea()) {
-        const enabled = (registry.skills || []).filter(skill => skill.enabled !== false);
-        if (!enabled.length) return '';
-        const lines = enabled.map(skill => `- ${skill.id}: ${skill.description || skill.title || ''} / file=${skill.file || ''} / triggers=${(skill.triggers || []).join(', ')}`);
-        return `【Skillインデックス / Pattern B】\n${registry.instructions || ''}\n\nAvailable Skill Profiles:\n${lines.join('\n')}\n\n必要なSkillだけを選び、不要なSkill本文は使わないこと。`;
+    function getSkillsForStage(registry, stage) {
+        return (registry.skills || []).filter(skill => skill.enabled !== false && normalizeSkillStagesFromValue(skill.stages).includes(stage));
     }
 
-    function selectSkillsByKeywords(text, registry) {
+    function buildAdminSkillIndexPrompt(registry = parseSkillRegistryFromTextarea(), taskType = 'chat') {
+        const stage = skillStageFromTaskType(taskType);
+        const enabled = getSkillsForStage(registry, stage);
+        if (!enabled.length) return '';
+        const lines = enabled.map(skill => `- ${skill.id}: ${skill.description || skill.title || ''} / stage=${stage} / stages=${(skill.stages || []).join(', ')} / file=${skill.file || ''} / triggers=${(skill.triggers || []).join(', ')}`);
+        return `【管理用Skillインデックス / Pattern B】
+${registry.instructions || ''}
+
+Current stage: ${stage}
+Available Admin Skill Profiles:
+${lines.join('\n')}
+
+現在の段階に合う管理用Skillだけを選び、不要なSkill本文は使わないこと。`;
+    }
+
+    function buildSkillIndexPrompt(registry = parseSkillRegistryFromTextarea(), taskType = 'chat') {
+        return buildAdminSkillIndexPrompt(registry, taskType);
+    }
+
+    function selectSkillsByKeywords(text, registry, taskType = 'chat') {
         const source = String(text || '').toLowerCase();
-        return (registry.skills || []).filter(skill => {
-            if (skill.enabled === false) return false;
+        const stage = skillStageFromTaskType(taskType);
+        return getSkillsForStage(registry, stage).filter(skill => {
             const hay = [skill.id, skill.title, skill.description, ...(skill.triggers || [])].join(' ').toLowerCase();
             return hay.split(/[,\s/]+/).filter(Boolean).some(token => token.length >= 2 && source.includes(token));
         }).map(skill => skill.id);
@@ -1979,22 +2105,225 @@ profile: frontend
         return cleaned.split(/[,\n]/).map(v => v.replace(/^[\-\*\d\.\s]+/, '').trim()).filter(Boolean);
     }
 
-    async function buildSkillContextForTask(requestText, model, taskType = 'generic') {
+    async function buildAdminSkillContextForTask(requestText, model, taskType = 'chat') {
         const registry = parseSkillRegistryFromTextarea();
-        const enabled = (registry.skills || []).filter(skill => skill.enabled !== false);
+        const stage = skillStageFromTaskType(taskType);
+        const enabled = getSkillsForStage(registry, stage);
         if (!enabled.length) return '';
-        const indexPrompt = buildSkillIndexPrompt(registry);
+        const indexPrompt = buildAdminSkillIndexPrompt(registry, taskType);
         let selectedIds = [];
         try {
-            const selectorPrompt = `${indexPrompt}\n\n【ユーザー要求 / 実装文脈】\n${String(requestText || '').slice(0, 8000)}\n\n必要なSkill IDだけをJSON配列で返してください。不要なら []。`;
-            const result = await callLLM({ prompt: selectorPrompt, stream: false, model, taskType: 'skill-select' });
+            const selectorPrompt = `${indexPrompt}
+
+【ユーザー要求 / 実装文脈】
+${String(requestText || '').slice(0, 8000)}
+
+現在の段階「${stage}」で必要な管理用Skill IDだけをJSON配列で返してください。不要なら []。`;
+            const result = await callLLM({ prompt: selectorPrompt, stream: false, model, taskType: 'admin-skill-select' });
             selectedIds = parseSkillIdsFromText(result.text);
         } catch(e) {
-            selectedIds = selectSkillsByKeywords(requestText, registry);
+            selectedIds = selectSkillsByKeywords(requestText, registry, taskType);
         }
         const selected = enabled.filter(skill => selectedIds.includes(skill.id));
-        if (!selected.length) return indexPrompt + '\n\n【読み込まれたSkill本文】\nなし';
-        return indexPrompt + '\n\n【読み込まれたSkill本文】\n' + selected.map(skill => `--- ${skill.id} (${skill.file || ''}) ---\n${skill.content || ''}`).join('\n\n');
+        if (!selected.length) return indexPrompt + '\n\n【読み込まれた管理用Skill本文】\nなし';
+        return indexPrompt + '\n\n【読み込まれた管理用Skill本文】\n' + selected.map(skill => `--- ${skill.id} (${skill.file || ''} / stages=${(skill.stages || []).join(', ')}) ---
+${skill.content || ''}`).join('\n\n');
+    }
+
+    /* === ユーザーSkill: 管理用Skillとは別のローカル専用ロジック === */
+    function getDefaultUserSkillRegistry() {
+        return cloneDefaultUserSkillRegistry();
+    }
+
+    function normalizeUserSkillRegistry(raw) {
+        let base = cloneDefaultUserSkillRegistry();
+        let obj = raw;
+        if (typeof raw === 'string') {
+            const trimmed = raw.trim();
+            if (!trimmed) return base;
+            try { obj = JSON.parse(trimmed); }
+            catch(e) {
+                base.legacyNotes = trimmed;
+                base.skills = [];
+                return base;
+            }
+        }
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return base;
+        const merged = { ...base, ...obj, storage: 'local-settings-only' };
+        delete merged.github;
+        merged.skills = Array.isArray(obj.skills) ? obj.skills.map((skill, idx) => {
+            const id = String(skill.id || `user-skill-${idx + 1}`).trim();
+            return {
+                id,
+                title: String(skill.title || skill.name || id || `User Skill ${idx + 1}`).trim(),
+                description: String(skill.description || '').trim(),
+                triggers: Array.isArray(skill.triggers) ? skill.triggers.map(v => String(v).trim()).filter(Boolean) : String(skill.triggers || '').split(',').map(v => v.trim()).filter(Boolean),
+                stages: normalizeSkillStagesFromValue(skill, ['chat', 'coding', 'debugging']),
+                enabled: skill.enabled !== false,
+                content: String(skill.content || '').trim()
+            };
+        }).filter(skill => skill.id) : base.skills;
+        return merged;
+    }
+
+    function parseUserSkillRegistryFromTextarea() {
+        return normalizeUserSkillRegistry(document.getElementById('user-skill-settings')?.value || '');
+    }
+
+    function writeUserSkillRegistry(registry, save = true) {
+        const normalized = normalizeUserSkillRegistry(registry);
+        const target = document.getElementById('user-skill-settings');
+        if (target) target.value = JSON.stringify(normalized, null, 2);
+        updatePromptPreviews();
+        renderUserSkillManager(false);
+        if (save) autoSaveSettings();
+    }
+
+    function renderUserSkillManager(migrateLegacy = true) {
+        const textarea = document.getElementById('user-skill-settings');
+        if (!textarea) return;
+        const before = textarea.value || '';
+        const registry = parseUserSkillRegistryFromTextarea();
+        if (migrateLegacy && before.trim() && !before.trim().startsWith('{')) {
+            textarea.value = JSON.stringify(registry, null, 2);
+        } else if (!before.trim()) {
+            textarea.value = JSON.stringify(registry, null, 2);
+        }
+        const list = document.getElementById('user-skill-list');
+        if (!list) return;
+        const skills = registry.skills || [];
+        if (!skills.length) {
+            list.innerHTML = `<div class="field-hint">${escapeHtml(getLabel('skillEmpty') || 'Skillがありません。')}</div>`;
+            return;
+        }
+        list.innerHTML = skills.map((skill, index) => {
+            const triggers = (skill.triggers || []).join(', ');
+            const stages = formatSkillStageLabels(skill.stages);
+            return `<div class="skill-card">
+                <div class="skill-card-head">
+                    <div>
+                        <div class="skill-card-title">${escapeHtml(skill.title || skill.id)}</div>
+                        <div class="skill-card-meta">ID: ${escapeHtml(skill.id)} / local-settings-only</div>
+                    </div>
+                    <span class="skill-badge ${skill.enabled === false ? 'off' : ''}">${skill.enabled === false ? escapeHtml(getLabel('skillDisabled') || '無効') : escapeHtml(getLabel('skillEnabled') || '有効')}</span>
+                </div>
+                ${skill.description ? `<div class="skill-card-desc">${escapeHtml(skill.description)}</div>` : ''}
+                <div class="skill-card-meta">${escapeHtml(getLabel('skillStagesMetaLabel') || '利用段階')}: ${escapeHtml(stages)}</div>
+                ${triggers ? `<div class="skill-card-meta">Trigger: ${escapeHtml(triggers)}</div>` : ''}
+                <div class="skill-card-actions">
+                    <button type="button" class="skill-mini-btn" onclick="openUserSkillEditor(${index})">${escapeHtml(getLabel('editButton') || '編集')}</button>
+                    <button type="button" class="skill-mini-btn" onclick="toggleUserSkillEnabled(${index})">${skill.enabled === false ? escapeHtml(getLabel('skillEnableButton') || '有効化') : escapeHtml(getLabel('skillDisableButton') || '無効化')}</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function openUserSkillEditor(index = null) {
+        currentSkillEditorScope = 'user';
+        setSkillEditorFileVisible(false);
+        const registry = parseUserSkillRegistryFromTextarea();
+        currentEditingSkillIndex = Number.isInteger(index) ? index : null;
+        const skill = currentEditingSkillIndex !== null ? registry.skills[currentEditingSkillIndex] : { id: '', title: '', description: '', triggers: [], stages: ['chat','coding','debugging'], enabled: true, content: '' };
+        const title = document.getElementById('skill-editor-title');
+        if (title) title.textContent = currentEditingSkillIndex !== null ? (getLabel('userSkillEditorEditTitle') || 'ユーザーSkill編集') : (getLabel('userSkillEditorAddTitle') || 'ユーザーSkill追加');
+        document.getElementById('skill-editor-id').value = skill?.id || '';
+        document.getElementById('skill-editor-file').value = '';
+        document.getElementById('skill-editor-title-input').value = skill?.title || '';
+        document.getElementById('skill-editor-description').value = skill?.description || '';
+        document.getElementById('skill-editor-triggers').value = Array.isArray(skill?.triggers) ? skill.triggers.join(', ') : (skill?.triggers || '');
+        setSkillEditorStages(skill?.stages || ['chat','coding','debugging']);
+        document.getElementById('skill-editor-content').value = skill?.content || '';
+        document.getElementById('skill-editor-enabled').checked = skill?.enabled !== false;
+        document.getElementById('skill-editor-modal')?.classList.add('show');
+        setTimeout(() => document.getElementById('skill-editor-id')?.focus(), 50);
+    }
+
+    function saveUserSkillEditor() {
+        const registry = parseUserSkillRegistryFromTextarea();
+        const id = (document.getElementById('skill-editor-id')?.value || '').trim();
+        if (!id) return showToast(getLabel('skillIdRequired') || 'Skill IDを入力してください');
+        const stages = getSkillEditorStages();
+        if (!stages.length) return showToast(getLabel('skillStageRequired') || '利用段階を1つ以上選択してください');
+        const skill = {
+            id,
+            title: (document.getElementById('skill-editor-title-input')?.value || id).trim(),
+            description: (document.getElementById('skill-editor-description')?.value || '').trim(),
+            triggers: (document.getElementById('skill-editor-triggers')?.value || '').split(',').map(v => v.trim()).filter(Boolean),
+            stages,
+            enabled: !!document.getElementById('skill-editor-enabled')?.checked,
+            content: (document.getElementById('skill-editor-content')?.value || '').trim()
+        };
+        if (currentEditingSkillIndex !== null && registry.skills[currentEditingSkillIndex]) registry.skills[currentEditingSkillIndex] = skill;
+        else registry.skills.push(skill);
+        writeUserSkillRegistry(registry, true);
+        closeSkillEditor();
+        showToast(getLabel('toastSettingsSaved'));
+    }
+
+    function toggleUserSkillEnabled(index) {
+        const registry = parseUserSkillRegistryFromTextarea();
+        if (!registry.skills[index]) return;
+        registry.skills[index].enabled = registry.skills[index].enabled === false;
+        writeUserSkillRegistry(registry, true);
+    }
+
+    function buildUserSkillIndexPrompt(registry = parseUserSkillRegistryFromTextarea(), taskType = 'chat') {
+        const stage = skillStageFromTaskType(taskType);
+        const enabled = getSkillsForStage(registry, stage);
+        if (!enabled.length) return '';
+        const lines = enabled.map(skill => `- ${skill.id}: ${skill.description || skill.title || ''} / stage=${stage} / stages=${(skill.stages || []).join(', ')} / storage=local-settings-only / triggers=${(skill.triggers || []).join(', ')}`);
+        return `【ユーザーSkillインデックス / ローカル専用】
+${registry.instructions || ''}
+
+Current stage: ${stage}
+Available User Skill Profiles:
+${lines.join('\n')}
+
+現在の段階に合うユーザーSkillだけを選び、不要なSkill本文は使わないこと。`;
+    }
+
+    function selectUserSkillsByKeywords(text, registry, taskType = 'chat') {
+        const source = String(text || '').toLowerCase();
+        const stage = skillStageFromTaskType(taskType);
+        return getSkillsForStage(registry, stage).filter(skill => {
+            const hay = [skill.id, skill.title, skill.description, ...(skill.triggers || [])].join(' ').toLowerCase();
+            return hay.split(/[,\s/]+/).filter(Boolean).some(token => token.length >= 2 && source.includes(token));
+        }).map(skill => skill.id);
+    }
+
+    async function buildUserSkillContextForTask(requestText, model, taskType = 'chat') {
+        const registry = parseUserSkillRegistryFromTextarea();
+        const stage = skillStageFromTaskType(taskType);
+        const enabled = getSkillsForStage(registry, stage);
+        if (!enabled.length) return '';
+        const indexPrompt = buildUserSkillIndexPrompt(registry, taskType);
+        let selectedIds = [];
+        try {
+            const selectorPrompt = `${indexPrompt}
+
+【ユーザー要求 / 実装文脈】
+${String(requestText || '').slice(0, 8000)}
+
+現在の段階「${stage}」で必要なユーザーSkill IDだけをJSON配列で返してください。不要なら []。`;
+            const result = await callLLM({ prompt: selectorPrompt, stream: false, model, taskType: 'user-skill-select' });
+            selectedIds = parseSkillIdsFromText(result.text);
+        } catch(e) {
+            selectedIds = selectUserSkillsByKeywords(requestText, registry, taskType);
+        }
+        const selected = enabled.filter(skill => selectedIds.includes(skill.id));
+        if (!selected.length) return indexPrompt + '\n\n【読み込まれたユーザーSkill本文】\nなし';
+        return indexPrompt + '\n\n【読み込まれたユーザーSkill本文】\n' + selected.map(skill => `--- ${skill.id} (local-settings-only / stages=${(skill.stages || []).join(', ')}) ---
+${skill.content || ''}`).join('\n\n');
+    }
+
+    async function buildCombinedSkillContextForTask(requestText, model, taskType = 'chat') {
+        const adminContext = await buildAdminSkillContextForTask(requestText, model, taskType);
+        const userContext = await buildUserSkillContextForTask(requestText, model, taskType);
+        return [adminContext, userContext].filter(Boolean).join('\n\n');
+    }
+
+    async function buildSkillContextForTask(requestText, model, taskType = 'chat') {
+        return buildCombinedSkillContextForTask(requestText, model, taskType);
     }
 
     function base64EncodeUtf8(text) {
@@ -2083,7 +2412,7 @@ profile: frontend
         input.value = modelOverrides[key] || '';
     }
 
-    function getFieldDefaults() { return { 'system-prompt': getDefault('system-prompt'), 'target-persona': getDefault('target-persona'), 'user-system-prompt': getDefault('user-system-prompt'), 'code-principles': getDefault('code-principles'), 'admin-system-requirements': getDefault('admin-system-requirements'), 'admin-implementation-verification': getDefault('admin-implementation-verification'), 'skill-settings': getDefault('skill-settings'), 'prompt-plan': getPrompt('plan'), 'prompt-suggest': getPrompt('suggest'), 'prompt-debug': getPrompt('debug'), 'prompt-extract': getPrompt('extract'), 'prompt-verify': getPrompt('verify') }; }
+    function getFieldDefaults() { return { 'system-prompt': getDefault('system-prompt'), 'target-persona': getDefault('target-persona'), 'user-system-prompt': getDefault('user-system-prompt'), 'code-principles': getDefault('code-principles'), 'admin-system-requirements': getDefault('admin-system-requirements'), 'admin-implementation-verification': getDefault('admin-implementation-verification'), 'skill-settings': getDefault('skill-settings'), 'user-skill-settings': getDefault('user-skill-settings'), 'prompt-plan': getPrompt('plan'), 'prompt-suggest': getPrompt('suggest'), 'prompt-debug': getPrompt('debug'), 'prompt-extract': getPrompt('extract'), 'prompt-verify': getPrompt('verify') }; }
     function resetFieldDefault(fieldId) { const def = getFieldDefaults()[fieldId]; if (def !== undefined) { document.getElementById(fieldId).value = def; autoSaveSettings(); showToast(getLabel('toastDefaultRestored')); } }
 
     /* === タスク管理（Phase 2: 計画 / 検証 / 失敗ログ の3カテゴリ） === */
@@ -2455,7 +2784,7 @@ profile: frontend
             updateKeyExpiryStatus(hasAnyKey ? apiKeys : null);
             const settings = {
                 aiProvider: document.getElementById('ai-provider')?.value || 'gemini', chatModel: document.getElementById('chat-model').value, codeModel: document.getElementById('code-model').value, serverEndpoint: document.getElementById('server-endpoint')?.value || '', customBaseUrl: document.getElementById('api-base-custom')?.value || '', templateCatalogUrl: document.getElementById('template-catalog-url')?.value || '',
-                targetPersona: document.getElementById('target-persona').value, userSystemPrompt: document.getElementById('user-system-prompt').value, systemPrompt: document.getElementById('system-prompt').value, codePrinciples: document.getElementById('code-principles').value, adminSystemRequirements: document.getElementById('admin-system-requirements').value, adminImplementationVerification: document.getElementById('admin-implementation-verification').value, skillSettings: document.getElementById('skill-settings').value,
+                targetPersona: document.getElementById('target-persona').value, userSystemPrompt: document.getElementById('user-system-prompt').value, systemPrompt: document.getElementById('system-prompt').value, codePrinciples: document.getElementById('code-principles').value, adminSystemRequirements: document.getElementById('admin-system-requirements').value, adminImplementationVerification: document.getElementById('admin-implementation-verification').value, skillSettings: document.getElementById('skill-settings').value, userSkillSettings: document.getElementById('user-skill-settings').value,
                 promptPlan: document.getElementById('prompt-plan').value, promptSuggest: document.getElementById('prompt-suggest').value, promptDebug: document.getElementById('prompt-debug').value,
                 promptExtract: document.getElementById('prompt-extract').value, promptVerify: document.getElementById('prompt-verify').value,
                 modelOverrides: { ...modelOverrides }
@@ -3103,7 +3432,10 @@ profile: frontend
     /* --- チャット・コード生成実行 --- */
     function askForPlan() { document.getElementById('user-prompt').value = getPrompt('suggest'); askAI(); }
     async function askAI() {
-        const targetPersona = document.getElementById('target-persona').value; const model = getModelForPrompt('plan');
+        const targetPersona = document.getElementById('target-persona').value;
+        const chatRun = window.AIChatLogic?.prepareRun?.() || {};
+        const chatTaskType = chatRun.taskType || 'chat';
+        const model = chatRun.model || getModelForPrompt(chatTaskType === 'debugging' ? 'debug' : 'plan');
         const input = document.getElementById('user-prompt'); const promptText = input.value.trim();
         const attachmentBlock = buildAttachmentPromptBlock();
         const hasAttachments = Array.isArray(currentAttachments) && currentAttachments.length > 0;
@@ -3126,7 +3458,7 @@ ${window.getCode()}
         const recentChatForAI = getRecentChat(3) + (attachmentBlock ? `
 
 ${attachmentBlock}` : '');
-        const skillContext = await buildSkillContextForTask(promptForAI + '\n\n' + codeContext, model, 'plan');
+        const skillContext = await buildSkillContextForTask(promptForAI + '\n\n' + codeContext, model, chatTaskType);
         const adminSystem = [
             document.getElementById('system-prompt').value.trim(),
             document.getElementById('admin-system-requirements')?.value.trim(),
@@ -3135,7 +3467,19 @@ ${attachmentBlock}` : '');
             document.getElementById('user-system-prompt')?.value.trim() ? `【ユーザー用システムプロンプト】
 ${document.getElementById('user-system-prompt').value.trim()}` : ''
         ].filter(Boolean).join('\n\n');
-        const system = (document.getElementById('prompt-plan').value.trim() || getPrompt('plan')).replace('{targetPersona}', targetPersona).replace('{prof}', targetPersona).replace('{codeContext}', codeContext).replace('{systemPrompt}', adminSystem).replace('{specList}', specListToString()).replace('{recentChat}', recentChatForAI);
+        let system;
+        if (chatTaskType === 'debugging') {
+            const debugTemplate = document.getElementById('prompt-debug').value.trim() || getPrompt('debug');
+            system = [
+                adminSystem,
+                debugTemplate.replace('{memoText}', promptForAI).replace('{targetPersona}', targetPersona).replace('{prof}', targetPersona).replace('{codeContext}', codeContext).replace('{systemPrompt}', adminSystem).replace('{specList}', specListToString()).replace('{recentChat}', recentChatForAI),
+                `【現在の仕様リスト】
+${specListToString()}`,
+                codeContext
+            ].filter(Boolean).join('\n\n');
+        } else {
+            system = (document.getElementById('prompt-plan').value.trim() || getPrompt('plan')).replace('{targetPersona}', targetPersona).replace('{prof}', targetPersona).replace('{codeContext}', codeContext).replace('{systemPrompt}', adminSystem).replace('{specList}', specListToString()).replace('{recentChat}', recentChatForAI);
+        }
         const images = hasAttachments ? currentAttachments.filter(a => (a.mime || '').startsWith('image/') && a.base64).map(a => ({ mime: a.mime, base64: a.base64 })) : [];
         if (!images.length && currentImageBase64 && currentMimeType) images.push({ mime: currentMimeType, base64: currentImageBase64 });
         if (hasAttachments || currentImageBase64) removeAttachment();
@@ -3143,10 +3487,10 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
         try {
             const routeForStream = parseModelRoute(model); const key = getCurrentApiKey(model);
             if (key && routeForStream.provider === 'gemini' && !getServerEndpoint()) {
-                const result = await callLLM({ prompt: system, stream: true, model, images }); const reader = result.reader; const decoder = new TextDecoder("utf-8"); let buffer = ""; contentDiv.innerHTML = "";
+                const result = await callLLM({ prompt: system, stream: true, model, images, taskType: chatTaskType }); const reader = result.reader; const decoder = new TextDecoder("utf-8"); let buffer = ""; contentDiv.innerHTML = "";
                 while (true) { const { value, done } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split('\n'); buffer = lines.pop(); for (const line of lines) { if (line.startsWith(result.prefix || 'data: ')) { const chunk = result.parseChunk(line); if (chunk) { aiText += chunk; contentDiv.innerText = aiText; log.scrollTop = log.scrollHeight; } } } }
             } else {
-                const result = await callLLM({ prompt: system, stream: false, model, images }); aiText = result.text; contentDiv.innerText = aiText;
+                const result = await callLLM({ prompt: system, stream: false, model, images, taskType: chatTaskType }); aiText = result.text; contentDiv.innerText = aiText;
             }
             
             // 選択肢の抽出とモーダル表示
@@ -3160,7 +3504,7 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
 
             const aiMsgToUpdate = chatHistory.find(m => m.id === aiMsgId); if(aiMsgToUpdate) { aiMsgToUpdate.text = aiText; aiMsgToUpdate.html = false; saveToDB('chatHistory', chatHistory); aiMsgElement.replaceWith(createMessageElement(aiMsgToUpdate)); log.scrollTop = log.scrollHeight; }
             if (aiText) { await extractSpecsFromChat(promptForAI || promptText, aiText); }
-        } catch (e) { contentDiv.textContent = `${getLabel('aiSystemMsgBuildError')} ${e.message}`; try { addFailureLog('ai-error', `チャット応答失敗: ${e.message || e}`, '直近の入力: ' + (promptText || '').slice(0, 200)); } catch(_) {} } finally { clearNewSpecFlags(); }
+        } catch (e) { contentDiv.textContent = `${getLabel('aiSystemMsgBuildError')} ${e.message}`; try { addFailureLog('ai-error', `チャット応答失敗: ${e.message || e}`, '直近の入力: ' + (promptText || '').slice(0, 200)); } catch(_) {} } finally { if (window.AIChatLogic?.clearPendingTaskType) window.AIChatLogic.clearPendingTaskType(); clearNewSpecFlags(); }
     }
 
     function extractCodeFromText(text) {
@@ -3188,12 +3532,15 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
 
     async function generateCode() {
         clearNewSpecFlags();
-        const targetPersona = document.getElementById('target-persona').value; const model = getModelForPrompt('code');
+        const targetPersona = document.getElementById('target-persona').value;
+        const codeRun = window.AICodeLogic?.prepareRun?.() || {};
+        const model = codeRun.model || getModelForPrompt('code');
+        const codeTaskType = codeRun.taskType || 'code';
         const currentCode = window.getCode();
         const sysMsgObj = { id: Date.now().toString(), role: 'ai system-msg', text: `<div style="display:flex;align-items:center;"><div class="spinner"></div><span>${getLabel('aiSystemMsgBuildingCode')}</span></div>`, html: true };
         chatHistory.push(sysMsgObj); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsgObj);
         const themeCSS = await getSelectedThemeCSS();
-        const skillContext = await buildSkillContextForTask(specListToString() + '\n\n' + currentCode.slice(0, 8000), model, 'code');
+        const skillContext = await buildSkillContextForTask(specListToString() + '\n\n' + currentCode.slice(0, 8000), model, codeTaskType);
         const adminBuildSystem = [
             document.getElementById('system-prompt').value.trim(),
             document.getElementById('code-principles').value.trim(),
@@ -3226,8 +3573,9 @@ ${specListToString()}`;
         if (!text) return; 
         showPage('chat', document.getElementById('tab-chat')); 
         const input = document.getElementById('user-prompt'); 
-        // 修正依頼のプロンプトテキストをプロンプトファイルから取得
-        input.value = getPrompt('debug').replace('{memoText}', text); 
+        input.value = window.AIDebugLogic?.prepareUserInput ? window.AIDebugLogic.prepareUserInput(text) : text; 
+        if (window.AIChatLogic?.setPendingTaskType) window.AIChatLogic.setPendingTaskType('debugging');
+        else window.__pendingChatTaskType = 'debugging';
         autoGrow(input); 
         document.getElementById('debug-memo').value = ''; 
         askAI(); 
@@ -3735,7 +4083,7 @@ ${specListToString()}`;
                 if (decryptedKeys) { ['gemini','openai','claude','xai','groq','custom'].forEach(k => { const el = document.getElementById('api-key-'+k); if (el) el.value = decryptedKeys[k] || ''; }); updateKeyExpiryStatus(decryptedKeys); }
                 else if (settings.apiKeys) { ['gemini','openai','claude','xai','groq','custom'].forEach(k => { const el = document.getElementById('api-key-'+k); if (el) el.value = settings.apiKeys[k] || ''; }); await saveEncryptedKeys(settings.apiKeys); updateKeyExpiryStatus(settings.apiKeys); }
                 else updateKeyExpiryStatus(null);
-                ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => {
+                ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => {
                     const camel = k.replace(/-([a-z])/g, g => g[1].toUpperCase());
                     const savedValue = settings[camel];
                     document.getElementById(k).value = (savedValue !== undefined && savedValue !== "") ? savedValue : getFieldDefaults()[k];
@@ -3750,10 +4098,11 @@ ${specListToString()}`;
                     modelOverrides = { ...settings.modelOverrides };
                 }
             } else {
-                onProviderChange(); ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => document.getElementById(k).value = getFieldDefaults()[k]); updateKeyExpiryStatus(null);
+                onProviderChange(); ['target-persona','user-system-prompt','system-prompt','code-principles','admin-system-requirements','admin-implementation-verification','skill-settings','user-skill-settings','prompt-plan','prompt-suggest','prompt-debug','prompt-extract','prompt-verify'].forEach(k => document.getElementById(k).value = getFieldDefaults()[k]); updateKeyExpiryStatus(null);
             }
             toggleModelSelects(); const ghToken = await getFromDB('gh_token'); if (ghToken) { const sgt = document.getElementById('setting-gh-token'); const dti = document.getElementById('deploy-token-input'); const gpm = document.getElementById('github-pat-modal-input'); if (sgt) sgt.value = ghToken; if (dti) dti.value = ghToken; if (gpm) gpm.value = ghToken; }
             try { renderSkillManager(); } catch(e) { console.warn('renderSkillManager error:', e); }
+            try { renderUserSkillManager(); } catch(e) { console.warn('renderUserSkillManager error:', e); }
             try { updatePromptPreviews(); } catch(e) {}
         } catch(e) { /* silent error */ }
         
@@ -4161,5 +4510,8 @@ ${String(a.textContent).slice(0, 24000)}`);
         updatePreview(); if (currentThemeId !== 'none') await injectThemeToCode(true); resetChatForNewCode(getLabel('templatesLabel') + '「' + (t.name || id) + '」'); showPage('preview', document.getElementById('tab-preview'));
     }
 </script>
+<script src="./js/ai-chat-logic.js"></script>
+<script src="./js/ai-code-logic.js"></script>
+<script src="./js/ai-debug-logic.js"></script>
 </body>
 </html>
