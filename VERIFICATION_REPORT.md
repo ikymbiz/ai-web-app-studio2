@@ -105,3 +105,27 @@
 
 - Android実機でのZIP選択・複数添付の操作感は未確認。
 - ZIP内の画像やバイナリアセットをプロジェクトに復元する処理は未実装。現状はHTML/CSS/JS/JSON/Markdown等のテキスト系ファイルを対象にしています。
+
+## v7 追加検証（入力欄UI / 選択肢モーダル / コードのみ出力）
+
+| No | 要件 | 検証結果 |
+|---:|---|---|
+| 30 | 「編集」文字付きのプロンプト入力UIを通常入力欄風にする | `.edit-prompt-btn` を入力欄風の見た目へ変更し、設定画面上の対象ボタンから「編集」文字を除去。クリック/タップで既存の編集モーダルを開く仕様は維持。 |
+| 31 | テキスト入力欄のデザインを統一する | `input.setting-input` を共通スタイル対象に追加し、管理設定のモデル・URL・GitHub保存先入力欄も同じ入力欄デザインで表示。 |
+| 32 | チャットの選択肢をボタン展開ではなくモーダル表示にする | AI応答から質問グループを検出した場合、`autoOpenOptionsModalFromAiText()` で自動的に選択モーダルを表示。インラインの「選択肢を開く」ボタンは表示しない。 |
+| 33 | 初回入力の要件確認を1回・1〜3問に寄せる | `buildRequirementFlowInstruction()` を追加し、最初のユーザー入力時は1〜3問だけ確認し、次回以降は「システムの機能要件」を出力するようチャット用プロンプトへ状態指示を追加。 |
+| 34 | コード生成結果はコードだけにする | `js/ai-code-logic.js` にコード専用出力制約と抽出処理を追加。`generateCode()` と自己修復プロンプトにもコードのみ出力ルールを追加。 |
+| 35 | Service Worker更新 | キャッシュ名と登録URLを `settings-tabs-skills-models-v7` に更新。 |
+
+## v7 実行した静的検証
+
+- `index.html` 内のインライン `<script>` を抽出し、`node --check` でJavaScript構文を検証。
+- `js/ai-chat-logic.js` / `js/ai-code-logic.js` / `js/ai-debug-logic.js` を `node --check` で検証。
+- `sw.js` を `node --check` で検証。
+- `prompts.json` / `models/models.json` / `skills/skills.example.json` / `skills/skills.index.example.json` を `python3 -m json.tool` で検証。
+- 実DOM用IDの重複がないことを確認。
+
+## v7 未確認事項
+
+- Android実機でのタップ操作、モーダル表示、Service Worker更新反映は未確認。
+- 実AI APIを使った生成結果の完全な挙動は、APIキーとネットワーク接続に依存するため未実行。
