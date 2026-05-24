@@ -13,7 +13,7 @@
     '出力はコードだけにする。',
     '説明、要約、Plan、Act、分析、検証報告、前置き、後書きを出力しない。',
     GENERATED_APP_STRUCTURE_INSTRUCTION,
-    '単一HTMLで実装できる場合でも、複数ファイルJSONを優先し、docs/ の5ファイルを省略しない。',
+    '単一HTMLで実装できる場合は単一HTMLでよい。複数ファイル化する場合も説明文を混ぜず、JSONだけを出力する。',
     'HTML/CSS/JSなど複数ファイルで実装する場合は、説明文を混ぜず、次のJSONだけを出力する: {"entryFile":"index.html","files":[{"path":"README.md","content":"..."},{"path":"plan_log.md","content":"..."},{"path":"index.html","content":"..."}]}',
     '複数ファイルJSONを使う場合、contentには各ファイルの全文を入れる。省略記号、差分、Markdownコードフェンスは禁止。'
   ].join('\n');
