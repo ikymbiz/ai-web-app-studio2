@@ -89,9 +89,10 @@
         .spinner { width: 20px; height: 20px; border: 3px solid rgba(255, 255, 255, 0.2); border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 10px; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        .floating-generate-container { padding: 10px 15px 0; background: var(--bg); display: flex; justify-content: flex-end; flex-shrink: 0; }
+        .floating-generate-container { padding: 10px 15px 0; background: var(--bg); display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
         /* .show クラスは互換のため残置（display: flex は既定で適用される） */
         .floating-generate-container.show { display: flex; animation: menuFade 0.2s ease; }
+        .ui-first-btn { background: var(--primary) !important; box-shadow: 0 4px 12px rgba(59,130,246,0.35) !important; }
 
         /* 設定セクション（アコーディオン） */
         .settings-section { margin-bottom: 12px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-bg-surface); overflow: hidden; }
@@ -231,7 +232,7 @@
         #file-name-display.multi { max-width: min(80vw, 520px); white-space: normal; line-height: 1.45; }
         .send-btn { background: var(--primary); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
         .generate-btn-wrapper { margin-top: 15px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-        .generate-btn { background: var(--success); color: white; border: none; height: 38px; padding: 0 18px; border-radius: 19px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); font-family: var(--font-body); }
+        .generate-btn { background: var(--success); color: white; border: none; min-height: 38px; height: 38px; padding: 0 18px; border-radius: 19px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); font-family: var(--font-body); white-space: nowrap; }
 
         /* エディタ */
         .editor-wrapper { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; }
@@ -484,6 +485,7 @@
 
         <div id="floating-generate-container" class="floating-generate-container">
             <button class="generate-btn" style="box-shadow: 0 4px 12px rgba(16,185,129,0.4);" onclick="generateCode()"></button>
+            <button class="generate-btn ui-first-btn" id="ui-first-generate-btn" onclick="generateUiFirstReview()"></button>
         </div>
 
         <div class="input-container">
@@ -1067,6 +1069,24 @@
     </div>
 </div>
 
+<!-- UI先行レビュー確認モーダル -->
+<div id="ui-review-modal" class="modal-overlay" onclick="if(event.target===this)closeUiReviewModal()">
+    <div class="modal" style="max-width:780px; width:95vw;">
+        <div class="modal-header">
+            <h3 data-label="uiReviewModalTitle">UI先行レビュー</h3>
+            <button class="modal-close" onclick="closeUiReviewModal()">✕</button>
+        </div>
+        <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div id="ui-review-summary" class="preview-review-summary"></div>
+            <div class="preview-review-actions">
+                <button class="modal-btn" type="button" style="background:var(--success);" onclick="approveUiReviewAndGenerateCore()" data-label="uiReviewApproveButton">このUIでロジック実装へ進む</button>
+                <button class="modal-btn" type="button" style="background:var(--color-bg-elevated);" onclick="requestUiRevisionFromReview()" data-label="uiReviewReviseButton">UIを修正する</button>
+                <button class="modal-btn" type="button" style="background:var(--accent);" onclick="openSpecModal('progress')" data-label="uiReviewProgressButton">進行ログを見る</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- プロンプト/設定編集モーダル（システムプロンプト・原則・ペルソナ・各プロンプトを編集） -->
 <div id="prompt-editor-modal" class="modal-overlay" onclick="if(event.target===this)closePromptEditor(false)">
     <div class="modal">
@@ -1348,7 +1368,9 @@ profile: frontend
                 // チャット画面
                 headerConversation: "会話", specButton: "📋 タスク", progressButton: "⏳ 進行中", newButton: "＋ 新規",
                 progressButtonIdle: "履歴", progressButtonRunning: "実行", progressButtonAwaiting: "待ち", progressButtonError: "!",
-                generateCodeButton: "⚡️ コードを作成",
+                generateCodeButton: "⚡️ コードを作成", uiFirstGenerateButton: "🎨 UIだけ先に作る",
+                uiReviewModalTitle: "UI先行レビュー", uiReviewApproveButton: "このUIでロジック実装へ進む", uiReviewReviseButton: "UIを修正する", uiReviewProgressButton: "進行ログを見る",
+                uiReviewReadyMessage: "UIだけを生成しました。プレビューで見た目を確認し、必要なら手書き・蛍光ペンで指示してください。", uiReviewRevisePrompt: "UI先行レビューの修正依頼です。手書き注釈がある場合は画像の指示を優先して、UIだけを修正してください。コアロジック実装にはまだ進まないでください。",
                 cameraOption: "📸 カメラ", galleryOption: "🖼️ ギャラリー", filesOption: "📁 ファイル",
                 userPromptPlaceholder: "例：ダークモードのTodoアプリを作りたい...", sendButton: "↑",
                 // エディタ
@@ -1743,6 +1765,13 @@ profile: frontend
             "progressButtonError": "!",
             "newButton": "+ New",
             "generateCodeButton": "Generate code",
+            "uiFirstGenerateButton": "Build UI first",
+            "uiReviewModalTitle": "UI-first review",
+            "uiReviewApproveButton": "Continue to logic with this UI",
+            "uiReviewReviseButton": "Revise UI",
+            "uiReviewProgressButton": "View progress",
+            "uiReviewReadyMessage": "UI only has been generated. Review the appearance in Preview and mark changes with pen/highlighter if needed.",
+            "uiReviewRevisePrompt": "This is a UI-first review fix request. If an annotation image is attached, prioritize the visual instruction. Revise UI only and do not proceed to core logic yet.",
             "cameraOption": "Camera",
             "galleryOption": "Gallery",
             "filesOption": "Files",
@@ -3294,6 +3323,8 @@ ${lines.join('\n')}`;
     function workflowStatusIcon(status) { return ({ running: '⏳', completed: '✅', error: '⚠️', interrupted: '⏸', awaiting_approval: '👤' })[status] || '•'; }
     function workflowAgentForStage(stage, kind) {
         const text = String(stage || '');
+        if (/UI先行|UI設計|UI生成|UIレビュー/.test(text)) return 'UI Designer';
+        if (/コアロジック|ロジック接続|Core Logic/.test(text)) return 'Core Logic';
         if (/タスク|優先|選定/.test(text)) return 'Planner';
         if (/Skill|スキル/.test(text)) return 'Planner';
         if (/コード生成|コード反映|テーマ/.test(text)) return 'Coder';
@@ -4244,7 +4275,7 @@ ${getFeedbackInstruction()}
         const d = document.createElement('div'); d.className = `msg ${msg.role}`; d.dataset.id = msg.id;
         const c = document.createElement('div'); c.className = 'msg-content'; if (msg.html) c.innerHTML = msg.text; else c.textContent = msg.text; d.appendChild(c);
         if (!msg.role.includes('system-msg') && !msg.html) { const a = document.createElement('div'); a.className = 'msg-actions'; const ed = document.createElement('button'); ed.className = 'msg-action-btn'; ed.innerHTML = getLabel('chatMsgEdit'); ed.onclick = () => { if (c.contentEditable === "true") { c.contentEditable = "false"; c.style.border = "none"; c.style.padding = "0"; ed.innerHTML = getLabel('chatMsgEdit'); const m = chatHistory.find(x => x.id === msg.id); if (m) { m.text = c.textContent; saveToDB('chatHistory', chatHistory); rebuildConversationContext(); showToast(getLabel('toastSettingsSaved')); } } else { c.contentEditable = "true"; c.style.border = "1px solid var(--primary)"; c.style.padding = "4px"; c.focus(); ed.innerHTML = getLabel('chatMsgSave'); } }; const dl = document.createElement('button'); dl.className = 'msg-action-btn'; dl.innerHTML = getLabel('chatMsgDelete'); dl.onclick = () => { chatHistory = chatHistory.filter(x => x.id !== msg.id); d.remove(); saveToDB('chatHistory', chatHistory); rebuildConversationContext(); showToast(getLabel('toastSettingsSaved')); }; a.appendChild(ed); a.appendChild(dl); d.appendChild(a); }
-        if (msg.role === 'ai' && !msg.html) { const b = document.createElement('div'); b.className = 'generate-btn-wrapper'; let h = false; if (msg.text.includes(getLabel('generateCodeButton'))) { const gb = document.createElement('button'); gb.className = 'generate-btn'; gb.innerHTML = getLabel('generateCodeButton'); gb.onclick = generateCode; b.appendChild(gb); h = true; } if (msg.text.includes(getLabel('aiQuestionOptionSuggest'))) { const pb = document.createElement('button'); pb.className = 'generate-btn'; pb.style.background = 'var(--accent)'; pb.innerHTML = getLabel('aiQuestionOptionSuggest'); pb.onclick = askForPlan; b.appendChild(pb); h = true; } if (h) d.appendChild(b); }
+        if (msg.role === 'ai' && !msg.html) { const b = document.createElement('div'); b.className = 'generate-btn-wrapper'; let h = false; if (msg.text.includes(getLabel('generateCodeButton'))) { const gb = document.createElement('button'); gb.className = 'generate-btn'; gb.innerHTML = getLabel('generateCodeButton'); gb.onclick = generateCode; b.appendChild(gb); const ub = document.createElement('button'); ub.className = 'generate-btn ui-first-btn'; ub.innerHTML = getLabel('uiFirstGenerateButton') || '🎨 UIだけ先に作る'; ub.onclick = generateUiFirstReview; b.appendChild(ub); h = true; } if (msg.text.includes(getLabel('aiQuestionOptionSuggest'))) { const pb = document.createElement('button'); pb.className = 'generate-btn'; pb.style.background = 'var(--accent)'; pb.innerHTML = getLabel('aiQuestionOptionSuggest'); pb.onclick = askForPlan; b.appendChild(pb); h = true; } if (h) d.appendChild(b); }
         // AI応答内の選択肢はボタンではなく、応答生成直後にモーダルで自動表示する。
         if (false && msg.role === 'ai' && !msg.html) {
             const groups = parseOptionGroupsFromText(msg.text);
@@ -5062,6 +5093,209 @@ ${verification.summary}` : '';
         return verification;
     }
 
+    const UI_FIRST_REVIEW_KEY = 'aiUiFirstReviewState';
+    function summarizeUiSurface(project) {
+        const html = Object.entries(project?.files || {}).filter(([path]) => /\.html?$/i.test(path)).map(([, content]) => String(content || '')).join('\n');
+        const ids = [...new Set([...html.matchAll(/\bid=["']([^"']+)["']/gi)].map(m => m[1]))].slice(0, 80);
+        const classes = [...new Set([...html.matchAll(/\bclass=["']([^"']+)["']/gi)].flatMap(m => m[1].split(/\s+/).filter(Boolean)))].slice(0, 120);
+        const labels = [...new Set([...html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').matchAll(/>([^<>]{2,40})</g)].map(m => m[1].replace(/\s+/g, ' ').trim()).filter(Boolean))].slice(0, 60);
+        return { ids, classes, labels };
+    }
+    function saveUiFirstReviewState(state) {
+        localStorage.setItem(UI_FIRST_REVIEW_KEY, JSON.stringify(state || {}));
+    }
+    function getUiFirstReviewState() {
+        try { return JSON.parse(localStorage.getItem(UI_FIRST_REVIEW_KEY) || 'null'); } catch(e) { return null; }
+    }
+    function clearUiFirstReviewState() { localStorage.removeItem(UI_FIRST_REVIEW_KEY); }
+    function buildUiReviewSummary(project, selectedTasks) {
+        const surface = summarizeUiSurface(project);
+        const files = Object.keys(project?.files || {}).sort();
+        return [
+            'UIだけを先に生成しました。',
+            '',
+            'この段階では、画面・レイアウト・文言・部品配置の確認を優先します。',
+            '問題があればプレビュー画面で手書き・蛍光ペン注釈を入れて「修正を依頼」してください。',
+            '',
+            '次へ進むと、承認済みUIの構造・ID・文言を壊さずにコアロジックだけを接続します。',
+            '',
+            '対象タスク:',
+            selectedTasks?.length ? selectedTasks.map((t, i) => `${i + 1}. ${t.text || t.title || t.id}`).join('\n') : '（選定タスクなし）',
+            '',
+            '生成ファイル:',
+            files.length ? files.map(f => `- ${f}`).join('\n') : '（なし）',
+            '',
+            'UIロック対象:',
+            `- id: ${surface.ids.length}件`,
+            `- class: ${surface.classes.length}件`,
+            `- 表示文言: ${surface.labels.length}件`
+        ].join('\n');
+    }
+    function showUiReviewModal(project, selectedTasks, workflowRun) {
+        const normalized = normalizeGeneratedProject(project);
+        const surface = summarizeUiSurface(normalized);
+        const state = { project: normalized, selectedTaskIds: (selectedTasks || []).map(t => t.id), surface, workflowRunId: workflowRun?.id || getWorkflowState()?.id || null, status: 'ui_review_pending', createdAt: new Date().toISOString() };
+        saveUiFirstReviewState(state);
+        const summary = document.getElementById('ui-review-summary');
+        if (summary) summary.textContent = buildUiReviewSummary(normalized, selectedTasks || []);
+        document.getElementById('ui-review-modal')?.classList.add('show');
+    }
+    function closeUiReviewModal() { document.getElementById('ui-review-modal')?.classList.remove('show'); }
+    function requestUiRevisionFromReview() {
+        closeUiReviewModal();
+        showPage('preview', document.getElementById('tab-preview'));
+        togglePreviewAnnotationMode(true);
+        const memo = document.getElementById('debug-memo');
+        if (memo && !memo.value.trim()) {
+            memo.value = getLabel('uiReviewRevisePrompt') || 'UI先行レビューの修正依頼です。UIだけを修正してください。';
+            autoGrow(memo);
+            memo.focus();
+        }
+        showToast('プレビュー上に手書き指示を書き、修正依頼を送信してください');
+    }
+    async function approveUiReviewAndGenerateCore() {
+        const state = getUiFirstReviewState();
+        if (!state?.project?.files) return showToast('承認できるUIレビュー状態がありません');
+        closeUiReviewModal();
+        await generateCoreLogicFromApprovedUi(state);
+    }
+    async function generateUiFirstReview() {
+        const workflowRun = startWorkflowRun('ui-first', 'UI先行レビュー', [], { reason: 'uiFirstReview' });
+        let sysMsgObj = null;
+        try {
+            clearNewSpecFlags();
+            updateWorkflowStep('タスク選定', 'UI先行レビューの対象タスクを選定しています。');
+            const selectedTasks = prioritizeAndSelectTasks('code-generation');
+            const selectedTaskIds = selectedTasks.map(item => item.id);
+            updateWorkflowState({ selectedTaskIds, status: 'running', stage: 'UI先行レビュー準備', meta: { reason: 'uiFirstReview', selectedTaskCount: selectedTaskIds.length, uiFirst: true } });
+            const targetPersona = document.getElementById('target-persona').value;
+            const codeRun = window.AICodeLogic?.prepareRun?.() || {};
+            const model = codeRun.model || getModelForPrompt('code');
+            const themeCSS = await getSelectedThemeCSS();
+            const currentCode = window.getCode();
+            sysMsgObj = { id: Date.now().toString(), role: 'ai system-msg', text: '<div style="display:flex;align-items:center;"><div class="spinner"></div><span>UIだけを先に生成しています。</span></div>', html: true };
+            chatHistory.push(sysMsgObj); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsgObj);
+            updateWorkflowStep('UI設計', 'UI Designer が画面・レイアウト・文言・部品だけを生成しています。');
+            const skillContext = await buildSkillContextForTask(specListToString() + '\n\nUI先行レビュー', model, 'ui-design');
+            const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
+            const prompt = `${codeOnlyInstruction}
+
+あなたは UI Designer です。今回は UI先行レビュー専用です。
+まだコアロジック、永続化、API接続、複雑な状態管理を実装しないでください。
+画面・レイアウト・文言・ボタン・入力欄・カード・空状態・エラー状態の見た目だけを、レビュー可能な静的または最小限のモックとして生成してください。
+
+【強制ルール】
+- 出力は entryFile と files を含む複数ファイルJSONのみ。
+- docs/、src/apps/、src/admin/、config/、.github/ の標準構造と docs の5ファイルは省略しない。
+- プレビュー用の入口は原則 src/admin/index.html。
+- ボタンには後でロジック接続しやすい id / data-action を付ける。
+- ダミーデータは見た目確認に必要な範囲だけ使う。
+- fetch、外部API、ログイン、本物の保存処理、本物の課金処理はまだ実装しない。
+- UIレビューで手書き修正しやすいよう、主要領域のidとクラスを明確にする。
+
+${document.getElementById('system-prompt').value.trim()}
+${document.getElementById('code-principles').value.trim()}
+${document.getElementById('admin-development-rules')?.value.trim() || ''}
+${skillContext}
+
+ターゲットペルソナ: ${targetPersona}
+${themeCSS ? `【デザイン】以下のCSS変数を使用\n${themeCSS}` : ''}
+${currentCode ? `【既存コード】\n${currentCode}` : '【既存コード】なし'}
+
+【今回UI化する選定タスク】
+${selectedSpecListToString()}
+
+【全タスク一覧】
+${specListToString()}
+
+【最終出力形式】
+${codeOnlyInstruction}`;
+            const result = await callLLM({ prompt, stream: false, model, taskType: 'ui-design' });
+            const project = parseGeneratedProject(result.text);
+            const normalized = normalizeGeneratedProject(project);
+            setProjectFiles(normalized.files, normalized.entryFile, { refreshPreview: true });
+            updateWorkflowState({ status: 'awaiting_approval', stage: 'UIレビュー待ち', lastMessage: 'UIだけを生成しました。人によるレビュー待ちです。', meta: { reason: 'uiFirstReview', selectedTaskCount: selectedTaskIds.length, uiFirst: true, uiReviewStatus: 'ui_review_pending' } });
+            addWorkflowEvent('awaiting_approval', 'UIだけを生成しました。プレビューで見た目を確認してください。', { stage: 'UIレビュー待ち', agent: 'UI Designer' });
+            addAgentProgressLog('UI Designer', 'UIだけを生成しました。プレビューでレビューしてください。');
+            updateChatProgressMessage(sysMsgObj, getLabel('uiReviewReadyMessage') || 'UIだけを生成しました。プレビューで確認してください。');
+            showPage('preview', document.getElementById('tab-preview'));
+            showUiReviewModal(normalized, selectedTasks, workflowRun);
+            persistHandoverSnapshot('ui-review-pending');
+        } catch (e) {
+            failWorkflowRun(e, `UI先行レビュー生成に失敗しました: ${e.message || e}`);
+            if (sysMsgObj) updateChatProgressMessage(sysMsgObj, `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${escapeHtml(e.message || String(e))}</span>`, true);
+            try { addFailureLog('build-error', `UI先行レビュー生成失敗: ${e.message || e}`, '実装要件:\n' + specListToString()); } catch(_) {}
+        }
+    }
+    async function generateCoreLogicFromApprovedUi(state) {
+        const approvedProject = normalizeGeneratedProject(state.project);
+        const selectedTaskIds = Array.isArray(state.selectedTaskIds) ? state.selectedTaskIds : getSelectedTaskIds();
+        const workflowRun = getWorkflowState() || startWorkflowRun('ui-first-core', 'UI承認後のコアロジック実装', selectedTaskIds, { reason: 'uiFirstCore' });
+        let sysMsgObj = { id: Date.now().toString(), role: 'ai system-msg', text: '<div style="display:flex;align-items:center;"><div class="spinner"></div><span>承認済みUIにコアロジックを接続しています。</span></div>', html: true };
+        chatHistory.push(sysMsgObj); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(sysMsgObj);
+        try {
+            updateWorkflowState({ status: 'running', stage: 'コアロジック接続', selectedTaskIds, lastMessage: '承認済みUIをロックしてコアロジックを実装しています。', meta: { reason: 'uiFirstCore', uiFirst: true, uiReviewStatus: 'logic_pending' } });
+            addWorkflowEvent('running', '承認済みUIを壊さず、コアロジック実装へ進みます。', { stage: 'コアロジック接続', agent: 'Core Logic' });
+            addAgentProgressLog('Core Logic', '承認済みUIを壊さず、コアロジック実装へ進みます。');
+            const model = getModelForPrompt('code');
+            const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
+            const approvedText = projectToVerificationText(approvedProject);
+            const surface = state.surface || summarizeUiSurface(approvedProject);
+            const uiLock = [
+                '【承認済みUIロック】',
+                '- 既存の画面構成、主要DOM構造、id、class、表示文言、CSSの見た目を壊さない。',
+                '- 既存ボタン・入力欄・カード・タブ・モーダルの位置と見た目を変更しない。',
+                '- ロジック接続に必要な属性追加、イベント追加、補助関数追加は許可。',
+                '- UI変更が必要な場合は既存UIを置換せず、最小限の追加に留める。',
+                `- ロック対象id: ${(surface.ids || []).join(', ') || 'なし'}`,
+                `- ロック対象class: ${(surface.classes || []).slice(0, 80).join(', ') || 'なし'}`,
+                `- ロック対象文言: ${(surface.labels || []).slice(0, 40).join(' / ') || 'なし'}`
+            ].join('\n');
+            const prompt = `${codeOnlyInstruction}
+
+あなたは Core Logic 実装担当です。すでに人間が承認したUIがあります。
+以下の承認済みUIを壊さず、コアロジック、状態管理、入力処理、保存処理、検証処理だけを接続してください。
+
+${uiLock}
+
+【管理ルール】
+${document.getElementById('system-prompt').value.trim()}
+${document.getElementById('code-principles').value.trim()}
+${document.getElementById('admin-development-rules')?.value.trim() || ''}
+${document.getElementById('admin-system-requirements')?.value.trim() || ''}
+${document.getElementById('admin-implementation-verification')?.value.trim() || ''}
+
+【承認済みUIファイル】
+${approvedText}
+
+【実装する選定タスク】
+${selectedSpecListToString()}
+
+【全タスク一覧】
+${specListToString()}
+
+【コアロジック接続ルール】
+- 承認済みUIのHTML構造・id・class・文言・CSSを可能な限り変更しない。
+- 既存のUIを削除・置換しない。
+- イベントリスナー、状態管理、localStorage/IndexedDB、バリデーション、エラー処理、モック解除などを実装する。
+- docs/、src/apps/、src/admin/、config/、.github/ と docs の5ファイルを保持する。
+- entryFile と files を含むJSONだけを出力する。
+
+【最終出力形式】
+${codeOnlyInstruction}`;
+            updateWorkflowStep('コアロジック接続', 'Core Logic が承認済みUIに処理を接続しています。');
+            const project = await runAgenticCodeBuild(prompt, model);
+            addWorkflowEvent('completed', 'コアロジックの出力を受け取りました。検証AIに進みます。', { stage: 'コアロジック接続', agent: 'Core Logic' });
+            clearUiFirstReviewState();
+            await commitProjectVerifyThenPreview(project, sysMsgObj, 'UI承認後のコアロジック実装が完了しました。', { selectedTaskIds, workflowRun });
+            updateWorkflowState({ meta: { ...(getWorkflowState()?.meta || {}), uiReviewStatus: 'logic_connected' } });
+        } catch(e) {
+            failWorkflowRun(e, `コアロジック実装に失敗しました: ${e.message || e}`);
+            updateChatProgressMessage(sysMsgObj, `<span style="color:var(--danger)">${getLabel('aiSystemMsgBuildError')} ${escapeHtml(e.message || String(e))}</span>`, true);
+            try { addFailureLog('build-error', `コアロジック実装失敗: ${e.message || e}`, '承認済みUIからのロジック接続'); } catch(_) {}
+        }
+    }
+
     async function generateCode() {
         const workflowRun = startWorkflowRun('code', 'コード生成・検証', [], { reason: 'generateCode' });
         let sysMsgObj = null;
@@ -5163,7 +5397,9 @@ ${codeOnlyInstruction}`;
     async function runPreviewDebugRequest(text, annotationImages = []) {
         const preparedText = window.AIDebugLogic?.prepareUserInput ? window.AIDebugLogic.prepareUserInput(text) : text;
         const debugImages = (Array.isArray(annotationImages) ? annotationImages : []).filter(img => img && img.mime && img.base64);
-        const workflowRun = startWorkflowRun('debug', 'デバッグ修正・検証', [], { reason: 'previewDebug', input: preparedText, annotationImageCount: debugImages.length });
+        const uiReviewState = getUiFirstReviewState();
+        const isUiReviewRevision = uiReviewState?.status === 'ui_review_pending';
+        const workflowRun = startWorkflowRun(isUiReviewRevision ? 'ui-first-revision' : 'debug', isUiReviewRevision ? 'UI先行レビュー修正' : 'デバッグ修正・検証', [], { reason: isUiReviewRevision ? 'uiReviewRevision' : 'previewDebug', input: preparedText, annotationImageCount: debugImages.length });
         showPage('chat', document.getElementById('tab-chat'));
         const userMsgObj = debugImages.length
             ? { id: Date.now().toString(), role: 'user', html: true, text: buildDebugRequestMessageHtml(preparedText, debugImages) }
@@ -5178,11 +5414,13 @@ ${codeOnlyInstruction}`;
         const targetPersona = document.getElementById('target-persona').value;
         const currentProject = getCurrentProjectSnapshot();
         const currentProjectText = projectToVerificationText(currentProject);
-        updateWorkflowStep('タスク選定', 'デバッグ修正の対象タスクを選定しています。');
-        const selectedTasks = prioritizeAndSelectTasks('debugging');
-        markSelectedTasksStatus('in_progress', 'デバッグ修正の実行対象に選定しました。');
+        updateWorkflowStep(isUiReviewRevision ? 'UIレビュー修正' : 'タスク選定', isUiReviewRevision ? 'UI先行レビューの修正対象を保持しています。' : 'デバッグ修正の対象タスクを選定しています。');
+        const selectedTasks = isUiReviewRevision
+            ? getSpecList().filter(item => (uiReviewState.selectedTaskIds || []).includes(item.id))
+            : prioritizeAndSelectTasks('debugging');
+        if (!isUiReviewRevision) markSelectedTasksStatus('in_progress', 'デバッグ修正の実行対象に選定しました。');
         const selectedTaskIds = selectedTasks.map(item => item.id);
-        updateWorkflowState({ selectedTaskIds, meta: { reason: 'previewDebug', input: preparedText, selectedTaskCount: selectedTaskIds.length, annotationImageCount: debugImages.length } });
+        updateWorkflowState({ selectedTaskIds, meta: { reason: isUiReviewRevision ? 'uiReviewRevision' : 'previewDebug', input: preparedText, selectedTaskCount: selectedTaskIds.length, annotationImageCount: debugImages.length, uiFirst: isUiReviewRevision } });
         const verifyMissing = await getVerifyMissing();
         const verifyMissingText = verifyMissing.length ? verifyMissing.map((item, i) => `${i + 1}. ${item.text || item}`).join('\n') : '（なし）';
         updateWorkflowStep('Skill選定', 'デバッグ修正に必要なSkillsを選定しています。');
@@ -5212,6 +5450,9 @@ ${document.getElementById('user-system-prompt').value.trim()}` : ''
                 .replace('{recentChat}', getRecentChat(3)),
             `【プレビュー画面からの修正依頼】
 ${preparedText}`,
+            isUiReviewRevision ? `【UI先行レビュー修正モード】
+現在はUIレビュー中です。コアロジック、永続化、API接続、複雑な状態管理はまだ実装しないでください。
+手書き注釈と依頼文に基づいて、画面・レイアウト・文言・スタイルだけを修正し、再度UIレビュー可能な状態で出力してください。` : '',
             debugImages.length ? `【添付画像】
 プレビュー画面でユーザーが手書き・蛍光ペンで指示した注釈画像を添付しています。
 画像はプレビュー表示領域と同じ縦横比の注釈レイヤーです。赤い線・黄色い蛍光ペンの位置を、修正対象箇所の指示として扱ってください。
@@ -5230,8 +5471,20 @@ ${codeOnlyInstruction}
         try {
             updateWorkflowStep('デバッグAI', 'デバッグAIが修正コードを作成しています。');
             const result = await callLLM({ prompt, stream: false, model, images: debugImages, taskType: debugTaskType });
-            addWorkflowEvent('completed', 'デバッグAIの出力を受け取りました。検証AIに進みます。', { stage: 'デバッグAI' });
+            addWorkflowEvent('completed', isUiReviewRevision ? 'UI修正AIの出力を受け取りました。UIレビューへ戻ります。' : 'デバッグAIの出力を受け取りました。検証AIに進みます。', { stage: isUiReviewRevision ? 'UIレビュー修正' : 'デバッグAI', agent: isUiReviewRevision ? 'UI Designer' : 'Debugger' });
             const project = parseGeneratedProject(result.text);
+            if (isUiReviewRevision) {
+                const normalized = normalizeGeneratedProject(project);
+                setProjectFiles(normalized.files, normalized.entryFile, { refreshPreview: true });
+                const updatedState = { ...(uiReviewState || {}), project: normalized, selectedTaskIds, surface: summarizeUiSurface(normalized), status: 'ui_review_pending', updatedAt: new Date().toISOString() };
+                saveUiFirstReviewState(updatedState);
+                updateWorkflowState({ status: 'awaiting_approval', stage: 'UIレビュー待ち', lastMessage: 'UI修正を反映しました。再レビュー待ちです。', meta: { reason: 'uiReviewRevision', uiFirst: true, uiReviewStatus: 'ui_review_pending' } });
+                updateChatProgressMessage(statusMsg, 'UI修正を反映しました。プレビューで再確認してください。');
+                showPage('preview', document.getElementById('tab-preview'));
+                showUiReviewModal(normalized, selectedTasks, workflowRun);
+                persistHandoverSnapshot('ui-review-revised');
+                return;
+            }
             await commitProjectVerifyThenPreview(project, statusMsg, 'デバッグ修正と検証が完了しました。', { selectedTaskIds, workflowRun });
         } catch (e) {
             failWorkflowRun(e, `デバッグ修正に失敗しました: ${e.message || e}`);
@@ -5287,7 +5540,13 @@ ${codeOnlyInstruction}
         document.querySelector('.chat-header .reset-btn').textContent = getLabel('newButton');
 
         // フローティング生成ボタン
-        document.getElementById('floating-generate-container').querySelector('.generate-btn').innerHTML = getLabel('generateCodeButton');
+        const floatingGenerate = document.getElementById('floating-generate-container');
+        if (floatingGenerate) {
+            const normalGenerateBtn = floatingGenerate.querySelector('.generate-btn:not(.ui-first-btn)');
+            if (normalGenerateBtn) normalGenerateBtn.innerHTML = getLabel('generateCodeButton');
+        }
+        const uiFirstGenerateBtn = document.getElementById('ui-first-generate-btn');
+        if (uiFirstGenerateBtn) uiFirstGenerateBtn.innerHTML = getLabel('uiFirstGenerateButton') || '🎨 UIだけ先に作る';
 
         // 入力欄
         document.querySelector('#attach-menu .menu-item:nth-child(1)').textContent = getLabel('cameraOption');
