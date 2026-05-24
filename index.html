@@ -159,6 +159,9 @@
         .workflow-progress-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
         .workflow-progress-actions button { background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-primary); padding: 8px 10px; font-size: 12px; cursor: pointer; font-family: var(--font-body); }
         .workflow-progress-actions button.primary { background: var(--primary); border-color: var(--primary); color:#fff; }
+        .preview-review-summary { background:var(--color-bg-elevated); border:1px solid var(--color-border); border-radius:12px; padding:14px; color:var(--color-text-primary); font-size:13px; line-height:1.65; white-space:pre-wrap; max-height:52vh; overflow:auto; }
+        .preview-review-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .preview-review-actions .modal-btn { flex:1 1 180px; margin-top:0; }
 
         /* 失敗ログのカード */
         .failure-card { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-left: 3px solid var(--danger); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
@@ -1001,6 +1004,24 @@
                 <button class="modal-btn" type="button" style="flex:1 1 150px; background:var(--success);" onclick="approvePendingFixProposal()" data-label="fixApprovalRunButton">修正する</button>
                 <button class="modal-btn" type="button" style="flex:1 1 150px; background:var(--color-bg-elevated);" onclick="rejectPendingFixProposal()" data-label="fixApprovalRejectButton">修正しない</button>
                 <button class="modal-btn" type="button" style="flex:1 1 150px; background:var(--accent);" onclick="requestAlternativeFixProposal()" data-label="fixApprovalAlternativeButton">別案を出す</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- プレビュー前レビュー確認モーダル -->
+<div id="preview-review-modal" class="modal-overlay" onclick="if(event.target===this)closePreviewReviewModal()">
+    <div class="modal" style="max-width:780px; width:95vw;">
+        <div class="modal-header">
+            <h3>プレビュー前レビュー</h3>
+            <button class="modal-close" onclick="closePreviewReviewModal()">✕</button>
+        </div>
+        <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div id="preview-review-summary" class="preview-review-summary"></div>
+            <div class="preview-review-actions">
+                <button class="modal-btn" type="button" style="background:var(--success);" onclick="approvePreviewReviewAndShowPreview()">プレビューを表示</button>
+                <button class="modal-btn" type="button" style="background:var(--color-bg-elevated);" onclick="closePreviewReviewModal()">チャットで確認を続ける</button>
+                <button class="modal-btn" type="button" style="background:var(--accent);" onclick="openSpecModal('progress')">進行ログを見る</button>
             </div>
         </div>
     </div>
@@ -2982,7 +3003,8 @@ ${lines.join('\n')}`;
     /* === タスク管理（Phase 2: 計画 / 検証 / 失敗ログ の3カテゴリ） === */
     let currentTaskTab = 'plan';
 
-    function openSpecModal() {
+    function openSpecModal(tab) {
+        if (tab) currentTaskTab = tab;
         document.getElementById('spec-modal').classList.add('show');
         switchTaskTab(currentTaskTab || 'plan');
         refreshAllTaskCounts();
@@ -3170,9 +3192,11 @@ ${lines.join('\n')}`;
     /* === 実行中ワークフローの保存・可視化 === */
     const WORKFLOW_STATE_KEY = 'aiWorkflowState';
     const WORKFLOW_EVENTS_KEY = 'aiWorkflowEvents';
-    const WORKFLOW_MAX_EVENTS = 120;
+    const WORKFLOW_MAX_EVENTS = 160;
+    const HANDOVER_SNAPSHOT_KEY = 'aiWorkflowHandoverSnapshot';
     let activeWorkflowRunId = null;
     let workflowProgressTimer = null;
+    let lastAgentProgressSignature = '';
 
     function workflowNowIso() { return new Date().toISOString(); }
     function workflowTimeText(iso) { try { return new Date(iso).toLocaleString(); } catch(e) { return iso || ''; } }
@@ -3182,12 +3206,104 @@ ${lines.join('\n')}`;
     function saveWorkflowEvents(events) { localStorage.setItem(WORKFLOW_EVENTS_KEY, JSON.stringify((events || []).slice(-WORKFLOW_MAX_EVENTS))); renderWorkflowProgress(); }
     function workflowStatusText(status) { return ({ running: '実行中', completed: '完了', error: 'エラー', interrupted: '中断', awaiting_approval: '承認待ち' })[status] || (status || '未開始'); }
     function workflowStatusIcon(status) { return ({ running: '⏳', completed: '✅', error: '⚠️', interrupted: '⏸', awaiting_approval: '👤' })[status] || '•'; }
+    function workflowAgentForStage(stage, kind) {
+        const text = String(stage || '');
+        if (/タスク|優先|選定/.test(text)) return 'Planner';
+        if (/Skill/.test(text)) return 'Skill Selector';
+        if (/コード生成|コード反映|テーマ/.test(text)) return 'Coder';
+        if (/デバッグ|修正/.test(text)) return 'Debugger';
+        if (/検証/.test(text)) return 'Verifier';
+        if (/原因|バグ/.test(text)) return 'Bug Analyst';
+        if (/承認|レビュー|プレビュー/.test(text)) return 'Reviewer';
+        if (/中断|引き継ぎ/.test(text)) return 'Handover';
+        return kind === 'debug' ? 'Debugger' : (kind === 'code' ? 'Coder' : 'Agent');
+    }
+    function addAgentProgressLog(agent, message, detail = {}) {
+        try {
+            const signature = `${agent}:${message}`;
+            if (signature === lastAgentProgressSignature) return;
+            lastAgentProgressSignature = signature;
+            if (!Array.isArray(chatHistory)) return;
+            const msg = { id: Date.now().toString() + '-agent-log-' + Math.random().toString(36).slice(2, 5), role: 'ai system-msg', text: `🤖 [${agent}] ${message}`, html: false, agentLog: true, detail };
+            chatHistory.push(msg);
+            saveToDB('chatHistory', chatHistory);
+            renderMessageFromHistory(msg);
+        } catch(e) { console.warn('agent progress log failed:', e); }
+    }
+    function buildHandoverMarkdown(reason = '') {
+        const state = getWorkflowState();
+        const events = getWorkflowEvents().slice(-20);
+        const tasks = getSpecList ? getSpecList() : [];
+        const completed = tasks.filter(t => t.status === 'verified' && t.done === true);
+        const unfinished = tasks.filter(t => !(t.status === 'verified' && t.done === true));
+        const selected = tasks.filter(t => t.selected);
+        const files = Object.keys(projectFiles || {}).sort();
+        const nextAction = (() => {
+            if (!state) return '新しい要件またはタスクを確認し、必要に応じて実行対象を選定する。';
+            if (state.status === 'awaiting_approval') return '承認待ちの内容を確認し、修正する・修正しない・別案を出すのいずれかを選択する。';
+            if (state.status === 'interrupted' || state.status === 'error') return '進行タブから前回処理を再実行するか、未完了タスクを確認して再開する。';
+            if (state.status === 'completed') return 'プレビュー前レビューまたはプレビュー画面で動作を確認し、必要なら修正依頼を行う。';
+            return '現在の処理段階を確認し、最後に成功したステップの次から再開する。';
+        })();
+        return `# HANDOVER: Current Status & Next Steps
+
+## 1. 現在の作業ステータス
+- 更新理由: ${reason || 'workflow update'}
+- 更新日時: ${workflowNowIso()}
+- ワークフローID: ${state?.id || '-'}
+- 種別: ${state?.kind || '-'}
+- 状態: ${state?.status || '-'}
+- 現在フェーズ: ${state?.stage || '-'}
+- 最後の記録: ${state?.lastMessage || '-'}
+
+## 2. 次回実施すべき作業内容
+- ${nextAction}
+
+## 3. 選定中タスク
+${selected.length ? selected.map((t, i) => `${i + 1}. [${t.status || 'pending'}] ${t.text || t.title || t.id}`).join('\n') : '- 選定中タスクなし'}
+
+## 4. 完了済みタスク
+${completed.length ? completed.map((t, i) => `${i + 1}. ${t.text || t.title || t.id}`).join('\n') : '- 完了済みタスクなし'}
+
+## 5. 未完了・保留タスク
+${unfinished.length ? unfinished.map((t, i) => `${i + 1}. [${t.status || 'pending'}] ${t.text || t.title || t.id}${t.verifyReason ? ` / 理由: ${t.verifyReason}` : ''}`).join('\n') : '- 未完了タスクなし'}
+
+## 6. 直近のエージェント進行ログ
+${events.length ? events.map(ev => `- ${workflowTimeText(ev.createdAt)} / ${ev.detail?.agent || workflowAgentForStage(ev.stage, state?.kind)} / ${ev.stage || '-'} / ${ev.message || ''}`).join('\n') : '- 進行ログなし'}
+
+## 7. 生成済みファイル一覧
+${files.length ? files.map(f => `- ${f}`).join('\n') : '- ファイルなし'}
+
+## 8. 再開時の注意
+- タスクは verified かつ動作経路確認済みの場合のみ消し込む。
+- 中断・エラー・承認待ちのタスクは勝手に完了扱いにしない。
+- プレビューは検証AIとタスク消込が終わり、プレビュー前レビューで人が確認してから表示する。
+`;
+    }
+    function persistHandoverSnapshot(reason = '') {
+        try {
+            const markdown = buildHandoverMarkdown(reason);
+            localStorage.setItem(HANDOVER_SNAPSHOT_KEY, markdown);
+            if (projectFiles && typeof projectFiles === 'object') {
+                projectFiles['docs/HANDOVER.md'] = markdown;
+                if (currentFilePath === 'docs/HANDOVER.md' && cmView) {
+                    isSwitchingEditorFile = true;
+                    cmView.dispatch({ changes: { from: 0, to: cmView.state.doc.length, insert: markdown } });
+                    isSwitchingEditorFile = false;
+                }
+                try { renderProjectFileTabs(); } catch(_) {}
+                saveToDB('projectFiles', { files: projectFiles, currentFilePath });
+            }
+        } catch(e) { console.warn('handover snapshot failed:', e); }
+    }
     function startWorkflowRun(kind, label, selectedTaskIds = [], meta = {}) {
         const id = Date.now().toString() + '-' + Math.random().toString(36).slice(2, 8);
         const state = { id, kind, label, status: 'running', stage: '開始', selectedTaskIds, meta, startedAt: workflowNowIso(), updatedAt: workflowNowIso(), lastMessage: '処理を開始しました。' };
         activeWorkflowRunId = id;
         saveWorkflowState(state);
-        addWorkflowEvent('running', `${label || '処理'}を開始しました。`, { stage: '開始', runId: id });
+        addWorkflowEvent('running', `${label || '処理'}を開始しました。`, { stage: '開始', runId: id, agent: workflowAgentForStage('開始', kind) });
+        addAgentProgressLog(workflowAgentForStage('開始', kind), `${label || '処理'}を開始しました。`);
+        persistHandoverSnapshot('workflow-start');
         startWorkflowProgressTicker();
         return state;
     }
@@ -3196,19 +3312,29 @@ ${lines.join('\n')}`;
         const state = { ...current, ...patch, updatedAt: workflowNowIso() };
         activeWorkflowRunId = state.id || activeWorkflowRunId;
         saveWorkflowState(state);
+        try { persistHandoverSnapshot('workflow-state'); } catch(_) {}
         return state;
     }
     function addWorkflowEvent(status, message, detail = {}) {
         const state = getWorkflowState();
+        const stage = detail.stage || state?.stage || '';
+        const agent = detail.agent || workflowAgentForStage(stage, state?.kind);
         const events = getWorkflowEvents();
-        events.push({ id: Date.now().toString() + Math.random().toString(36).slice(2, 5), runId: detail.runId || state?.id || activeWorkflowRunId || '', status, message: String(message || ''), stage: detail.stage || state?.stage || '', detail, createdAt: workflowNowIso() });
+        events.push({ id: Date.now().toString() + Math.random().toString(36).slice(2, 5), runId: detail.runId || state?.id || activeWorkflowRunId || '', status, message: String(message || ''), stage, detail: { ...detail, agent }, createdAt: workflowNowIso() });
         saveWorkflowEvents(events);
+        try { persistHandoverSnapshot('workflow-event'); } catch(_) {}
         try { refreshAllTaskCounts(); } catch(e) {}
     }
-    function updateWorkflowStep(stage, message) { updateWorkflowState({ status: 'running', stage, lastMessage: message || stage }); addWorkflowEvent('running', message || stage, { stage }); }
-    function markWorkflowAwaitingApproval(message) { updateWorkflowState({ status: 'awaiting_approval', stage: '承認待ち', lastMessage: message || '修正前の確認待ちです。' }); addWorkflowEvent('awaiting_approval', message || '修正前の確認待ちです。', { stage: '承認待ち' }); stopWorkflowProgressTicker(); }
-    function completeWorkflowRun(message) { updateWorkflowState({ status: 'completed', stage: '完了', lastMessage: message || '処理が完了しました。', completedAt: workflowNowIso() }); addWorkflowEvent('completed', message || '処理が完了しました。', { stage: '完了' }); stopWorkflowProgressTicker(); }
-    function failWorkflowRun(error, message) { const text = message || (error?.message ? error.message : String(error || 'エラーが発生しました。')); updateWorkflowState({ status: 'error', stage: 'エラー', lastMessage: text, error: text }); addWorkflowEvent('error', text, { stage: 'エラー' }); stopWorkflowProgressTicker(); }
+    function updateWorkflowStep(stage, message) {
+        const current = getWorkflowState();
+        const agent = workflowAgentForStage(stage, current?.kind);
+        updateWorkflowState({ status: 'running', stage, lastMessage: message || stage });
+        addWorkflowEvent('running', message || stage, { stage, agent });
+        addAgentProgressLog(agent, message || stage, { stage });
+    }
+    function markWorkflowAwaitingApproval(message) { updateWorkflowState({ status: 'awaiting_approval', stage: '承認待ち', lastMessage: message || '修正前の確認待ちです。' }); addWorkflowEvent('awaiting_approval', message || '修正前の確認待ちです。', { stage: '承認待ち', agent: 'Reviewer' }); addAgentProgressLog('Reviewer', message || '修正前の確認待ちです。'); persistHandoverSnapshot('awaiting-approval'); stopWorkflowProgressTicker(); }
+    function completeWorkflowRun(message) { updateWorkflowState({ status: 'completed', stage: '完了', lastMessage: message || '処理が完了しました。', completedAt: workflowNowIso() }); addWorkflowEvent('completed', message || '処理が完了しました。', { stage: '完了', agent: 'Handover' }); addAgentProgressLog('Handover', message || '処理が完了しました。'); persistHandoverSnapshot('workflow-completed'); stopWorkflowProgressTicker(); }
+    function failWorkflowRun(error, message) { const text = message || (error?.message ? error.message : String(error || 'エラーが発生しました。')); updateWorkflowState({ status: 'error', stage: 'エラー', lastMessage: text, error: text }); addWorkflowEvent('error', text, { stage: 'エラー', agent: 'Handover' }); addAgentProgressLog('Handover', text); persistHandoverSnapshot('workflow-error'); stopWorkflowProgressTicker(); }
     function startWorkflowProgressTicker() { if (workflowProgressTimer) clearInterval(workflowProgressTimer); workflowProgressTimer = setInterval(() => { const state = getWorkflowState(); if (!state || state.status !== 'running') { stopWorkflowProgressTicker(); return; } renderWorkflowProgress(); }, 1000); }
     function stopWorkflowProgressTicker() { if (workflowProgressTimer) clearInterval(workflowProgressTimer); workflowProgressTimer = null; }
     function renderWorkflowProgress() {
@@ -3234,7 +3360,7 @@ ${lines.join('\n')}`;
                     <span class="workflow-event-dot"></span>
                     <div class="workflow-event-main">
                         <div class="workflow-event-message">${escapeHtml(ev.message || '')}</div>
-                        <div class="workflow-event-meta">${escapeHtml(workflowTimeText(ev.createdAt))}${ev.stage ? ' / ' + escapeHtml(ev.stage) : ''}</div>
+                        <div class="workflow-event-meta">${escapeHtml(workflowTimeText(ev.createdAt))}${ev.detail?.agent ? ' / ' + escapeHtml(ev.detail.agent) : ''}${ev.stage ? ' / ' + escapeHtml(ev.stage) : ''}</div>
                     </div>
                 </div>
             `).join('');
@@ -3247,7 +3373,9 @@ ${lines.join('\n')}`;
         if (state.status === 'running') {
             const msg = '前回の処理はブラウザ終了または再読み込みにより中断されました。タスクは消し込まず、必要なら「進行」タブから再実行してください。';
             updateWorkflowState({ status: 'interrupted', stage: '中断', lastMessage: msg });
-            addWorkflowEvent('interrupted', msg, { stage: '中断' });
+            addWorkflowEvent('interrupted', msg, { stage: '中断', agent: 'Handover' });
+            addAgentProgressLog('Handover', msg);
+            persistHandoverSnapshot('workflow-interrupted');
             const list = getSpecList();
             let changed = false;
             list.forEach(item => {
@@ -3274,6 +3402,13 @@ ${lines.join('\n')}`;
         if (state.kind === 'code') return generateCode();
         showToast('この処理は自動再実行できません');
     }
+
+    window.addEventListener('beforeunload', () => {
+        try {
+            const state = getWorkflowState();
+            if (state && state.status === 'running') persistHandoverSnapshot('beforeunload-running');
+        } catch(e) {}
+    });
 
     function updateSpecProgress() { const list = getSpecList(); const pg = document.getElementById('spec-progress'); if (!pg) return; if (list.length === 0) { pg.style.display = 'none'; return; } pg.style.display = 'flex'; const done = list.filter(i => i.status === 'verified' && i.done === true).length; const pct = Math.round(done / list.length * 100); document.getElementById('spec-progress-text').textContent = `${done}/${list.length} (${pct}%)`; document.getElementById('spec-progress-fill').style.width = pct + '%'; }
     function clearNewSpecFlags() { const list = getSpecList(); let changed = false; list.forEach(i => { if(i.isNew) { i.isNew = false; changed = true; } }); if(changed) { saveSpecList(list); renderSpecCards(); } }
@@ -4709,6 +4844,52 @@ ${verificationText}
         saveToDB('chatHistory', chatHistory);
     }
 
+    let pendingPreviewReview = null;
+    function closePreviewReviewModal() { document.getElementById('preview-review-modal')?.classList.remove('show'); }
+    function buildPreviewReviewSummary(project, verification, completeText = '') {
+        const tasks = getSpecList();
+        const verified = tasks.filter(t => t.selected && t.status === 'verified' && t.done === true);
+        const unresolved = tasks.filter(t => t.selected && !(t.status === 'verified' && t.done === true));
+        const fileNames = Object.keys(project?.files || projectFiles || {}).sort();
+        const lines = [];
+        lines.push('検証AIとタスク消込が完了しました。');
+        if (completeText) lines.push('', completeText);
+        lines.push('', `完了タスク: ${verified.length}件`);
+        if (verified.length) verified.slice(0, 12).forEach((t, i) => lines.push(`  ${i + 1}. ${t.text || t.title || t.id}`));
+        lines.push('', `未完了・保留タスク: ${unresolved.length}件`);
+        if (unresolved.length) unresolved.slice(0, 12).forEach((t, i) => lines.push(`  ${i + 1}. [${t.status || 'pending'}] ${t.text || t.title || t.id}${t.verifyReason ? ` / ${t.verifyReason}` : ''}`));
+        lines.push('', `生成ファイル: ${fileNames.length}件`);
+        fileNames.slice(0, 20).forEach(f => lines.push(`  - ${f}`));
+        if (fileNames.length > 20) lines.push(`  - 他 ${fileNames.length - 20} 件`);
+        if (verification?.summary) lines.push('', '検証結果:', verification.summary);
+        lines.push('', 'この内容を人が確認してからプレビューを表示します。');
+        return lines.join('\n');
+    }
+    function showPreviewReviewModal(project, verification, progressMessage, completeText, options = {}) {
+        const normalized = normalizeGeneratedProject(project);
+        pendingPreviewReview = { project: normalized, verification, progressMessageId: progressMessage?.id || null, completeText: completeText || '', workflowRunId: options.workflowRun?.id || getWorkflowState()?.id || null };
+        const summary = buildPreviewReviewSummary(normalized, verification, completeText);
+        const el = document.getElementById('preview-review-summary');
+        if (el) el.textContent = summary;
+        markWorkflowAwaitingApproval('プレビュー前レビューの確認待ちです。内容を確認してからプレビューを表示してください。');
+        updateChatProgressMessage(progressMessage, summary);
+        addAgentProgressLog('Reviewer', 'プレビュー前レビューの準備ができました。人が確認してからプレビューを表示します。');
+        persistHandoverSnapshot('preview-review-ready');
+        document.getElementById('preview-review-modal')?.classList.add('show');
+    }
+    function approvePreviewReviewAndShowPreview() {
+        if (!pendingPreviewReview) return;
+        const item = pendingPreviewReview;
+        closePreviewReviewModal();
+        updateWorkflowStep('プレビュー表示', '人によるプレビュー前レビューが完了したため、プレビューを表示します。');
+        updatePreview();
+        showPage('preview', document.getElementById('tab-preview'));
+        const msgObj = item.progressMessageId ? chatHistory.find(m => m.id === item.progressMessageId) : null;
+        if (msgObj) updateChatProgressMessage(msgObj, `${item.completeText || getLabel('aiSystemMsgBuildComplete')}\n\nプレビュー前レビューが完了したため、プレビューを表示しました。`);
+        completeWorkflowRun('プレビュー前レビュー、検証AI、タスク消込が完了しました。プレビューを確認できます。');
+        pendingPreviewReview = null;
+    }
+
     function prioritizeAndSelectTasks(reason = '') {
         let list = getSpecList();
         if (window.AITaskPriorityLogic?.prioritizeAndSelect) list = window.AITaskPriorityLogic.prioritizeAndSelect(list, { reason });
@@ -4761,10 +4942,11 @@ ${verificationText}
     async function runFixProposalOnce(analysis, project, selectedTaskIds, statusMsg, workflowRun) {
         const currentProjectText = projectToVerificationText(project); const codeOnlyInstruction = window.AICodeLogic?.getCodeOnlyInstruction?.() || '出力はコードだけ。説明、計画、Markdown、前置き、後書きを出力しない。';
         const prompt = `${document.getElementById('system-prompt').value.trim()}\n\n${document.getElementById('code-principles').value.trim()}\n\n${document.getElementById('admin-development-rules')?.value.trim() || ''}\n\n${document.getElementById('admin-implementation-verification')?.value.trim() || ''}\n\n${getFeedbackInstruction()}\n\n【承認済み修正案】\n${JSON.stringify(analysis, null, 2)}\n\n【選定タスク】\n${specListToVerificationJson({ selectedTaskIds })}\n\n【現在の全ファイル】\n${currentProjectText}\n\n【出力ルール】\n${codeOnlyInstruction}\n現在の全ファイルを修正後の完全な内容として、entryFile と files を含むJSONだけで出力してください。差分、省略、説明は禁止です。`;
-        try { updateWorkflowStep('自動修正', '承認済み修正案をAIに適用させています。'); markSelectedTasksStatus('auto_fixing', '承認済み修正案を適用中です。'); const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('debug'), taskType: 'auto-fix' }); const repaired = parseGeneratedProject(result.text); const normalized = normalizeGeneratedProject(repaired); setProjectFiles(normalized.files, normalized.entryFile, { refreshPreview: false }); markSelectedTasksStatus('implemented', '修正コードを反映しました。再検証前です。'); const verification = await verifySpecCoverage(projectToVerificationText(normalized), { selectedTaskIds }); if (verification.ok) { updateWorkflowStep('プレビュー更新', '検証と消込が完了したためプレビューを更新しています。'); updatePreview(); showPage('preview', document.getElementById('tab-preview')); completeWorkflowRun('承認済み修正、検証AI、タスク消込が完了しました。プレビューを確認できます。'); updateChatProgressMessage(statusMsg, '承認済み修正、検証AI、タスク消込が完了しました。プレビューを確認できます。'); } else { const analysis2 = await analyzeImplementationBugs(projectToVerificationText(normalized), verification, selectedTaskIds); await addFailureLog('ai-error', analysis2.bugSummary || '再検証で問題が残りました。', formatFixApprovalText(analysis2)); if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis2)) { updateChatProgressMessage(statusMsg, '再検証で問題が残ったため、自動修正を継続します。'); await runFixProposalOnce(analysis2, normalized, selectedTaskIds, statusMsg, workflowRun); } else { updateChatProgressMessage(statusMsg, '再検証で問題が残りました。修正案を確認してください。'); markWorkflowAwaitingApproval('再検証で問題が残ったため、修正前の確認待ちです。'); showFixApprovalModal(analysis2, workflowRun); } } } catch(e) { updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">修正適用に失敗しました: ${escapeHtml(e.message || String(e))}</span>`, true); try { await addFailureLog('build-error', `修正適用失敗: ${e.message || e}`, JSON.stringify(analysis, null, 2)); } catch(_) {} }
+        try { updateWorkflowStep('自動修正', '承認済み修正案をAIに適用させています。'); markSelectedTasksStatus('auto_fixing', '承認済み修正案を適用中です。'); const result = await callLLM({ prompt, stream: false, model: getModelForPrompt('debug'), taskType: 'auto-fix' }); const repaired = parseGeneratedProject(result.text); const normalized = normalizeGeneratedProject(repaired); setProjectFiles(normalized.files, normalized.entryFile, { refreshPreview: false }); markSelectedTasksStatus('implemented', '修正コードを反映しました。再検証前です。'); const verification = await verifySpecCoverage(projectToVerificationText(normalized), { selectedTaskIds }); if (verification.ok) { updateWorkflowStep('プレビュー前レビュー', '承認済み修正の検証と消込が完了しました。人によるレビュー後にプレビューを表示します。'); showPreviewReviewModal(normalized, verification, statusMsg, '承認済み修正、検証AI、タスク消込が完了しました。', { workflowRun }); } else { const analysis2 = await analyzeImplementationBugs(projectToVerificationText(normalized), verification, selectedTaskIds); await addFailureLog('ai-error', analysis2.bugSummary || '再検証で問題が残りました。', formatFixApprovalText(analysis2)); if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis2)) { updateChatProgressMessage(statusMsg, '再検証で問題が残ったため、自動修正を継続します。'); await runFixProposalOnce(analysis2, normalized, selectedTaskIds, statusMsg, workflowRun); } else { updateChatProgressMessage(statusMsg, '再検証で問題が残りました。修正案を確認してください。'); markWorkflowAwaitingApproval('再検証で問題が残ったため、修正前の確認待ちです。'); showFixApprovalModal(analysis2, workflowRun); } } } catch(e) { updateChatProgressMessage(statusMsg, `<span style="color:var(--danger)">修正適用に失敗しました: ${escapeHtml(e.message || String(e))}</span>`, true); try { await addFailureLog('build-error', `修正適用失敗: ${e.message || e}`, JSON.stringify(analysis, null, 2)); } catch(_) {} }
     }
     async function handleFailedVerificationFlow(project, verification, selectedTaskIds, progressMessage, workflowRun) {
         const projectText = projectToVerificationText(project); let analysis;
+        updateWorkflowStep('原因分析AI', '検証AIが検出した問題の原因と修正案、影響範囲を作成しています。');
         try { analysis = await analyzeImplementationBugs(projectText, verification, selectedTaskIds); } catch(e) { analysis = normalizeBugAnalysisPayload('', `原因分析AIを実行できませんでした: ${e.message || e}`); }
         await addFailureLog('ai-error', analysis.bugSummary || '検証で未完了タスクを検出しました。', formatFixApprovalText(analysis));
         if (getFixApprovalMode() === 'auto' && !isHighRiskFix(analysis)) { updateChatProgressMessage(progressMessage, '検証AIが問題を検出しました。確認不要モードのため、自動修正を開始します。'); await runFixProposalOnce(analysis, project, selectedTaskIds, progressMessage, workflowRun); }
@@ -4782,14 +4964,11 @@ ${verificationText}
         updateChatProgressMessage(progressMessage, 'コードを反映しました。検証AIを実行しています。検証とタスク消込が終わるまでプレビューは表示しません。');
         const verification = await verifySpecCoverage(projectToVerificationText(projectForVerification), { selectedTaskIds });
         if (verification?.ok) {
-            updateWorkflowStep('プレビュー更新', '検証とタスク消込が完了したためプレビューを更新しています。');
-            updatePreview();
-            showPage('preview', document.getElementById('tab-preview'));
-            completeWorkflowRun('検証AIとタスク消込が完了しました。プレビューを確認できます。');
+            updateWorkflowStep('プレビュー前レビュー', '検証とタスク消込が完了しました。人によるレビュー後にプレビューを表示します。');
             const suffix = verification?.summary ? `
 
 ${verification.summary}` : '';
-            updateChatProgressMessage(progressMessage, `${completeText || getLabel('aiSystemMsgBuildComplete')}${suffix}`.trim());
+            showPreviewReviewModal(projectForVerification, verification, progressMessage, `${completeText || getLabel('aiSystemMsgBuildComplete')}${suffix}`.trim(), { workflowRun });
             return verification;
         }
         await handleFailedVerificationFlow(projectForVerification, verification, selectedTaskIds, progressMessage, workflowRun);
