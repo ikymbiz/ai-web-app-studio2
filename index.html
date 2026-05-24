@@ -444,7 +444,7 @@
                 <input type="file" id="file-camera" accept="image/*" capture="environment" style="display:none" onchange="handleAttachment(this)">
                 <input type="file" id="file-gallery" accept="image/*" style="display:none" multiple onchange="handleAttachment(this)">
                 <input type="file" id="file-files" accept="*/*,.zip,application/zip" style="display:none" multiple onchange="handleAttachment(this)">
-                <textarea id="user-prompt" rows="1" oninput="autoGrow(this)"></textarea>
+                <textarea id="user-prompt" rows="1" oninput="autoGrow(this)" onkeydown="return handlePromptKeydown(event)"></textarea>
                 <button class="send-btn" id="send-btn" onclick="askAI()"></button>
             </div>
         </div>
@@ -777,11 +777,12 @@
                             </button>
                             <textarea id="skill-settings" style="display:none;"></textarea>
                             <div class="field-hint" data-label="skillSettingsHint">Pattern B用のSkillインデックスと本文をJSONで管理します。AIにはまずインデックスを渡し、必要なSkillだけをオンデマンドで読み込ませる設計です。</div>
+                            <div class="field-hint" data-label="skillJsonFileHint">管理用Skillsは skills/admin-skills.json に集約して管理します。GitHub保存対象もこのJSONです。</div>
                         </div>
 
                         <div class="skill-manager-toolbar">
                             <button type="button" class="modal-btn" onclick="openSkillEditor()" data-label="skillAddButton">＋ Skill追加</button>
-                            <button type="button" class="modal-btn" style="background:var(--color-bg-elevated);" onclick="renderSkillManager(); showToast(getLabel('toastSettingsSaved'))" data-label="skillReloadButton">JSONを再読込</button>
+                            <button type="button" class="modal-btn" style="background:var(--color-bg-elevated);" onclick="reloadAdminSkillRegistryFromFile(true)" data-label="skillReloadButton">JSONを再読込</button>
                         </div>
 
                         <div id="skill-list" class="skill-list"></div>
@@ -791,7 +792,7 @@
                             <div class="skill-github-grid">
                                 <input id="skill-github-repo" class="setting-input wide" data-placeholder-label="skillGithubRepoPlaceholder" placeholder="owner/repository" onchange="syncSkillGithubSettingsToRegistry(); autoSaveSettings();">
                                 <input id="skill-github-branch" class="setting-input" data-placeholder-label="skillGithubBranchPlaceholder" placeholder="main" value="main" onchange="syncSkillGithubSettingsToRegistry(); autoSaveSettings();">
-                                <input id="skill-github-path" class="setting-input" data-placeholder-label="skillGithubPathPlaceholder" placeholder="skills/skills.json" value="skills/skills.json" onchange="syncSkillGithubSettingsToRegistry(); autoSaveSettings();">
+                                <input id="skill-github-path" class="setting-input" data-placeholder-label="skillGithubPathPlaceholder" placeholder="skills/admin-skills.json" value="skills/admin-skills.json" onchange="syncSkillGithubSettingsToRegistry(); autoSaveSettings();">
                             </div>
                             <button type="button" class="modal-btn" style="margin-top:10px; background:var(--accent);" onclick="saveSkillsJsonToGitHub()" data-label="skillGithubSaveButton">GitHubに保存</button>
                             <div id="skill-github-status" class="skill-github-status"></div>
@@ -943,7 +944,7 @@
         <div class="modal-body skill-modal-grid" style="overflow-y:auto;">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div class="field" style="margin-bottom:0;"><label data-label="skillIdLabel">Skill ID</label><input id="skill-editor-id" class="setting-input" placeholder="frontend"></div>
-                <div class="field" id="skill-editor-file-field" style="margin-bottom:0;"><label data-label="skillFileLabel">保存ファイル名</label><input id="skill-editor-file" class="setting-input" placeholder="skills/frontend.md"></div>
+                <div class="field" id="skill-editor-file-field" style="margin-bottom:0;"><label data-label="skillFileLabel">JSON内参照</label><input id="skill-editor-file" class="setting-input" placeholder="skills/admin-skills.json#skills.frontend"></div>
             </div>
             <div class="field" style="margin-bottom:0;"><label data-label="skillTitleLabel">タイトル</label><input id="skill-editor-title-input" class="setting-input" placeholder="Frontend Skill Profile"></div>
             <div class="field" style="margin-bottom:0;"><label data-label="skillDescriptionLabel">説明</label><textarea id="skill-editor-description" class="setting-input" rows="3" placeholder="UI / React / Next.js / Tailwind が必要な時に使う"></textarea></div>
@@ -1157,6 +1158,7 @@ profile: frontend
         ]
     };
     let modelRegistry = JSON.parse(JSON.stringify(DEFAULT_MODEL_REGISTRY));
+    let ADMIN_SKILL_REGISTRY_FROM_FILE = null;
 
     /* === プロンプト管理 === */
     let PROMPTS_DATA = null;
@@ -1170,7 +1172,7 @@ profile: frontend
                 'user-system-prompt': "（任意）生成したいアプリの雰囲気、制約、優先したい操作感、避けたい表現などを入力してください。",
                 'admin-system-requirements': "## システム要件\n- Android/PWA対応、safe-area、48x48dp以上のタッチターゲットを維持する。\n- ZIP/複数ファイル、IndexedDB、GitHubデプロイ、APIキー管理、保存先設定を削除しない。\n- 既存ID・関数名・保存キーを不用意に変更しない。",
                 'admin-implementation-verification': "## 実装検証\n- 変更前後で要件とコードを照合する。\n- 修正したと報告する前に構文チェックと主要導線の確認を行う。\n- 未確認事項は未確認として明記する。",
-                'skill-settings': "{\n  \"version\": 2,\n  \"mode\": \"pattern-b-on-demand\",\n  \"toolName\": \"load_skill_profile\",\n  \"storage\": \"github-json\",\n  \"github\": {\n    \"repo\": \"\",\n    \"branch\": \"main\",\n    \"path\": \"skills/skills.json\"\n  },\n  \"indexPath\": \"skills/skills.index.json\",\n  \"instructions\": \"AIには最初にSkillのインデックスだけを渡す。各Skillのstagesで chat / coding / debugging のどの段階で使うかを必ず確認し、現在の段階に一致するSkillだけを候補にする。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけをオンデマンドで読み込む。不要なSkill本文は送らない。\",\n  \"skills\": [\n    {\n      \"id\": \"skill-manager\",\n      \"file\": \"skills/skill-manager.md\",\n      \"title\": \"Skill Manager Skill\",\n      \"description\": \"Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。\",\n      \"triggers\": [\n        \"Skill\",\n        \"skills\",\n        \"skill index\",\n        \"Pattern B\",\n        \"stages\",\n        \"管理用Skill\",\n        \"ユーザーSkill\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: skill-manager\\ntarget: Skill definitions, Skill index, Pattern B, user/admin skill separation\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Skill Manager Skill\\n\\n## Purpose\\nUse this skill when designing, editing, validating, or debugging Skill definitions.\\n\\n## Rules\\n- Every Skill must explicitly declare `stages` with one or more of: `chat`, `coding`, `debugging`.\\n- Admin Skills may be saved as GitHub JSON files.\\n- User Skills are local app settings only and must not be included in GitHub file saves.\\n- The Skill index must contain metadata only: id, title, description, triggers, stages, file, enabled.\\n- Skill body content is loaded only after the selector chooses the Skill.\\n- Do not mix admin Skill selection logic with user Skill selection logic.\\n\\n## Validation Checklist\\n1. Skill has a stable id.\\n2. Skill has explicit stages.\\n3. Skill has clear triggers.\\n4. Admin/user storage boundaries are preserved.\\n5. Index and content are separated for Pattern B.\"\n    },\n    {\n      \"id\": \"frontend\",\n      \"file\": \"skills/frontend.md\",\n      \"title\": \"Frontend Skill Profile\",\n      \"description\": \"UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。\",\n      \"triggers\": [\n        \"UI\",\n        \"React\",\n        \"Next.js\",\n        \"TypeScript\",\n        \"Tailwind\",\n        \"CSS\",\n        \"state management\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: frontend\\ntarget: UI, React, Next.js, CSS, State Management\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Frontend Skill Profile\\n\\n## Skill Level\\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\\n- State Management: Prefer React Context or Zustand over Redux.\\n- Async Pattern: Use async/await. No `.then()` chains.\"\n    },\n    {\n      \"id\": \"backend\",\n      \"file\": \"skills/backend.md\",\n      \"title\": \"Backend Skill Profile\",\n      \"description\": \"Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。\",\n      \"triggers\": [\n        \"Node.js\",\n        \"database\",\n        \"API\",\n        \"Prisma\",\n        \"server\",\n        \"backend\",\n        \"PostgreSQL\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: backend\\ntarget: Node.js, Database, API, Prisma\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Backend Skill Profile\\n\\n## Skill Level\\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Provide standard best practices with brief meaningful explanations.\\n- Architecture: Enforce Controllers, Services, Repositories.\\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.\"\n    },\n    {\n      \"id\": \"devops\",\n      \"file\": \"skills/devops.md\",\n      \"title\": \"DevOps & Infra Skill Profile\",\n      \"description\": \"Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。\",\n      \"triggers\": [\n        \"Docker\",\n        \"Compose\",\n        \"CI/CD\",\n        \"GitHub Actions\",\n        \"AWS\",\n        \"infra\",\n        \"deployment\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"---\\nprofile: devops\\ntarget: Docker, CI/CD, AWS, Infrastructure\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# DevOps & Infra Skill Profile\\n\\n## Skill Level\\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\\n\\n## Rules & Conventions\\n- Language: English for code, Japanese for chat explanations.\\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\\n- Best Practices: Ensure production containers run as non-root users.\"\n    }\n  ]\n}",
+                'skill-settings': "{\n  \"version\": 3,\n  \"mode\": \"pattern-b-json-bundle\",\n  \"toolName\": \"load_skill_profile\",\n  \"storage\": \"github-json\",\n  \"github\": {\n    \"repo\": \"\",\n    \"branch\": \"main\",\n    \"path\": \"skills/admin-skills.json\"\n  },\n  \"indexPath\": \"skills/admin-skills.index.json\",\n  \"instructions\": \"管理用Skillsは skills/admin-skills.json に集約して管理する。AIには最初にSkillのインデックスだけを渡す。各Skillのstagesで chat / coding / debugging のどの段階で使うかを必ず確認し、現在の段階に一致するSkillだけを候補にする。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけをオンデマンドで読み込む。不要なSkill本文は送らない。ユーザー追加Skillは別ロジックで管理し、この管理用JSONやGitHub保存対象に混ぜない。\",\n  \"skills\": [\n    {\n      \"id\": \"skill-manager\",\n      \"file\": \"skills/admin-skills.json#skills.skill-manager\",\n      \"title\": \"Skill Manager Skill\",\n      \"description\": \"Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。\",\n      \"triggers\": [\n        \"Skill\",\n        \"skills\",\n        \"skill index\",\n        \"Pattern B\",\n        \"stages\",\n        \"管理用Skill\",\n        \"ユーザーSkill\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# Skill Manager Skill\\n\\n## Purpose\\nUse this skill when designing, editing, validating, or debugging Skill definitions.\\n\\n## Rules\\n- Every Skill must explicitly declare `stages` with one or more of: `chat`, `coding`, `debugging`.\\n- Admin Skills may be saved as GitHub JSON files.\\n- User Skills are local app settings only and must not be included in GitHub file saves.\\n- The Skill index must contain metadata only: id, title, description, triggers, stages, file, enabled.\\n- Skill body content is loaded only after the selector chooses the Skill.\\n- Do not mix admin Skill selection logic with user Skill selection logic.\\n\\n## Validation Checklist\\n1. Skill has a stable id.\\n2. Skill has explicit stages.\\n3. Skill has clear triggers.\\n4. Admin/user storage boundaries are preserved.\\n5. Index and content are separated for Pattern B.\",\n      \"source\": \"admin-json-bundle\"\n    },\n    {\n      \"id\": \"frontend\",\n      \"file\": \"skills/admin-skills.json#skills.frontend\",\n      \"title\": \"Frontend Skill Profile\",\n      \"description\": \"UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。\",\n      \"triggers\": [\n        \"UI\",\n        \"React\",\n        \"Next.js\",\n        \"TypeScript\",\n        \"Tailwind\",\n        \"CSS\",\n        \"state management\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# Frontend Skill Profile\\n\\n## Skill Level\\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\\n- State Management: Prefer React Context or Zustand over Redux.\\n- Async Pattern: Use async/await. No `.then()` chains.\",\n      \"source\": \"admin-json-bundle\"\n    },\n    {\n      \"id\": \"backend\",\n      \"file\": \"skills/admin-skills.json#skills.backend\",\n      \"title\": \"Backend Skill Profile\",\n      \"description\": \"Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。\",\n      \"triggers\": [\n        \"Node.js\",\n        \"database\",\n        \"API\",\n        \"Prisma\",\n        \"server\",\n        \"backend\",\n        \"PostgreSQL\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# Backend Skill Profile\\n\\n## Skill Level\\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Provide standard best practices with brief meaningful explanations.\\n- Architecture: Enforce Controllers, Services, Repositories.\\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.\",\n      \"source\": \"admin-json-bundle\"\n    },\n    {\n      \"id\": \"devops\",\n      \"file\": \"skills/admin-skills.json#skills.devops\",\n      \"title\": \"DevOps & Infra Skill Profile\",\n      \"description\": \"Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。\",\n      \"triggers\": [\n        \"Docker\",\n        \"Compose\",\n        \"CI/CD\",\n        \"GitHub Actions\",\n        \"AWS\",\n        \"infra\",\n        \"deployment\"\n      ],\n      \"stages\": [\n        \"chat\",\n        \"coding\",\n        \"debugging\"\n      ],\n      \"enabled\": true,\n      \"content\": \"# DevOps & Infra Skill Profile\\n\\n## Skill Level\\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\\n\\n## Rules & Conventions\\n- Language: English for code, Japanese for chat explanations.\\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\\n- Best Practices: Ensure production containers run as non-root users.\",\n      \"source\": \"admin-json-bundle\"\n    }\n  ],\n  \"source\": \"skills/admin-skills.json\"\n}",
                 'user-skill-settings': "{\n  \"version\": 1,\n  \"mode\": \"user-local-skills\",\n  \"storage\": \"local-settings-only\",\n  \"instructions\": \"ユーザー追加Skillはこの端末のアプリ設定だけに保存する。GitHub保存用の管理Skill JSONには含めない。各Skillのstagesで chat / coding / debugging のどの段階で使うかを明示し、現在の段階に一致するSkillだけを候補にする。\",\n  \"skills\": []\n}"
             },
             prompts: {
@@ -1259,6 +1261,10 @@ profile: frontend
                 optionsStepBack: "戻る", optionsStepNext: "次へ", optionsStepApply: "回答を反映", optionsStepQuestionCount: "{current}/{total}",
                 cancelButton: "キャンセル",
                 submitOptionButton: "送信",
+                aiSystemMsgRequirementChoicesShown: "要件確認の選択肢を表示しました。モーダル内で回答を選択してください。",
+                ctrlEnterHint: "Ctrl+Enterで送信",
+                skillJsonFileHint: "管理用Skillsは skills/admin-skills.json に集約して管理します。GitHub保存対象もこのJSONです。",
+                skillReloadedFromFile: "skills/admin-skills.jsonを再読込しました",
                 // 設定: セキュリティ
                 ghTokenLabel: "GitHubトークン",
                 keyStorageLabel: "トークン・APIキーの保存先",
@@ -1363,14 +1369,14 @@ profile: frontend
                 "skillGithubSaveLabel": "Skill JSONをGitHubへ保存",
                 "skillGithubRepoPlaceholder": "owner/repository",
                 "skillGithubBranchPlaceholder": "main",
-                "skillGithubPathPlaceholder": "skills/skills.json",
+                "skillGithubPathPlaceholder": "skills/admin-skills.json",
                 "skillGithubSaveButton": "GitHubに保存",
                 "skillGithubSaveHint": "保存にはGitHub PATを使用します。JSONは指定したリポジトリ、ブランチ、パスへPUT保存します。",
                 "skillEditorTitle": "Skill編集",
                 "skillEditorAddTitle": "Skill追加",
                 "skillEditorEditTitle": "Skill編集",
                 "skillIdLabel": "Skill ID",
-                "skillFileLabel": "保存ファイル名",
+                "skillFileLabel": "JSON内参照",
                 "skillTitleLabel": "タイトル",
                 "skillDescriptionLabel": "説明",
                 "skillTriggersLabel": "トリガー語（カンマ区切り）",
@@ -1468,8 +1474,45 @@ profile: frontend
         } catch (e) {
             console.warn('Error fetching prompts.json. Using hardcoded defaults.', e);
         }
+        await loadAdminSkillsDefaultsFromFile();
         ensureEnglishLabels();
     }
+
+    async function loadAdminSkillsDefaultsFromFile() {
+        try {
+            const res = await fetch('./skills/admin-skills.json', { cache: 'no-store' });
+            if (!res.ok) return;
+            const registry = await res.json();
+            if (registry && Array.isArray(registry.skills)) {
+                ADMIN_SKILL_REGISTRY_FROM_FILE = registry;
+                if (!registry.github) registry.github = { repo: '', branch: 'main', path: 'skills/admin-skills.json' };
+                if (!registry.github.path) registry.github.path = 'skills/admin-skills.json';
+                if (!registry.indexPath) registry.indexPath = 'skills/admin-skills.index.json';
+                PROMPTS_DATA.defaults['skill-settings'] = JSON.stringify(registry, null, 2);
+            }
+        } catch(e) {
+            console.warn('skills/admin-skills.json could not be loaded. Using embedded skill defaults.', e);
+        }
+    }
+    async function reloadAdminSkillRegistryFromFile(showMessage = false) {
+        try {
+            const res = await fetch('./skills/admin-skills.json', { cache: 'no-store' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const registry = await res.json();
+            if (!registry || !Array.isArray(registry.skills)) throw new Error('Invalid admin-skills.json');
+            ADMIN_SKILL_REGISTRY_FROM_FILE = registry;
+            const target = document.getElementById('skill-settings');
+            if (target) target.value = JSON.stringify(registry, null, 2);
+            updatePromptPreviews();
+            renderSkillManager(false);
+            autoSaveSettings();
+            if (showMessage) showToast(getLabel('skillReloadedFromFile') || 'skills/admin-skills.jsonを再読込しました');
+        } catch(e) {
+            console.warn('admin skills reload failed:', e);
+            if (showMessage) showToast((getLabel('deployStatusError') || 'Error') + ': ' + (e.message || e));
+        }
+    }
+
     function ensureEnglishLabels() {
         const en = {
             "langJa": "Japanese",
@@ -1486,14 +1529,14 @@ profile: frontend
             "skillGithubSaveLabel": "Save Skill JSON to GitHub",
             "skillGithubRepoPlaceholder": "owner/repository",
             "skillGithubBranchPlaceholder": "main",
-            "skillGithubPathPlaceholder": "skills/skills.json",
+            "skillGithubPathPlaceholder": "skills/admin-skills.json",
             "skillGithubSaveButton": "Save to GitHub",
             "skillGithubSaveHint": "Uses the GitHub PAT. The JSON is saved to the selected repository, branch, and path with PUT.",
             "skillEditorTitle": "Edit skill",
             "skillEditorAddTitle": "Add skill",
             "skillEditorEditTitle": "Edit skill",
             "skillIdLabel": "Skill ID",
-            "skillFileLabel": "File name",
+            "skillFileLabel": "JSON reference",
             "skillTitleLabel": "Title",
             "skillDescriptionLabel": "Description",
             "skillTriggersLabel": "Triggers (comma-separated)",
@@ -1944,7 +1987,14 @@ profile: frontend
     const SKILL_STAGE_VALUES = ['chat', 'coding', 'debugging'];
     const SKILL_STAGE_LABEL_KEYS = { chat: 'stageChatLabel', coding: 'stageCodingLabel', debugging: 'stageDebuggingLabel' };
 
-    function cloneDefaultAdminSkillRegistry() { return JSON.parse("{\"version\": 2, \"mode\": \"pattern-b-on-demand\", \"toolName\": \"load_skill_profile\", \"storage\": \"github-json\", \"github\": {\"repo\": \"\", \"branch\": \"main\", \"path\": \"skills/skills.json\"}, \"indexPath\": \"skills/skills.index.json\", \"instructions\": \"AIには最初にSkillのインデックスだけを渡す。各Skillのstagesで chat / coding / debugging のどの段階で使うかを必ず確認し、現在の段階に一致するSkillだけを候補にする。ユーザー要求に必要なSkill IDを選ばせ、選ばれたSkill本文だけをオンデマンドで読み込む。不要なSkill本文は送らない。\", \"skills\": [{\"id\": \"skill-manager\", \"file\": \"skills/skill-manager.md\", \"title\": \"Skill Manager Skill\", \"description\": \"Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。\", \"triggers\": [\"Skill\", \"skills\", \"skill index\", \"Pattern B\", \"stages\", \"管理用Skill\", \"ユーザーSkill\"], \"stages\": [\"chat\", \"coding\", \"debugging\"], \"enabled\": true, \"content\": \"---\\nprofile: skill-manager\\ntarget: Skill definitions, Skill index, Pattern B, user/admin skill separation\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Skill Manager Skill\\n\\n## Purpose\\nUse this skill when designing, editing, validating, or debugging Skill definitions.\\n\\n## Rules\\n- Every Skill must explicitly declare `stages` with one or more of: `chat`, `coding`, `debugging`.\\n- Admin Skills may be saved as GitHub JSON files.\\n- User Skills are local app settings only and must not be included in GitHub file saves.\\n- The Skill index must contain metadata only: id, title, description, triggers, stages, file, enabled.\\n- Skill body content is loaded only after the selector chooses the Skill.\\n- Do not mix admin Skill selection logic with user Skill selection logic.\\n\\n## Validation Checklist\\n1. Skill has a stable id.\\n2. Skill has explicit stages.\\n3. Skill has clear triggers.\\n4. Admin/user storage boundaries are preserved.\\n5. Index and content are separated for Pattern B.\"}, {\"id\": \"frontend\", \"file\": \"skills/frontend.md\", \"title\": \"Frontend Skill Profile\", \"description\": \"UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。\", \"triggers\": [\"UI\", \"React\", \"Next.js\", \"TypeScript\", \"Tailwind\", \"CSS\", \"state management\"], \"stages\": [\"chat\", \"coding\", \"debugging\"], \"enabled\": true, \"content\": \"---\\nprofile: frontend\\ntarget: UI, React, Next.js, CSS, State Management\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Frontend Skill Profile\\n\\n## Skill Level\\n- TypeScript: Advanced. Prefer strict typing, mapped types, and generics. No `any`.\\n- Next.js App Router: Advanced. Understand React Server Components and Server Actions.\\n- Tailwind CSS: Advanced. Prefer utility classes. Avoid inline styles.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Output clean code or diffs. Omit verbose explanations unless requested.\\n- State Management: Prefer React Context or Zustand over Redux.\\n- Async Pattern: Use async/await. No `.then()` chains.\"}, {\"id\": \"backend\", \"file\": \"skills/backend.md\", \"title\": \"Backend Skill Profile\", \"description\": \"Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。\", \"triggers\": [\"Node.js\", \"database\", \"API\", \"Prisma\", \"server\", \"backend\", \"PostgreSQL\"], \"stages\": [\"chat\", \"coding\", \"debugging\"], \"enabled\": true, \"content\": \"---\\nprofile: backend\\ntarget: Node.js, Database, API, Prisma\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# Backend Skill Profile\\n\\n## Skill Level\\n- Node.js / Express: Intermediate. Understands async/await, custom middlewares, and centralized error handling.\\n- Prisma / PostgreSQL: Intermediate. Comfortable with migrations and basic relational design.\\n\\n## Rules & Conventions\\n- Language: English for code/comments, Japanese for chat explanations.\\n- Output Style: Provide standard best practices with brief meaningful explanations.\\n- Architecture: Enforce Controllers, Services, Repositories.\\n- Security: Validate inputs with Zod and prevent SQL injection through ORM usage.\"}, {\"id\": \"devops\", \"file\": \"skills/devops.md\", \"title\": \"DevOps & Infra Skill Profile\", \"description\": \"Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。\", \"triggers\": [\"Docker\", \"Compose\", \"CI/CD\", \"GitHub Actions\", \"AWS\", \"infra\", \"deployment\"], \"stages\": [\"chat\", \"coding\", \"debugging\"], \"enabled\": true, \"content\": \"---\\nprofile: devops\\ntarget: Docker, CI/CD, AWS, Infrastructure\\nstages:\\n  - chat\\n  - coding\\n  - debugging\\n---\\n\\n# DevOps & Infra Skill Profile\\n\\n## Skill Level\\n- Docker / Compose: Intermediate. Can manage multistage Dockerfile and docker-compose.yml.\\n- GitHub Actions: Beginner. Requires step-by-step guidance for workflow syntax.\\n\\n## Rules & Conventions\\n- Language: English for code, Japanese for chat explanations.\\n- Output Style: Explain the why before showing YAML blocks. Do not skip lines in YAML files.\\n- Best Practices: Ensure production containers run as non-root users.\"}]}"); }
+    function cloneDefaultAdminSkillRegistry() {
+        if (ADMIN_SKILL_REGISTRY_FROM_FILE) return JSON.parse(JSON.stringify(ADMIN_SKILL_REGISTRY_FROM_FILE));
+        const promptDefault = PROMPTS_DATA?.defaults?.['skill-settings'];
+        if (promptDefault) {
+            try { return JSON.parse(promptDefault); } catch(e) {}
+        }
+        return { version: 3, mode: 'pattern-b-json-bundle', toolName: 'load_skill_profile', storage: 'github-json', source: 'skills/admin-skills.json', github: { repo: '', branch: 'main', path: 'skills/admin-skills.json' }, indexPath: 'skills/admin-skills.index.json', instructions: '管理用Skillsは skills/admin-skills.json に集約して管理する。AIには最初にSkillのインデックスだけを渡し、必要なSkill本文だけをオンデマンドで読み込む。', skills: [] };
+    }
     function cloneDefaultUserSkillRegistry() { return JSON.parse("{\"version\": 1, \"mode\": \"user-local-skills\", \"storage\": \"local-settings-only\", \"instructions\": \"ユーザー追加Skillはこの端末のアプリ設定だけに保存する。GitHub保存用の管理Skill JSONには含めない。各Skillのstagesで chat / coding / debugging のどの段階で使うかを明示し、現在の段階に一致するSkillだけを候補にする。\", \"skills\": []}"); }
 
     function normalizeSkillStagesFromValue(value, fallback = ['chat', 'coding', 'debugging']) {
@@ -1993,12 +2043,12 @@ profile: frontend
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return base;
         const merged = { ...base, ...obj };
         merged.github = { ...base.github, ...(obj.github && typeof obj.github === 'object' ? obj.github : {}) };
-        merged.indexPath = String(obj.indexPath || base.indexPath || 'skills/skills.index.json').trim();
+        merged.indexPath = String(obj.indexPath || base.indexPath || 'skills/admin-skills.index.json').trim();
         merged.skills = Array.isArray(obj.skills) ? obj.skills.map((skill, idx) => {
             const id = String(skill.id || `skill-${idx + 1}`).trim();
             return {
                 id,
-                file: String(skill.file || `skills/${id || `skill-${idx + 1}`}.md`).trim(),
+                file: String(skill.file || skill.source || `skills/admin-skills.json#skills.${id || `skill-${idx + 1}`}`).trim(),
                 title: String(skill.title || skill.name || id || `Skill ${idx + 1}`).trim(),
                 description: String(skill.description || '').trim(),
                 triggers: Array.isArray(skill.triggers) ? skill.triggers.map(v => String(v).trim()).filter(Boolean) : String(skill.triggers || '').split(',').map(v => v.trim()).filter(Boolean),
@@ -2038,7 +2088,7 @@ profile: frontend
         const pathEl = document.getElementById('skill-github-path');
         if (repoEl) repoEl.value = registry.github?.repo || '';
         if (branchEl) branchEl.value = registry.github?.branch || 'main';
-        if (pathEl) pathEl.value = registry.github?.path || 'skills/skills.json';
+        if (pathEl) pathEl.value = registry.github?.path || 'skills/admin-skills.json';
         const list = document.getElementById('skill-list');
         if (!list) return;
         const skills = registry.skills || [];
@@ -2073,7 +2123,7 @@ profile: frontend
         registry.github = registry.github || {};
         registry.github.repo = (document.getElementById('skill-github-repo')?.value || '').trim();
         registry.github.branch = (document.getElementById('skill-github-branch')?.value || 'main').trim() || 'main';
-        registry.github.path = normalizeFilePath(document.getElementById('skill-github-path')?.value || 'skills/skills.json');
+        registry.github.path = normalizeFilePath(document.getElementById('skill-github-path')?.value || 'skills/admin-skills.json');
         const target = document.getElementById('skill-settings');
         if (target) target.value = JSON.stringify(registry, null, 2);
         updatePromptPreviews();
@@ -2146,7 +2196,7 @@ profile: frontend
         const fileInput = (document.getElementById('skill-editor-file')?.value || '').trim();
         const skill = {
             id,
-            file: fileInput ? normalizeFilePath(fileInput) : `skills/${id}.md`,
+            file: fileInput ? normalizeFilePath(fileInput) : `skills/admin-skills.json#skills.${id}`,
             title: (document.getElementById('skill-editor-title-input')?.value || id).trim(),
             description: (document.getElementById('skill-editor-description')?.value || '').trim(),
             triggers: (document.getElementById('skill-editor-triggers')?.value || '').split(',').map(v => v.trim()).filter(Boolean),
@@ -2442,7 +2492,7 @@ ${skill.content || ''}`).join('\n\n');
         const token = getGitHubPatFromInputs() || await getFromDB('gh_token');
         const repoFullName = (registry.github?.repo || '').trim();
         const branch = (registry.github?.branch || 'main').trim() || 'main';
-        const path = normalizeFilePath(registry.github?.path || 'skills/skills.json');
+        const path = normalizeFilePath(registry.github?.path || 'skills/admin-skills.json');
         if (!token) { if (status) status.innerHTML = `<span style="color:var(--danger)">${escapeHtml(getLabel('tokenNotSetAlert') || 'GitHub PATが未設定です')}</span>`; return; }
         if (!/^[^/]+\/[^/]+$/.test(repoFullName)) { if (status) status.innerHTML = `<span style="color:var(--danger)">${escapeHtml(getLabel('skillGithubRepoRequired') || 'owner/repository を入力してください')}</span>`; return; }
         if (status) status.textContent = getLabel('skillGithubSaving') || 'GitHubへ保存中...';
@@ -3467,6 +3517,34 @@ ${skill.content || ''}`).join('\n\n');
             .trim();
     }
 
+    function extractJsonObjectFromText(text) {
+        const raw = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim();
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch(e) {}
+        const start = raw.indexOf('{');
+        const end = raw.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            try { return JSON.parse(raw.slice(start, end + 1)); } catch(e) {}
+        }
+        return null;
+    }
+
+    function parseJsonOptionGroupsFromText(text) {
+        const obj = extractJsonObjectFromText(text);
+        if (!obj || typeof obj !== 'object') return [];
+        const qs = Array.isArray(obj.questions) ? obj.questions : (Array.isArray(obj.requirementQuestions) ? obj.requirementQuestions : []);
+        return qs.slice(0, 3).map((q, i) => {
+            const rawOptions = Array.isArray(q.options) ? q.options : [];
+            return {
+                id: String(q.id || `q${i + 1}`),
+                question: normalizeQuestionTitle(q.question || q.title || `質問${i + 1}`),
+                options: dedupeOptionList(rawOptions.map(v => typeof v === 'string' ? v : (v?.label || v?.text || ''))),
+                multiple: !!q.multiple,
+                flat: false
+            };
+        }).filter(g => g.question && g.options.length >= 2);
+    }
+
     function normalizeQuestionTitle(text) {
         let title = cleanOptionText(text)
             .replace(/[（(]\s*例[:：][\s\S]*?[）)]/g, '')
@@ -3520,6 +3598,8 @@ ${skill.content || ''}`).join('\n\n');
 
     function parseOptionGroupsFromText(text) {
         if (!text || typeof text !== 'string') return [];
+        const jsonGroups = parseJsonOptionGroupsFromText(text);
+        if (jsonGroups.length) return jsonGroups;
         const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
         const groups = [];
         let current = null;
@@ -3814,6 +3894,78 @@ ${skill.content || ''}`).join('\n\n');
     function submitOtherOption() {
         confirmOptionsStep();
     }
+
+    function isChatSendShortcut(event) {
+        if (!event) return false;
+        const key = event.key || '';
+        const code = event.code || '';
+        const keyCode = event.keyCode || event.which || 0;
+        const isEnter = key === 'Enter' || code === 'Enter' || code === 'NumpadEnter' || keyCode === 13 || keyCode === 10;
+        return isEnter && (event.ctrlKey || event.metaKey);
+    }
+
+    function isModalOpenForChatShortcut() {
+        return Array.from(document.querySelectorAll('.modal.show, .options-modal.show, .overlay.show'))
+            .some(el => el && el.offsetParent !== null);
+    }
+
+    function submitChatPromptByShortcut() {
+        const input = document.getElementById('user-prompt');
+        if (!input) return;
+        const active = document.activeElement;
+        const isPromptActive = active === input;
+        const isChatPageActive = document.getElementById('p-chat')?.classList.contains('active');
+        if (!isPromptActive && !isChatPageActive) return;
+        if (!isPromptActive && isModalOpenForChatShortcut()) return;
+        if (window.__chatSendShortcutLock) return;
+        window.__chatSendShortcutLock = true;
+        window.setTimeout(() => { window.__chatSendShortcutLock = false; }, 350);
+        try { askAI(); } catch(e) { console.error('chat shortcut send failed:', e); }
+    }
+
+    function handlePromptKeydown(event) {
+        if (!isChatSendShortcut(event)) return true;
+        if (event.isComposing || event.keyCode === 229) return true;
+        event.preventDefault();
+        event.stopPropagation();
+        submitChatPromptByShortcut();
+        return false;
+    }
+
+    function initChatInputShortcuts() {
+        const input = document.getElementById('user-prompt');
+        if (input && input.dataset.ctrlEnterBound !== '1') {
+            input.dataset.ctrlEnterBound = '1';
+            input.addEventListener('keydown', handlePromptKeydown, true);
+            input.addEventListener('keyup', (event) => {
+                if (!isChatSendShortcut(event)) return;
+                if (event.isComposing || event.keyCode === 229) return;
+                event.preventDefault();
+                event.stopPropagation();
+            }, true);
+        }
+        if (!window.__chatCtrlEnterGlobalBound) {
+            window.__chatCtrlEnterGlobalBound = true;
+            const globalShortcutHandler = (event) => {
+                if (!isChatSendShortcut(event)) return;
+                if (event.isComposing || event.keyCode === 229) return;
+                const active = document.activeElement;
+                const isPromptActive = input && active === input;
+                const isEditable = active && (active.matches?.('input, textarea, select, [contenteditable="true"]'));
+                if (isEditable && !isPromptActive) return;
+                event.preventDefault();
+                event.stopPropagation();
+                submitChatPromptByShortcut();
+            };
+            document.addEventListener('keydown', globalShortcutHandler, true);
+            window.addEventListener('keydown', globalShortcutHandler, true);
+        }
+        const btn = document.getElementById('send-btn');
+        if (btn) {
+            btn.setAttribute('title', getLabel('ctrlEnterHint') || 'Ctrl+Enterで送信');
+            btn.setAttribute('aria-label', getLabel('sendButton') || '送信');
+        }
+    }
     function confirmReset() { if (confirm(getLabel('tabButtonResetConfirm'))) { chatHistory = []; document.getElementById('chat-log').innerHTML = ''; window.setCode(""); updatePreview(); removeAttachment(); const initMsg = { id: Date.now().toString(), role: 'ai system-msg', text: getLabel('aiSystemMsgReset'), html: false }; chatHistory.push(initMsg); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(initMsg); rebuildConversationContext(); clearSpecList(); } }
     function resetChatForNewCode(source) { chatHistory = []; document.getElementById('chat-log').innerHTML = ''; const msg = { id: Date.now().toString(), role: 'ai system-msg', text: getLabel('aiSystemMsgCodeLoaded').replace('{source}', source), html: false }; chatHistory.push(msg); saveToDB('chatHistory', chatHistory); renderMessageFromHistory(msg); rebuildConversationContext(); clearSpecList(); }
 
@@ -3827,10 +3979,24 @@ ${skill.content || ''}`).join('\n\n');
         const isFirstInput = userTurns <= 1 && specs === '（なし）';
         if (isFirstInput) {
             return `【要件確認状態】
-これは最初のユーザー入力です。ここでは実装コードを書かず、1回だけ確認質問をしてください。質問は必須事項に絞って1〜3問までにしてください。選択肢がある質問はモーダル化しやすいように、質問ごとの見出しと箇条書きの選択肢で出してください。`;
+これは最初のユーザー入力です。ここでは実装コード、機能要件本文、長い説明を書かず、1回のAI回答で1〜3問だけ確認質問を作成してください。
+回答は必ず次のJSONだけにしてください。Markdown、前置き、後書き、説明文は禁止です。
+{
+  "mode": "requirement_questions",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "確認したい質問文",
+      "multiple": false,
+      "options": ["選択肢A", "選択肢B", "その他"]
+    }
+  ]
+}
+質問は1〜3問まで。各質問にはタップ選択できる選択肢を2〜6個用意してください。自由入力が必要な場合は選択肢に「その他」を含めてください。`;
         }
         return `【要件確認状態】
-初回確認後の入力です。追加質問を繰り返さず、これまでの入力をもとに「システムの機能要件」を実装可能な粒度で出力してください。曖昧で危険な点が残る場合だけ、最大3問までの確認質問を同じ応答内の末尾にまとめてください。コードは書かないでください。`;
+初回確認への回答を受け取った状態です。追加質問を繰り返さず、これまでの入力とモーダル回答だけで要件を確定してください。
+出力は「システムの機能要件」だけにしてください。実装コード、Plan/Act、長い前置き、追加質問は出さないでください。`;
     }
     async function askAI() {
         const targetPersona = document.getElementById('target-persona').value;
@@ -3899,16 +4065,24 @@ ${specListToString()}`,
             const optionRegex = /\[OPTIONS:\s*(.*?)\s*\]/;
             const match = aiText.match(optionRegex);
             let explicitOptionsShown = false;
+            let optionGroupsToShow = [];
             if (match) {
                 const options = match[1].split('|').map(s => s.trim()).filter(s => s);
                 aiText = aiText.replace(optionRegex, '').trim();
-                showAIQuestionModal(getLabel('aiQuestionModalTitle'), options);
+                optionGroupsToShow = [{ id: 'q1', question: getLabel('optionsModalTitle') || '選択してください', options, multiple: false, flat: true }];
                 explicitOptionsShown = true;
+            } else {
+                optionGroupsToShow = getAutoPopupOptionGroups(aiText);
+                explicitOptionsShown = optionGroupsToShow.length > 0;
+            }
+            const jsonQuestionMode = !!extractJsonObjectFromText(aiText)?.questions;
+            if (explicitOptionsShown && jsonQuestionMode) {
+                aiText = getLabel('aiSystemMsgRequirementChoicesShown') || '要件確認の選択肢を表示しました。モーダル内で回答を選択してください。';
             }
 
             const aiMsgToUpdate = chatHistory.find(m => m.id === aiMsgId); if(aiMsgToUpdate) { aiMsgToUpdate.text = aiText; aiMsgToUpdate.html = false; saveToDB('chatHistory', chatHistory); aiMsgElement.replaceWith(createMessageElement(aiMsgToUpdate)); log.scrollTop = log.scrollHeight; }
-            if (!explicitOptionsShown) autoOpenOptionsModalFromAiText(aiText);
-            if (aiText) { await extractSpecsFromChat(promptForAI || promptText, aiText); }
+            if (optionGroupsToShow.length) window.setTimeout(() => showOptionsModal(optionGroupsToShow), 120);
+            if (aiText && !jsonQuestionMode) { await extractSpecsFromChat(promptForAI || promptText, aiText); }
         } catch (e) { contentDiv.textContent = `${getLabel('aiSystemMsgBuildError')} ${e.message}`; try { addFailureLog('ai-error', `チャット応答失敗: ${e.message || e}`, '直近の入力: ' + (promptText || '').slice(0, 200)); } catch(_) {} } finally { if (window.AIChatLogic?.clearPendingTaskType) window.AIChatLogic.clearPendingTaskType(); clearNewSpecFlags(); }
     }
 
@@ -4036,6 +4210,8 @@ ${codeOnlyInstruction}`;
         document.querySelector('#attach-menu .menu-item:nth-child(3)').textContent = getLabel('filesOption');
         document.getElementById('user-prompt').placeholder = getLabel('userPromptPlaceholder');
         document.getElementById('send-btn').textContent = getLabel('sendButton');
+        document.getElementById('send-btn').setAttribute('title', getLabel('ctrlEnterHint') || 'Ctrl+Enterで送信');
+        document.getElementById('send-btn').setAttribute('aria-label', getLabel('sendButton') || '送信');
 
         // エディタアクション
         document.querySelector('.action-btn.import-btn').textContent = getLabel('importButton');
@@ -4493,6 +4669,7 @@ ${codeOnlyInstruction}`;
         try { savedLang = (await getFromDB('uiLang')) || 'ja'; } catch(e) {}
         await initI18n(savedLang);
         try { applyUITexts(); } catch(e) { console.warn('applyUITexts error:', e); }
+        try { initChatInputShortcuts(); } catch(e) { console.warn('chat shortcut init failed:', e); }
         try { updateLangToggleUI(); } catch(e) {}
         try { await loadModelRegistry(); } catch(e) { console.warn('loadModelRegistry error:', e); renderAllModelSelects(); }
         try {
