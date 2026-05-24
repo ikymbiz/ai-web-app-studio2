@@ -212,19 +212,16 @@ https://<your-worker>.<subdomain>.workers.dev/api/templates
 - `docs/FAILURE_LOG.md`
 - `docs/HANDOVER.md`
 
-## 生成アプリの標準フォルダ構造
+## 生成アプリの最小ドキュメント
 
-AI Web Studio Pro で生成するアプリは、以下の構造を標準とします。
+AI Web Studio Pro で生成するアプリには、最小ドキュメントとして次の2ファイルを必ず含めます。
 
-```text
-/ (Root)
-├── docs/
-├── src/
-│   ├── apps/
-│   └── admin/
-├── config/
-└── .github/
-```
+- `README.md` アプリ概要
+- `plan_log.md` 実装計画・進捗・教訓
+
+その他のフォルダ構成（`docs/`, `src/`, `config/`, `.github/` など）は規模に応じて任意です。小規模アプリは単一HTMLでも構いません。
+
+AI Web Studio Pro 本体自身は別途、`docs/` 5本、`tasks/`、`src/`、`config/`、`.github/` を従来通り保持します（本体の運用文書）。
 
 
 ## 管理設定の開発ルール
