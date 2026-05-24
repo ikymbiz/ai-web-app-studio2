@@ -1,9 +1,9 @@
 # DEVELOPMENT RULES: AI-Only Operations
 
 ## 1. AIコーディング・操作プロトコル
-- 全アセットの同期: コード変更は必ず定義されたディレクトリ配下に反映し、docs/SYSTEM_DESIGN.md との完全な一致を確認する。
+- 全アセットの同期: コード変更は、生成アプリ側であれば `plan_log.md` と、本体側であれば `docs/SYSTEM_DESIGN.md` と整合させる。
 - 出力形式の統一: すべての成果物は、最終的に一つのZIPファイルとしてパッケージング可能な構造を維持して提示する。
-- 省略禁止: 生成物、設定、docs、src、config、.github の必要ファイルを省略しない。
+- 省略禁止: ユーザーが明示しない限り、既存ファイル・既存設定・生成物を省略・削除しない。
 - 無断削除禁止: ユーザーが明示しない既存機能・設定・ファイル・保存形式を削除しない。
 
 ## 2. 齟齬検証（Alignment Check）ルール
@@ -15,13 +15,18 @@
 - 毎ターンの更新: 現在のステータスと、次に着手すべき具体的作業を docs/HANDOVER.md に詳細に記述する。
 - コンテキストの維持: 前後の文脈を知らないAIが、そのファイルだけで開発を続行できるようにする。
 
-## 4. ディレクトリ構造定義
-AIは生成するアプリでこの構造を逸脱してはならない。
-- /docs: PRINCIPLE.md, DEVELOPMENT_RULES.md, SYSTEM_DESIGN.md, FAILURE_LOG.md, HANDOVER.md
-- /src/apps: メインアプリケーション、コアロジック、バックエンド処理
-- /src/admin: 管理・運用ツール、ダッシュボード、フロントエンド
-- /config: 動作環境や外部連携の設定
-- /.github: CI/CD、テスト、自動検証スケジュール
+## 4. 生成アプリの最小ファイル定義
+生成アプリには次の2ファイルを必ず含める。それ以外のフォルダ構成は規模に応じて任意とする。
+- `README.md` アプリ概要
+- `plan_log.md` 実装計画・進捗・教訓を1ファイルに集約
+
+任意フォルダの推奨用途は次の通り（規模が大きい場合）。
+- `/docs`: 設計・原則・引き継ぎ
+- `/src`: ソースコード本体
+- `/config`: 動作環境や外部連携の設定
+- `/.github`: CI/CD・テスト・自動検証スケジュール
+
+AI Web Studio Pro 本体自身は別途、`docs/` 5本（PRINCIPLE / DEVELOPMENT_RULES / SYSTEM_DESIGN / FAILURE_LOG / HANDOVER）、`tasks/`（todo.md, lessons.md）、`src/`、`config/`、`.github/` を従来通り保持する（本体の運用文書）。
 
 ## 5. コスト削減とリソース制約
 - LLMレイヤリング: チャット、コード生成、デバッグ、検証、原因分析を役割ごとに分離する。
@@ -42,8 +47,8 @@ AIは生成するアプリでこの構造を逸脱してはならない。
 
 ## 7. AI Web Studio Pro における適用
 - 管理画面の「開発ルール」設定値を、コード生成AI、デバッグAI、検証AIの共通制約として扱う。
-- 生成アプリにも docs/PRINCIPLE.md, docs/DEVELOPMENT_RULES.md, docs/SYSTEM_DESIGN.md, docs/FAILURE_LOG.md, docs/HANDOVER.md を必ず含める。
-- このアプリ自身の変更時も、index.html、js/*.js、prompts.json、models/models.json、skills/admin-skills.json、docs/*.md、sw.js の整合性を確認する。
+- 生成アプリには `README.md` と `plan_log.md` を必ず含める。それ以外のフォルダは規模に応じて任意。
+- このアプリ自身の変更時も、`index.html`、`js/*.js`、`prompts.json`、`models/models.json`、`skills/admin-skills.json`、`docs/*.md`、`sw.js` の整合性を確認する。
 
 
 ## v20運用規則: 進行可視化と中断時引き継ぎ
