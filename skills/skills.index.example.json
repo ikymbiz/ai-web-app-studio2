@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "purpose": "Pattern B selector index. This file contains metadata only. Skill body content is loaded from each file after selection.",
+  "stages": [
+    "chat",
+    "coding",
+    "debugging"
+  ],
+  "skills": [
+    {
+      "id": "skill-manager",
+      "file": "skills/skill-manager.md",
+      "title": "Skill Manager Skill",
+      "description": "Skill定義、Skillインデックス、stages、管理用SkillとユーザーSkillの分離を設計・点検する時に使う。",
+      "triggers": [
+        "Skill",
+        "skills",
+        "skill index",
+        "Pattern B",
+        "stages",
+        "管理用Skill",
+        "ユーザーSkill"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "frontend",
+      "file": "skills/frontend.md",
+      "title": "Frontend Skill Profile",
+      "description": "UI、React、Next.js、TypeScript、Tailwind、状態管理が必要な時に使う。",
+      "triggers": [
+        "UI",
+        "React",
+        "Next.js",
+        "TypeScript",
+        "Tailwind",
+        "CSS",
+        "state management"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "backend",
+      "file": "skills/backend.md",
+      "title": "Backend Skill Profile",
+      "description": "Node.js、DB、API設計、Prisma、サーバーロジックが必要な時に使う。",
+      "triggers": [
+        "Node.js",
+        "database",
+        "API",
+        "Prisma",
+        "server",
+        "backend",
+        "PostgreSQL"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "devops",
+      "file": "skills/devops.md",
+      "title": "DevOps & Infra Skill Profile",
+      "description": "Docker、CI/CD、GitHub Actions、AWS、インフラが必要な時に使う。",
+      "triggers": [
+        "Docker",
+        "Compose",
+        "CI/CD",
+        "GitHub Actions",
+        "AWS",
+        "infra",
+        "deployment"
+      ],
+      "stages": [
+        "chat",
+        "coding",
+        "debugging"
+      ],
+      "enabled": true
+    }
+  ]
+}
