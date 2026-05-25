@@ -2,6 +2,36 @@
 
 このZIPは、既存のAI Web Studioをベースに、複数AIベンダー、Cloudflare Worker移行、複数ファイル編集・公開、README生成、リモートテンプレート配信、多言語UIに対応させた修正版です。
 
+## v29.3 修正（2026-05-25）— ペルソナ先行 / MVP直接生成 / UIレビューモーダル廃止
+
+ユーザー要求 5項目に対応しました。
+
+1. **最初にターゲットペルソナを確認しセット**: チャット冒頭でペルソナ未設定なら、AIが必ず `id="persona"` の確認質問を出します。回答はモーダル適用時に `target-persona` 欄へ自動保存され、`updatePromptPreviews()` と `autoSaveSettings()` が走ります。設定済みなら再確認しません。
+2. **UI/UX分岐質問のみ実施**: ペルソナ確認とあわせて、レイアウト傾向・配色トーン・ナビゲーション形式・操作感・入力スタイルなど、UI/UX・使い勝手の分岐に関する質問を1〜2問だけ出します。
+3. **基本機能は質問しない**: CRUD、データ保存、ログイン、言語切替、テーマ切替、レスポンシブ、PWA、最低限のエラー処理、空状態、`README.md` と `plan_log.md` の同梱などは既定で含め、質問しません。
+4. **最初の出力は実際に動くMVP**: 旧「⚡️ コードを作成」ボタンは静的UIモック生成 (`generateUiFirstReview`) を呼んでいましたが、これを `generateCode()`（コード生成AI → 検証 → プレビュー前レビュー → プレビュー の通常フロー）の直接呼び出しに変更。コアな入力→処理→保存/表示まで含めたMVPを最初の生成で出力します。
+5. **UIデザイン確認モーダルを廃止**: `ui-review-modal` のHTML、関連JS（`showUiReviewModal`、`approveUiReviewAndGenerateCore`、`requestUiRevisionFromReview`、`generateUiFirstReview`、`generateCoreLogicFromApprovedUi` 等）を削除し、互換のため呼び出しは安全な no-op スタブまたは `generateCode()` への薄いエイリアスとして残しています。`runPreviewDebugRequest` の `isUiReviewRevision` 分岐も削除し、通常のデバッグフローに統一しました。なお、検証完了後の「プレビュー前レビュー」モーダル（`preview-review-modal`）は別物で、これは維持しています。
+
+### 変更ファイル
+
+- `prompts.json`: `_version` を `v29-3-persona-first-mvp` に更新、`plan` プロンプトをペルソナ先行＋UI/UX分岐＋MVP前提に再記述。
+- `index.html`:
+  - `buildRequirementFlowInstruction()`: ペルソナ有無で分岐し、未設定時は `id="persona"` の質問を強制、設定済みなら再確認しない指示に変更。
+  - `applyOptionsModalAnswers()`: 質問グループの `id="persona"` または質問文がペルソナ系キーワードを含む場合、回答を `target-persona` 欄に自動保存。「その他: 自由入力」のプレフィックスを除去。既存値があれば上書きしない。
+  - 「⚡️ コードを作成」ボタンの `onclick` を `generateUiFirstReview()` → `generateCode()` に変更（フローティングボタン・チャット内動的ボタンの2か所）。
+  - `ui-review-modal` のHTMLブロックを削除。
+  - 旧UI先行レビュー関連の関数群を no-op スタブまたは `generateCode()` エイリアスに置換。
+  - `runPreviewDebugRequest()` から `isUiReviewRevision` 分岐を削除。
+- `sw.js`: `CACHE_NAME` を `v29-3-persona-first-mvp` に更新。
+- `CHAT_FAILURE_LOG.md`: 今回の修正を追記。
+
+### 後方互換性
+
+- `generateUiFirstReview` / `generateCoreLogicFromApprovedUi` は `generateCode()` への薄いエイリアスとして残置したため、旧ブックマークレットや永続化された workflow state からの再実行も壊れません。
+- `uiFirstGenerateButton`、`uiReviewModalTitle` などのi18nラベルは未使用のまま残置（削除すると失敗ログのルール「未指示の削除を行わない」に反するため）。
+
+---
+
 ## 今回の追加修正（2026-05-23）
 
 - Android/狭幅画面でコード画面のファイルタブと操作ボタンが重ならないよう、ツールバーとファイルタブを2段レイアウトへ変更。
