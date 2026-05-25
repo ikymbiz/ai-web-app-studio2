@@ -62,7 +62,43 @@
 - 実機Android Chromeでのタップ操作、キーボード表示、Service Worker更新は、この環境では実機検証できていない。
 - GitHub APIの実デプロイは、PAT権限とリポジトリ状態に依存するため、この環境では静的確認まで。
 
-## 2026-05-23 追加ログ：設定画面・添付仕様の不足
+## 2026-05-25 v29.3：ペルソナ先行 / MVP直接生成 / UIレビューモーダル廃止
+
+### 指摘内容（ユーザー要求 5項目）
+
+1. 最初にターゲットペルソナを確認し、ペルソナをセットすること。
+2. いくつかのユーザビリティの分岐に関する質問をして生成させるアプリの方向性を決めること。
+3. 基本的な機能やよしなにしても問題ない内容は質問しないこと。
+4. UIを先に決めたいが、最初の出力は MVP で実際に動くものであること。
+5. UIデザインの確認モーダルは廃止。
+
+### 対応
+
+- `prompts.json` の `plan` プロンプトを「ペルソナ未設定→ `id="persona"` 質問必須」「以降は UI/UX 分岐のみ」「基本機能（CRUD/保存/ログイン/言語/テーマ/PWA/エラー処理/空状態/最小ドキュメント）は質問せず既定で含める」「最初の出力は実際に動く MVP 前提」に書き換え。`_version` を `v29-3-persona-first-mvp` に更新。
+- `index.html` の `buildRequirementFlowInstruction()` をペルソナ有無で分岐させ、未設定時のみ `id="persona"` 質問を強制。
+- `applyOptionsModalAnswers()` に「`id="persona"` または質問文がペルソナ系キーワードに一致する場合、回答を `target-persona` 欄に自動保存し、`updatePromptPreviews()`／`autoSaveSettings()` を呼ぶ」処理を追加。ペルソナ回答は AI へ送るメッセージ本文からは除外し、再確認不要であることを AI に伝える。
+- 「⚡️ コードを作成」ボタンの `onclick` を `generateUiFirstReview()` → `generateCode()` に変更（フローティングボタン と チャット内動的ボタンの2か所）。
+- `ui-review-modal` の HTML ブロックを削除。
+- UI 先行レビュー関連関数（`generateUiFirstReview`／`generateCoreLogicFromApprovedUi`／`showUiReviewModal`／`closeUiReviewModal`／`approveUiReviewAndGenerateCore`／`requestUiRevisionFromReview`／`buildUiReviewSummary`／`saveUiFirstReviewState`／`getUiFirstReviewState`）を no-op スタブまたは `generateCode()` への薄いエイリアスに置換。互換性のため関数自体は残す。
+- `runPreviewDebugRequest()` から `isUiReviewRevision` 分岐を削除し、通常のデバッグ修正フローに統一。
+- `sw.js` の `CACHE_NAME` をバンプ。
+- `README.md` に変更内容を追記。
+
+### 維持した既存機能（削除していない項目）
+
+- APIキー管理、GitHub PAT、デプロイ、保存先設定、テーマ、テンプレート、プロンプトテンプレート編集。
+- 検証 AI、原因分析、自動修正フロー、進行ログ、`HANDOVER` 永続化。
+- 検証完了後の「プレビュー前レビュー」モーダル（`preview-review-modal`）。今回廃止したのは UI 先行レビューモーダル（`ui-review-modal`）のみ。
+- `uiFirstGenerateButton` などの i18n ラベルは未使用化したが、削除はせず残置（運用ルール「未指示の削除禁止」に従う）。
+- `summarizeUiSurface()` は永続化された workflow state からの参照に備えて軽量な後方互換実装として残す。
+
+### 再発防止
+
+- ユーザーが「ペルソナをセットすること」と指示した場合、AI 回答からの抽出だけに任せず、UI から確実に保存される経路（モーダル → 入力欄）を実装する。
+- 「最初の出力は MVP」のような要件は、プロンプト文言の書き換えだけでなく、実装上「どの関数が呼ばれるか」をボタン onclick まで遡って確認する。
+- モーダル廃止指示では、HTML だけでなく関連関数の参照箇所（呼び出し側）まで合わせて削除または無害化する。互換性のため即削除せず、no-op スタブを残す方針を採用。
+
+
 
 ### 指摘内容
 
